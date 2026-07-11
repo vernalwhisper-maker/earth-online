@@ -145,3 +145,26 @@
 .markdown-preview em { font-style: italic; }
 
 @import "./styles/patterns.css";
+
+/* 暗黑模式 */
+.dark {
+  --color-canvas-warm: #1a1a1a;
+  --color-surface: #2a2a2a;
+  --color-deep-ink: #e8e7e4;
+  --color-warm-steel: #a3a29e;
+  --color-faded-slate: #6b6a67;
+  --color-scribe: rgba(60, 60, 60, 0.6);
+}
+.dark .markdown-preview code {
+  background: rgba(255,255,255,0.1);
+}
+.dark .markdown-preview pre {
+  background: #0d0d0d;
+}
+.dark .markdown-preview th {
+  background: rgba(255,255,255,0.05);
+}
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #6b6a67;
+}

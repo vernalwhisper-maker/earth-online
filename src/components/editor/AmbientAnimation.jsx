@@ -28,7 +28,7 @@ function StarryParticles() {
             backgroundColor: "rgba(255,255,255,0.6)",
           }}
           animate={{
-            y: [0, -window.innerHeight - 50],
+            y: [0, -(typeof window !== 'undefined' ? window.innerHeight : 600) - 50],
             x: [0, p.drift],
             opacity: [0, 0.8, 0.6, 0],
           }}

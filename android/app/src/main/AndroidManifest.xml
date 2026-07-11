@@ -33,9 +33,32 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths"></meta-data>
         </provider>
+
+        <!-- Notification receivers -->
+        <receiver android:name="com.capacitorjs.plugins.localnotifications.NotificationReceiver" android:exported="false" />
+        <receiver android:name="com.capacitorjs.plugins.localnotifications.NotificationActionReceiver" android:exported="false" />
+        <!-- 地球Online 原生闹钟接收器（直接显示通知，不依赖 JS 桥接） -->
+        <receiver android:name=".AlarmReceiver" android:exported="false" />
+        <!-- 地球Online 原生通知频道重建接收器（系统重启后重新创建频道） -->
+        <receiver android:name=".BootReceiver"
+            android:exported="false"
+            android:permission="android.permission.RECEIVE_BOOT_COMPLETED">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+            </intent-filter>
+        </receiver>
     </application>
 
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 </manifest>

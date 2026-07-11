@@ -80,7 +80,6 @@ export default function AISettingsPage({ onBack }) {
             <MessageSquare size={14} className="text-warm-steel" />
           </button>
           <button onClick={async () => {
-            const { clearAllChatHistory } = await import("../../db");
             if (window.confirm("确定清除所有聊天记录？")) {
               await clearAllChatHistory();
               alert("已清除");

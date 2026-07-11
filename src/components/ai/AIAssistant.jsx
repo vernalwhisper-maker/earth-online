@@ -33,15 +33,15 @@ export default function AIAssistant({ noteId, notes = [], folders = [], noteTitl
     try {
       // 构建笔记上下文摘要供 AI 分析
       const notesForAI = notes.length > 0
-        ? "以下是用户的所有笔记摘要（供你直接分析，无需用户提供）：\n" + JSON.stringify(notes.map(n => ({
+        ? "以下是用户的部分笔记摘要（供你直接分析）：\n" + JSON.stringify(notes.slice(0, 15).map(n => ({
           title: n.title,
           type: n.noteType,
-          snippet: (n.body || "").slice(0, 80),
+          snippet: (n.body || "").slice(0, 60),
           tags: n.tags,
           folder: n.folderId,
           pinned: n.isPinned,
           hasTodo: n.noteType === "todo"
-        }))).slice(0, 3000)
+        }))).slice(0, 2000)
         : null;
       const enrichedMessages = notesForAI
         ? [{ role: "system", content: notesForAI }, ...messages, userMsg]

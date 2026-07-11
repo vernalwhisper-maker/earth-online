@@ -1,14 +1,15 @@
-import { create } from "zustand";
+﻿import { create } from "zustand";
 import { getSetting, setSetting } from "../db";
 import { encrypt, decrypt } from "../utils/crypto";
 
-const defaultInference = { temperature: 0.0, maxTokens: 100, topP: 1.0 };
+const defaultInference = { temperature: 0.0, maxTokens: 800, topP: 1.0 };
 
 const useSettingsStore = create((set, get) => ({
   modelProvider: "deepseek",
   apiKey: "",
   inference: { ...defaultInference },
   tabBarOpacity: 40,
+  darkMode: false,
   loaded: false,
 
   loadSettings: async () => {
@@ -20,7 +21,8 @@ const useSettingsStore = create((set, get) => ({
       ? Object.assign({}, defaultInference, inferenceRaw)
       : Object.assign({}, defaultInference);
         const tabBarOpacity = (await getSetting("tabBarOpacity")) ?? 40;
-    set({ modelProvider: provider, apiKey, inference, tabBarOpacity, loaded: true });
+        const darkMode = (await getSetting("darkMode")) ?? false;
+    set({ modelProvider: provider, apiKey, inference, tabBarOpacity, darkMode, loaded: true });
   },
 
   setModelProvider: async (provider) => {
@@ -47,6 +49,11 @@ const useSettingsStore = create((set, get) => ({
     await setSetting("inference", def);
     set({ inference: def });
   },
+  setDarkMode: async (value) => {
+    await setSetting("darkMode", value);
+    set({ darkMode: value });
+  },
+
   setTabBarOpacity: async (value) => {
     await setSetting("tabBarOpacity", value);
     set({ tabBarOpacity: value });

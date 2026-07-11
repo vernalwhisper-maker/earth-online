@@ -28,21 +28,30 @@ export default function MoreSettingsPage({ onBack }) {
       const notes = await getAllNotes();
       const blob = await exportToEonBlob(notes, password);
       const filename = generateFilename();
-      try {
+
+      // 读取 Blob 为 base64
+      const base64 = await new Promise((resolve, reject) => {
         const reader = new FileReader();
-        reader.onloadend = async () => {
-          const base64 = reader.result.split(",")[1];
-          await Filesystem.writeFile({ path: filename, data: base64, directory: Directory.Documents });
-          setImportResult({ success: true, count: notes.length, message: "已保存到 Documents/" + filename });
-        };
+        reader.onload = () => resolve(reader.result.split(",")[1]);
+        reader.onerror = () => reject(new Error("文件读取失败"));
         reader.readAsDataURL(blob);
-      } catch {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a"); a.href = url; a.download = filename; a.click();
-        URL.revokeObjectURL(url);
-        setImportResult({ success: true, count: notes.length });
+      });
+
+      // 策略1：写入 Documents 目录（Android 文件管理器可见）
+      try {
+        await Filesystem.writeFile({ path: filename, data: base64, directory: Directory.Documents });
+        const result = await Filesystem.getUri({ path: filename, directory: Directory.Documents });
+        setImportResult({ success: true, count: notes.length, message: "已保存到 Documents/\n" + filename });
+      } catch (docErr) {
+        console.warn("Documents write failed:", docErr);
+        // 策略2：写入缓存（总是可写）
+        await Filesystem.writeFile({ path: filename, data: base64, directory: Directory.Cache });
+        const result = await Filesystem.getUri({ path: filename, directory: Directory.Cache });
+        setImportResult({ success: true, count: notes.length, message: "已保存到缓存:\n" + result.uri });
       }
-    } catch (err) { setImportResult({ success: false, message: err.message }); }
+    } catch (err) {
+      setImportResult({ success: false, message: err.message || "导出失败" });
+    }
     setExporting(false);
   };
 

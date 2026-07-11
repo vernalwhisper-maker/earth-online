@@ -1,211 +1,195 @@
 ﻿// 笔记提醒通知服务
-// 双引擎：原生 Capacitor Local Notifications + Web Notification API 兜底
+// 引擎（按优先级）：
+//   1. 原生 Android AlarmManager.setAlarmClock() — 最高可靠性
+//   2. Capacitor Local Notifications — 兼容层
+//   3. Web Notification API — 兜底
+
+import {
+  nativeScheduleNotification,
+  nativeCancelNotification,
+} from "./earthOnlinePlugin";
 
 const SCHEDULE_KEY = "earth-online-scheduled-reminders";
+const CHANNEL_ID = "earth-online-reminders";
 
-let LocalNotificationsModule = null;
+let LocalNotifications = null;
 
-// 延迟加载原生模块
-async function getNativeModule() {
-  if (LocalNotificationsModule === undefined) {
+async function getLN() {
+  if (LocalNotifications === undefined) {
     try {
       const mod = await import("@capacitor/local-notifications");
-      LocalNotificationsModule = mod.LocalNotifications;
+      LocalNotifications = mod.LocalNotifications;
     } catch {
-      LocalNotificationsModule = null;
+      LocalNotifications = null;
     }
   }
-  return LocalNotificationsModule;
+  return LocalNotifications;
 }
 
-// ========== 原生引擎（Capacitor） ==========
+// 创建通知渠道（Android 必需）
+async function ensureChannel() {
+  const ln = await getLN();
+  if (!ln) return false;
+  try {
+    await ln.createChannel({
+      id: CHANNEL_ID,
+      name: "笔记提醒",
+      description: "地球Online 笔记提醒",
+      importance: 5,
+      visibility: 1,
+      sound: "default",
+      vibration: true,
+    });
+    return true;
+  } catch (e) {
+    console.warn("Channel creation (JS):", e);
+    return false;
+  }
+}
+
+// === 原生调度引擎（使用 AlarmManager.setAlarmClock）===
 
 async function scheduleNative(noteId, title, body, dateStr) {
-  const LN = await getNativeModule();
-  if (!LN) return false;
+  if (!noteId || !dateStr) return false;
+
+  const timestamp = new Date(dateStr).getTime();
+  if (timestamp <= Date.now()) return false;
+
+  // 1. 优先使用自定义原生插件（setAlarmClock，最高可靠性）
+  const ok = await nativeScheduleNotification({
+    id: noteId,
+    title: title || "地球Online",
+    body: body || "",
+    at: timestamp,
+  });
+  if (ok) return true;
+
+  // 2. 回退到 Capacitor Local Notifications 插件
+  const ln = await getLN();
+  if (!ln) return false;
+
   try {
-    await LN.requestPermissions();
-    await LN.schedule({
-      notifications: [
-        {
-          id: hashId(noteId),
-          title: title || "地球Online 提醒",
-          body: body || "你有未完成的笔记待查看",
-          schedule: { at: new Date(dateStr) },
-          sound: "default",
-          extra: { noteId },
-        },
-      ],
+    await ensureChannel();
+    const perm = await ln.checkPermissions();
+    if (perm.display !== "granted") {
+      const req = await ln.requestPermissions();
+      if (req.display !== "granted") return false;
+    }
+    await ln.schedule({
+      notifications: [{
+        id: hashId(noteId),
+        title: title || "地球Online",
+        body: body || "你有笔记待查看",
+        schedule: { at: new Date(dateStr), allowWhileIdle: true },
+        channelId: CHANNEL_ID,
+        smallIcon: "ic_stat_note",
+        sound: "default",
+        extra: { noteId },
+      }],
     });
     return true;
   } catch (err) {
-    console.warn("Native notification failed:", err);
+    console.warn("scheduleNative (Capacitor fallback):", err);
     return false;
   }
 }
 
 async function cancelNative(noteId) {
-  const LN = await getNativeModule();
-  if (!LN) return;
-  try {
-    await LN.cancel({ notifications: [{ id: hashId(noteId) }] });
-  } catch (err) {
-    console.warn("Cancel native notification failed:", err);
+  if (!noteId) return;
+
+  // 1. 取消原生闹钟
+  await nativeCancelNotification(noteId);
+
+  // 2. 同时取消 Capacitor 的调度
+  const ln = await getLN();
+  if (ln) {
+    try {
+      await ln.cancel({ notifications: [{ id: hashId(noteId) }] });
+    } catch { }
   }
 }
 
-// ========== Web 引擎（备用） ==========
-
-function getScheduledMap() {
-  try {
-    const raw = localStorage.getItem(SCHEDULE_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
+// === Web 引擎备用 ===
+function getMap() {
+  try { return JSON.parse(localStorage.getItem(SCHEDULE_KEY)) || {}; } catch { return {}; }
 }
-
-function saveScheduledMap(map) {
-  try {
-    localStorage.setItem(SCHEDULE_KEY, JSON.stringify(map));
-  } catch { /* ignore */ }
+function setMap(m) {
+  try { localStorage.setItem(SCHEDULE_KEY, JSON.stringify(m)); } catch { }
 }
-
-const webTimers = {};
+const timers = {};
 
 function scheduleWeb(noteId, title, body, dateStr) {
-  const now = Date.now();
   const target = new Date(dateStr).getTime();
-  const delay = target - now;
-
-  if (delay <= 0) {
-    triggerWebNotification(title, body, noteId);
-    return;
-  }
-
+  const delay = target - Date.now();
+  if (delay <= 0) { triggerWeb(title, body, noteId); return; }
   cancelWeb(noteId);
-
-  const map = getScheduledMap();
-  map[noteId] = { title, body, remindAt: dateStr };
-  saveScheduledMap(map);
-
-  webTimers[noteId] = setTimeout(() => {
-    triggerWebNotification(title, body, noteId);
-    const m = getScheduledMap();
-    delete m[noteId];
-    saveScheduledMap(m);
-    delete webTimers[noteId];
+  const m = getMap(); m[noteId] = { title, body, remindAt: dateStr }; setMap(m);
+  timers[noteId] = setTimeout(() => {
+    triggerWeb(title, body, noteId);
+    const mm = getMap(); delete mm[noteId]; setMap(mm);
+    delete timers[noteId];
   }, delay);
 }
 
 function cancelWeb(noteId) {
-  if (webTimers[noteId]) {
-    clearTimeout(webTimers[noteId]);
-    delete webTimers[noteId];
-  }
-  const map = getScheduledMap();
-  if (map[noteId]) {
-    delete map[noteId];
-    saveScheduledMap(map);
-  }
+  if (timers[noteId]) { clearTimeout(timers[noteId]); delete timers[noteId]; }
+  const m = getMap(); if (m[noteId]) { delete m[noteId]; setMap(m); }
 }
 
-async function triggerWebNotification(title, body, noteId) {
+async function triggerWeb(title, body, noteId) {
   if (!("Notification" in window)) return;
   if (Notification.permission === "granted") {
-    new Notification(title || "地球Online 提醒", {
-      body: body || "你有未完成的笔记待查看",
-      tag: "note-" + noteId,
-      icon: "/icons/favicon.png",
-    });
+    new Notification(title || "地球Online", { body: body || "", tag: "note-" + noteId, icon: "/icons/favicon.png" });
   } else if (Notification.permission !== "denied") {
-    const perm = await Notification.requestPermission();
-    if (perm === "granted") {
-      new Notification(title || "地球Online 提醒", {
-        body: body || "你有未完成的笔记待查看",
-        tag: "note-" + noteId,
-        icon: "/icons/favicon.png",
-      });
+    const p = await Notification.requestPermission();
+    if (p === "granted") {
+      new Notification(title || "地球Online", { body: body || "", tag: "note-" + noteId, icon: "/icons/favicon.png" });
     }
   }
 }
 
-// ========== 公共接口 ==========
-
 function hashId(str) {
   if (!str) return 0;
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = (hash << 5) - hash + char;
-    hash = hash & hash;
-  }
-  return Math.abs(hash) % 2147483647;
+  let h = 0;
+  for (let i = 0; i < str.length; i++) { h = ((h << 5) - h) + str.charCodeAt(i); h |= 0; }
+  return Math.abs(h) % 2147483647;
 }
 
-/** 调度提醒通知 */
 export async function scheduleReminder(noteId, title, body, remindDate) {
   if (!noteId || !remindDate) return;
   await cancelReminder(noteId);
-  const nativeOk = await scheduleNative(noteId, title, body, remindDate);
-  if (!nativeOk) {
-    scheduleWeb(noteId, title, body, remindDate);
-  }
+  const ok = await scheduleNative(noteId, title, body, remindDate);
+  if (!ok) scheduleWeb(noteId, title, body, remindDate);
 }
 
-/** 取消提醒通知 */
 export async function cancelReminder(noteId) {
   if (!noteId) return;
   await cancelNative(noteId);
   cancelWeb(noteId);
 }
 
-/** 检查通知权限状态 */
 export async function checkNotificationPermission() {
-  const LN = await getNativeModule();
+  const ln = await getLN();
   let native = false;
-  if (LN) {
-    try {
-      const perm = await LN.checkPermissions();
-      native = perm.display === "granted";
-    } catch { /* */ }
-  }
+  if (ln) { try { const p = await ln.checkPermissions(); native = p.display === "granted"; } catch { } }
   const web = "Notification" in window && Notification.permission === "granted";
   return { native, web, anyEnabled: native || web };
 }
 
-/** 请求通知权限 */
 export async function requestNotificationPermission() {
-  if ("Notification" in window && Notification.permission === "default") {
-    await Notification.requestPermission();
-  }
-  const LN = await getNativeModule();
-  if (LN) {
-    try {
-      await LN.requestPermissions();
-    } catch { /* */ }
-  }
+  if ("Notification" in window && Notification.permission === "default") await Notification.requestPermission();
+  const ln = await getLN();
+  if (ln) { try { await ln.requestPermissions(); await ensureChannel(); } catch { } }
 }
 
-/** 恢复未触发的定时器（应用启动时调用） */
 export function restoreScheduledReminders() {
   if (typeof window === "undefined") return;
-  const map = getScheduledMap();
-  const now = Date.now();
-  for (const [noteId, info] of Object.entries(map)) {
-    const target = new Date(info.remindAt).getTime();
-    const delay = target - now;
-    if (delay <= 0) {
-      triggerWebNotification(info.title, info.body, noteId);
-      delete map[noteId];
-    } else {
-      webTimers[noteId] = setTimeout(() => {
-        triggerWebNotification(info.title, info.body, noteId);
-        delete map[noteId];
-        saveScheduledMap(getScheduledMap());
-        delete webTimers[noteId];
-      }, delay);
-    }
+  const m = getMap(); const now = Date.now();
+  for (const [id, info] of Object.entries(m)) {
+    const t = new Date(info.remindAt).getTime();
+    const d = t - now;
+    if (d <= 0) { triggerWeb(info.title, info.body, id); delete m[id]; }
+    else { timers[id] = setTimeout(() => { triggerWeb(info.title, info.body, id); delete m[id]; setMap(getMap()); delete timers[id]; }, d); }
   }
-  saveScheduledMap(map);
+  setMap(m);
 }

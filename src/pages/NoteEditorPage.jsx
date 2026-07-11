@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, Plus, X, Save, Sparkles, Trash2,
@@ -52,6 +52,8 @@ export default function NoteEditorPage({ noteId, onBack }) {
   const [loaded, setLoaded] = useState(false);
 
   const noteIdRef = useRef(null);
+  const [images, setImages] = useState([]);
+  const fileInputRef = useRef(null);
   const latestRef = useRef({});
 
   // Sync ref with state

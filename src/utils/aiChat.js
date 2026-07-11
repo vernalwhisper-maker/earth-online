@@ -1,4 +1,4 @@
-﻿// AI 对话与摘要 API 工具
+// AI 对话与摘要 API 工具
 
 const API_CONFIG = {
   deepseek: { endpoint: "https://api.deepseek.com/v1/chat/completions", model: "deepseek-chat" },
@@ -104,6 +104,56 @@ export async function generateSummary(noteContent, apiKey, provider, inference) 
 }
 
 // AI 对话
+export async function chatWithAIStream(messages, apiKey, provider, inference, onChunk) {
+  if (!apiKey) return null;
+  const config = API_CONFIG[provider || "deepseek"];
+  if (!config) return null;
+  try {
+    const response = await fetch(config.endpoint, {
+      method: "POST",
+      headers: { "Authorization": "Bearer " + apiKey, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: config.model,
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          ...messages.map((m) => ({ role: m.role, content: m.content })),
+        ],
+        temperature: inference?.temperature || 0.7,
+        max_tokens: inference?.maxTokens || 800,
+        stream: true,
+      }),
+    });
+    if (!response.ok) return null;
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let fullText = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = decoder.decode(value, { stream: true });
+      const lines = chunk.split("\n");
+      for (const line of lines) {
+        if (line.startsWith("data: ")) {
+          const data = line.slice(6).trim();
+          if (data === "[DONE]") continue;
+          try {
+            const parsed = JSON.parse(data);
+            const delta = parsed.choices?.[0]?.delta?.content || "";
+            if (delta) {
+              fullText += delta;
+              onChunk?.(fullText, delta);
+            }
+          } catch {}
+        }
+      }
+    }
+    return fullText;
+  } catch (err) {
+    console.error("AI streaming failed:", err);
+    return null;
+  }
+}
+
 export async function chatWithAI(messages, apiKey, provider, inference) {
   if (!apiKey) return null;
   const config = API_CONFIG[provider || "deepseek"];

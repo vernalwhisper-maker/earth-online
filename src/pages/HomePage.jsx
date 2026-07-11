@@ -1,4 +1,4 @@
-﻿import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { createPortal } from "react-dom";
 import {
@@ -219,6 +219,22 @@ export default function HomePage({ onNewNote, onEditNote }) {
         )}
       </div>
 
+      {/* Quick stats */}
+      <div className="grid grid-cols-3 gap-2 mb-3">
+        <div className="bg-surface rounded-card border border-scribe p-2.5 text-center">
+          <p className="text-xs text-faded-slate">笔记</p>
+          <p className="text-lg font-bold text-deep-ink">{notes.length}</p>
+        </div>
+        <div className="bg-surface rounded-card border border-scribe p-2.5 text-center">
+          <p className="text-xs text-faded-slate">标签</p>
+          <p className="text-lg font-bold text-amber-500">{tags.length}</p>
+        </div>
+        <div className="bg-surface rounded-card border border-scribe p-2.5 text-center">
+          <p className="text-xs text-faded-slate">已置顶</p>
+          <p className="text-lg font-bold text-violet-500">{notes.filter(n => n.isPinned).length}</p>
+        </div>
+      </div>
+
       {/* Search bar (hide in select mode) */}
       {!selectMode && (
         <div className="relative mb-3" ref={searchRef}>
@@ -274,7 +290,15 @@ export default function HomePage({ onNewNote, onEditNote }) {
       {/* Note list */}
       <AnimatePresence mode="wait">
         {isLoading ? (
-          <motion.div key="loading" className="flex flex-col items-center justify-center py-16"><div className="w-10 h-10 border-2 border-emerald/30 border-t-emerald rounded-full animate-spin mb-4" /><p className="text-sm text-warm-steel">加载中..</p></motion.div>
+          <motion.div key="loading" className="flex flex-col gap-3 py-4">
+            {[1,2,3].map((i) => (
+              <div key={i} className="bg-surface rounded-card border border-scribe p-4 animate-pulse">
+                <div className="h-4 bg-scribe/50 rounded w-3/4 mb-3" />
+                <div className="h-3 bg-scribe/30 rounded w-full mb-2" />
+                <div className="h-3 bg-scribe/30 rounded w-2/3" />
+              </div>
+            ))}
+          </motion.div>
         ) : showEmpty ? (
           <motion.div key="empty" className="flex flex-col items-center justify-center py-16 text-center">
             <div className="w-16 h-16 rounded-xl bg-scribe/30 flex items-center justify-center mb-4"><FileText size={28} className="text-faded-slate" /></div>

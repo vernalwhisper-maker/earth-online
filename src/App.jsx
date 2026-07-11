@@ -13,9 +13,11 @@ import AchievementDetailPage from "./pages/AchievementDetailPage";
 import SettingsPage from "./pages/SettingsPage";
 import TabBar from "./components/layout/TabBar";
 import UnlockModal from "./components/achievements/UnlockModal";
+import ToastContainer from "./components/ui/Toast";
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState("home");
+  const darkMode = useSettingsStore((s) => s.darkMode);
   const [editingNoteId, setEditingNoteId] = useState(null);
   const [viewingAchievementId, setViewingAchievementId] = useState(null);
   const currentPageRef = useRef(currentPage);
@@ -39,6 +41,22 @@ export default function App() {
     useFolderStore.getState().loadFolders();
     // 恢复未触发的 Web 提醒定时器
     restoreScheduledReminders();
+
+    // 启动时主动创建原生通知频道 + 请求通知权限
+    import("@capacitor/local-notifications").then(({ LocalNotifications }) => {
+      LocalNotifications.createChannel({
+        id: "earth-online-reminders",
+        name: "笔记提醒",
+        description: "地球Online 笔记提醒",
+        importance: 5,
+        visibility: 1,
+        sound: "default",
+        vibration: true,
+      }).then(() => {
+        // 静默请求通知权限（用户会看到系统弹窗）
+        LocalNotifications.requestPermissions().catch(() => {});
+      }).catch(() => {});
+    }).catch(() => {});
 
     import("@capacitor/status-bar").then(({ StatusBar }) => {
       StatusBar.setOverlaysWebView({ overlay: false });
@@ -64,6 +82,10 @@ export default function App() {
       });
     }).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", darkMode);
+  }, [darkMode]);
 
   const navigateTo = (page) => {
     setCurrentPage(page);
@@ -110,6 +132,7 @@ export default function App() {
             onViewAll={() => { dismissLastUnlocked(); setCurrentPage("gallery"); }} />
         )}
       </AnimatePresence>
+      <ToastContainer />
     </div>
   );
 }

@@ -14,8 +14,13 @@ export async function exportToEonBlob(notes, password) {
 }
 
 export function generateFilename() {
-  const date = new Date().toISOString().slice(0, 10);
-  return "earth-online-notes-" + date + FILE_EXT;
+  const now = new Date();
+  const y = now.getFullYear();
+  const M = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  const h = String(now.getHours()).padStart(2, "0");
+  const m = String(now.getMinutes()).padStart(2, "0");
+  return `${y}${M}${d}_${h}${m}_笔记文件${FILE_EXT}`;
 }
 
 export async function parseEonFile(file, password) {
