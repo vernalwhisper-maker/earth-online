@@ -1,0 +1,56 @@
+import { create } from "zustand";
+import { getSetting, setSetting } from "../db";
+import { encrypt, decrypt } from "../utils/crypto";
+
+const defaultInference = { temperature: 0.0, maxTokens: 100, topP: 1.0 };
+
+const useSettingsStore = create((set, get) => ({
+  modelProvider: "deepseek",
+  apiKey: "",
+  inference: { ...defaultInference },
+  tabBarOpacity: 40,
+  loaded: false,
+
+  loadSettings: async () => {
+    const provider = (await getSetting("modelProvider")) || "deepseek";
+    const encryptedKey = (await getSetting("apiKey")) || "";
+    const apiKey = encryptedKey ? await decrypt(encryptedKey) : "";
+    const inferenceRaw = await getSetting("inference");
+    const inference = inferenceRaw
+      ? Object.assign({}, defaultInference, inferenceRaw)
+      : Object.assign({}, defaultInference);
+        const tabBarOpacity = (await getSetting("tabBarOpacity")) ?? 40;
+    set({ modelProvider: provider, apiKey, inference, tabBarOpacity, loaded: true });
+  },
+
+  setModelProvider: async (provider) => {
+    await setSetting("modelProvider", provider);
+    set({ modelProvider: provider });
+  },
+
+  setApiKey: async (key) => {
+    const encrypted = await encrypt(key);
+    await setSetting("apiKey", encrypted);
+    set({ apiKey: key });
+  },
+
+  setInferenceParam: async (key, value) => {
+    const current = get().inference;
+    const updated = Object.assign({}, current);
+    updated[key] = value;
+    await setSetting("inference", updated);
+    set({ inference: updated });
+  },
+
+  resetInference: async () => {
+    const def = Object.assign({}, defaultInference);
+    await setSetting("inference", def);
+    set({ inference: def });
+  },
+  setTabBarOpacity: async (value) => {
+    await setSetting("tabBarOpacity", value);
+    set({ tabBarOpacity: value });
+  },
+}));
+
+export default useSettingsStore;

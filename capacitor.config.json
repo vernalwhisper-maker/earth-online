@@ -1,0 +1,16 @@
+{
+  "appId": "com.earthonline.app",
+  "appName": "地球Online",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "StatusBar": {
+      "style": "DARK",
+      "backgroundColor": "#f8f7f4",
+      "overlaysWebView": false
+    }
+  }
+}

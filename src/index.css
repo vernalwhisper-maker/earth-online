@@ -1,0 +1,100 @@
+@import "tailwindcss";
+
+@theme {
+  --color-canvas-warm: #f8f7f4;
+  --color-surface: #ffffff;
+  --color-deep-ink: #1c1b1a;
+  --color-warm-steel: #6b6a67;
+  --color-faded-slate: #a3a29e;
+  --color-emerald: #10b981;
+  --color-emerald-dark: #059669;
+  --color-scribe: rgba(220, 219, 214, 0.6);
+  --color-golden: #f59e0b;
+  --color-violet: #8b5cf6;
+  --color-blue: #3b82f6;
+  --color-rose: #e11d48;
+
+  --font-sans: -apple-system, "PingFang SC", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
+
+  --radius-card: 1rem;
+  --radius-modal: 1.5rem;
+  --radius-btn: 0.75rem;
+  --radius-input: 0.75rem;
+  --radius-icon: 0.5rem;
+
+  --shadow-soft: 0 4px 30px rgba(0, 0, 0, 0.04);
+  --shadow-fab: 0 4px 16px rgba(0, 0, 0, 0.1);
+
+  --animate-shimmer: shimmer 1.5s ease-in-out infinite;
+  --animate-float: float 3s ease-in-out infinite;
+  --animate-pulse-emerald: pulse-emerald 1.5s ease-in-out infinite;
+  --animate-breathe: breathe 2s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes pulse-emerald {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+  50% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+}
+
+@keyframes breathe {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+@layer base {
+  html {
+    font-size: 15px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background-color: var(--color-canvas-warm);
+    color: var(--color-deep-ink);
+    min-height: 100dvh;
+    overflow-x: hidden;
+  }
+
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  input, textarea, select {
+    font-family: var(--font-sans);
+  }
+
+  ::selection {
+    background-color: rgba(16, 185, 129, 0.2);
+  }
+}
+
+@layer utilities {
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@layer utilities {
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top);
+  }
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
