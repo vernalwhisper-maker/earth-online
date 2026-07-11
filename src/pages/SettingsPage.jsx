@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { MessageSquare, Bell, Settings, FileText, Trophy, Sparkles, Trash2, X, RefreshCw, Archive, Folder as FolderIcon, Plus } from "lucide-react";
+import { MessageSquare, Settings, FileText, Trophy, Sparkles, Trash2, X, RefreshCw, Archive, Folder as FolderIcon, Plus } from "lucide-react";
 import useSettingsStore from "../store/settingsStore";
 import useNoteStore from "../store/noteStore";
 import useFolderStore from "../store/folderStore";
@@ -9,7 +9,6 @@ import { getDeletedNotes, restoreNote, permanentDeleteNote } from "../db";
 import { getChatStats, clearAllChatHistory, getAllChatMessages } from "../db";
 
 import AISettingsPage from "./subpages/AISettingsPage";
-import NotificationSettingsPage from "./subpages/NotificationSettingsPage";
 import MoreSettingsPage from "./subpages/MoreSettingsPage";
 
 export default function SettingsPage() {
@@ -41,7 +40,6 @@ export default function SettingsPage() {
 
   // Sub-page navigation
   if (subPage === "ai") return <AISettingsPage onBack={() => setSubPage(null)} />;
-  if (subPage === "notification") return <NotificationSettingsPage onBack={() => setSubPage(null)} />;
   if (subPage === "more") return <MoreSettingsPage onBack={() => setSubPage(null)} />;
 
   if (!loaded) {
@@ -69,21 +67,6 @@ export default function SettingsPage() {
           <div>
             <p className="text-sm font-medium text-deep-ink">AI 设置</p>
             <p className="text-xs text-faded-slate">模型、推理参数、聊天记录</p>
-          </div>
-        </div>
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-faded-slate"><path d="m9 18 6-6-6-6"/></svg>
-      </button>
-
-      {/* 通知设置按钮 */}
-      <button onClick={() => setSubPage("notification")}
-        className="w-full flex items-center justify-between px-4 py-3.5 bg-surface rounded-card border border-scribe text-left hover:bg-canvas-warm transition-colors mb-3">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center">
-            <Bell size={20} className="text-amber-500" />
-          </div>
-          <div>
-            <p className="text-sm font-medium text-deep-ink">通知设置</p>
-            <p className="text-xs text-faded-slate">笔记提醒、通知权限</p>
           </div>
         </div>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-faded-slate"><path d="m9 18 6-6-6-6"/></svg>

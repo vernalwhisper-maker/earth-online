@@ -4,7 +4,6 @@ import useNoteStore from "./store/noteStore";
 import useAchievementStore from "./store/achievementStore";
 import useSettingsStore from "./store/settingsStore";
 import useTodoStore from "./store/todoStore";
-import { restoreScheduledReminders } from "./utils/notifications";
 import useFolderStore from "./store/folderStore";
 import HomePage from "./pages/HomePage";
 import NoteEditorPage from "./pages/NoteEditorPage";
@@ -39,24 +38,6 @@ export default function App() {
     loadSettings();
     loadTodos();
     useFolderStore.getState().loadFolders();
-    // 恢复未触发的 Web 提醒定时器
-    restoreScheduledReminders();
-
-    // 启动时主动创建原生通知频道 + 请求通知权限
-    import("@capacitor/local-notifications").then(({ LocalNotifications }) => {
-      LocalNotifications.createChannel({
-        id: "earth-online-reminders",
-        name: "笔记提醒",
-        description: "地球Online 笔记提醒",
-        importance: 5,
-        visibility: 1,
-        sound: "default",
-        vibration: true,
-      }).then(() => {
-        // 静默请求通知权限（用户会看到系统弹窗）
-        LocalNotifications.requestPermissions().catch(() => {});
-      }).catch(() => {});
-    }).catch(() => {});
 
     import("@capacitor/status-bar").then(({ StatusBar }) => {
       StatusBar.setOverlaysWebView({ overlay: false });

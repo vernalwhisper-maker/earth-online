@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, Plus, X, Save, Sparkles, Trash2,
-  Pin, Bell, Folder, Palette, CheckSquare, Award, StickyNote, FileText,
+  Pin, Folder, Palette, CheckSquare, Award, StickyNote, FileText,
 } from "lucide-react";
 import useNoteStore from "../store/noteStore";
 import useAchievementStore from "../store/achievementStore";
@@ -15,7 +15,6 @@ import BackgroundSelector from "../components/editor/BackgroundSelector";
 import AmbientAnimation from "../components/editor/AmbientAnimation";
 import useFolderStore from "../store/folderStore";
 import NoteLinks from "../components/notes/NoteLinks";
-import { scheduleReminder, cancelReminder } from "../utils/notifications";
 
 const TYPE_ICONS = {
   journal: FileText,
@@ -39,9 +38,6 @@ export default function NoteEditorPage({ noteId, onBack }) {
   const [isPinned, setIsPinned] = useState(false);
   const [bgColorId, setBgColorId] = useState(0);
   const [folderId, setFolderId] = useState("inbox");
-  const [reminderDate, setReminderDate] = useState("");
-  const [useMarkdown, setUseMarkdown] = useState(false);
-  const [markdownContent, setMarkdownContent] = useState("");
   const [bgPattern, setBgPattern] = useState("solid");
   const [animTheme, setAnimTheme] = useState("none");
   const folders = useFolderStore((s) => s.folders);
@@ -58,7 +54,7 @@ export default function NoteEditorPage({ noteId, onBack }) {
 
   // Sync ref with state
   const syncRef = () => {
-    latestRef.current = { title, body, tags, noteType, isPinned, bgColorId, bgPattern, animTheme, folderId, reminderDate, useMarkdown, markdownContent, contentMarkdown: useMarkdown ? markdownContent : null };
+    latestRef.current = { title, body, tags, noteType, isPinned, bgColorId, bgPattern, animTheme, folderId, useMarkdown, markdownContent, contentMarkdown: useMarkdown ? markdownContent : null };
   };
   syncRef();
 
@@ -76,7 +72,6 @@ export default function NoteEditorPage({ noteId, onBack }) {
           setIsPinned(note.isPinned || false);
           setBgColorId(note.bgColorId ?? 0);
           setFolderId(note.folderId || "inbox");
-          setReminderDate(note.reminderDate || "");
           setUseMarkdown(!!note.contentMarkdown);
           setMarkdownContent(note.contentMarkdown || "");
           setBgPattern(note.bgPattern || "solid");
@@ -89,7 +84,7 @@ export default function NoteEditorPage({ noteId, onBack }) {
       noteIdRef.current = null;
       setTitle(""); setBody(""); setTags([]); setTagInput("");
       setNoteType("journal"); setIsPinned(false); setBgColorId(0);
-      setFolderId("inbox"); setReminderDate("");
+      setFolderId("inbox");
       setLoaded(true);
     }
   }, [noteId]);
@@ -101,7 +96,7 @@ export default function NoteEditorPage({ noteId, onBack }) {
       await performSave(false, latestRef.current);
     }, 2000);
     return () => clearTimeout(timer);
-  }, [title, body, tags, noteType, isPinned, bgColorId, bgPattern, animTheme, folderId, reminderDate, useMarkdown, markdownContent, loaded]);
+  }, [title, body, tags, noteType, isPinned, bgColorId, bgPattern, animTheme, folderId, useMarkdown, markdownContent, loaded]);
 
   const performSave = async (triggerAI, snap) => {
     const s = snap || latestRef.current;
@@ -119,7 +114,6 @@ export default function NoteEditorPage({ noteId, onBack }) {
         bgPattern: s.bgPattern || "solid",
         animTheme: s.animTheme || "none",
         folderId: s.folderId,
-        reminderDate: s.reminderDate || null,
         images: [],
         snippet: (s.body || "").slice(0, 120),
       };
@@ -132,14 +126,6 @@ export default function NoteEditorPage({ noteId, onBack }) {
         for (const id of matchedIds) {
           await unlockAchievement(id, saved.id);
         }
-      }
-      // 处理提醒通知
-      const remindDate = s.reminderDate?.trim();
-      if (remindDate) {
-        scheduleReminder(saved.id, s.title, s.body ? s.body.slice(0, 60) : "", remindDate);
-      } else {
-        // 如果之前有提醒现在清除了，取消
-        cancelReminder(saved.id);
       }
       setSaveStatus("saved");
     } catch (err) {
@@ -158,7 +144,6 @@ export default function NoteEditorPage({ noteId, onBack }) {
     const id = noteIdRef.current;
     if (!id) return;
     try {
-      cancelReminder(id);
       await deleteNoteFromStore(id);
       onBack();
     } catch (err) {
@@ -294,11 +279,6 @@ export default function NoteEditorPage({ noteId, onBack }) {
                     className="w-full px-3 py-1.5 text-sm border border-scribe rounded-input bg-white/60 text-deep-ink focus:outline-none focus:ring-2 focus:ring-emerald">
                     {(folders.length > 0 ? folders : DEFAULT_FOLDERS).map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
                   </select>
-                </div>
-                <div>
-                  <label className="text-xs font-mono text-faded-slate mb-1.5 block flex items-center gap-1"><Bell size={10} /> 提醒</label>
-                  <input type="datetime-local" value={reminderDate} onChange={(e) => setReminderDate(e.target.value)}
-                    className="w-full px-3 py-1.5 text-sm border border-scribe rounded-input bg-white/60 text-deep-ink focus:outline-none focus:ring-2 focus:ring-emerald" />
                 </div>
               </div>
             </motion.div>

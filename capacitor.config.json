@@ -12,11 +12,6 @@
       "backgroundColor": "#f8f7f4",
       "overlaysWebView": false
     },
-    "LocalNotifications": {
-      "smallIcon": "ic_stat_note",
-      "iconColor": "#10b981",
-      "sound": "default"
-    },
     "Filesystem": {
       "android": {
         "permissions": ["WRITE_EXTERNAL_STORAGE", "READ_EXTERNAL_STORAGE"]
