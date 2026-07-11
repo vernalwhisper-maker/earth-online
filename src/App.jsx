@@ -1,8 +1,11 @@
-import { useState, useEffect, useRef } from "react";
+﻿import { useState, useEffect, useRef } from "react";
 import { AnimatePresence } from "framer-motion";
 import useNoteStore from "./store/noteStore";
 import useAchievementStore from "./store/achievementStore";
 import useSettingsStore from "./store/settingsStore";
+import useTodoStore from "./store/todoStore";
+import { restoreScheduledReminders } from "./utils/notifications";
+import useFolderStore from "./store/folderStore";
 import HomePage from "./pages/HomePage";
 import NoteEditorPage from "./pages/NoteEditorPage";
 import AchievementGalleryPage from "./pages/AchievementGalleryPage";
@@ -20,28 +23,29 @@ export default function App() {
   const loadNotes = useNoteStore((s) => s.loadNotes);
   const loadState = useAchievementStore((s) => s.loadState);
   const loadSettings = useSettingsStore((s) => s.loadSettings);
+  const loadTodos = useTodoStore((s) => s.loadAll);
   const lastUnlocked = useAchievementStore((s) => s.lastUnlocked);
   const dismissLastUnlocked = useAchievementStore((s) => s.dismissLastUnlocked);
 
-  // Keep ref in sync for back button handler
   useEffect(() => {
     currentPageRef.current = currentPage;
   }, [currentPage]);
 
-  // Initial load + native plugins setup
   useEffect(() => {
     loadNotes();
     loadState();
     loadSettings();
+    loadTodos();
+    useFolderStore.getState().loadFolders();
+    // 恢复未触发的 Web 提醒定时器
+    restoreScheduledReminders();
 
-    // Status bar (only on native)
     import("@capacitor/status-bar").then(({ StatusBar }) => {
       StatusBar.setOverlaysWebView({ overlay: false });
       StatusBar.setStyle({ style: "DARK" });
       StatusBar.setBackgroundColor({ color: "#f8f7f4" });
     }).catch(() => {});
 
-    // Android back button
     import("@capacitor/app").then(({ App }) => {
       App.addListener("backButton", () => {
         const page = currentPageRef.current;
@@ -73,43 +77,17 @@ export default function App() {
       case "home":
         return (
           <HomePage
-            onNewNote={() => {
-              setEditingNoteId("new");
-              setCurrentPage("editor");
-            }}
-            onEditNote={(id) => {
-              setEditingNoteId(id);
-              setCurrentPage("editor");
-            }}
-            onViewAchievement={(id) => {
-              setViewingAchievementId(id);
-              setCurrentPage("achievement-detail");
-            }}
+            onNewNote={() => { setEditingNoteId("new"); setCurrentPage("editor"); }}
+            onEditNote={(id) => { setEditingNoteId(id); setCurrentPage("editor"); }}
+            onViewAchievement={(id) => { setViewingAchievementId(id); setCurrentPage("achievement-detail"); }}
           />
         );
       case "editor":
-        return (
-          <NoteEditorPage
-            noteId={editingNoteId}
-            onBack={() => setCurrentPage("home")}
-          />
-        );
+        return <NoteEditorPage noteId={editingNoteId} onBack={() => setCurrentPage("home")} />;
       case "gallery":
-        return (
-          <AchievementGalleryPage
-            onViewAchievement={(id) => {
-              setViewingAchievementId(id);
-              setCurrentPage("achievement-detail");
-            }}
-          />
-        );
+        return <AchievementGalleryPage onViewAchievement={(id) => { setViewingAchievementId(id); setCurrentPage("achievement-detail"); }} />;
       case "achievement-detail":
-        return (
-          <AchievementDetailPage
-            achievementId={viewingAchievementId}
-            onBack={() => setCurrentPage("gallery")}
-          />
-        );
+        return <AchievementDetailPage achievementId={viewingAchievementId} onBack={() => setCurrentPage("gallery")} />;
       case "settings":
         return <SettingsPage />;
       default:
@@ -124,19 +102,11 @@ export default function App() {
       <main className="flex-1 overflow-y-auto pt-6 pb-24">
         <AnimatePresence mode="wait">{renderPage()}</AnimatePresence>
       </main>
-
       {showTabBar && <TabBar currentPage={currentPage} onNavigate={navigateTo} />}
-
       <AnimatePresence>
         {lastUnlocked && (
-          <UnlockModal
-            achievement={lastUnlocked}
-            onDismiss={dismissLastUnlocked}
-            onViewAll={() => {
-              dismissLastUnlocked();
-              setCurrentPage("gallery");
-            }}
-          />
+          <UnlockModal achievement={lastUnlocked} onDismiss={dismissLastUnlocked}
+            onViewAll={() => { dismissLastUnlocked(); setCurrentPage("gallery"); }} />
         )}
       </AnimatePresence>
     </div>

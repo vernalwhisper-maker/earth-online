@@ -1,0 +1,100 @@
+﻿/* ===== 页面背景图案 ===== */
+/* 使用 CSS background-image 生成纯 CSS 图案，零资源开销 */
+
+/* 网格图案 */
+.bg-pattern-grid {
+  background-image:
+    linear-gradient(rgba(0,0,0,0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,0,0,0.06) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* 深色模式网格 */
+.bg-pattern-grid.bg-pattern-dark {
+  background-image:
+    linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px);
+}
+
+/* 点阵图案 */
+.bg-pattern-dot {
+  background-image: radial-gradient(circle, rgba(0,0,0,0.1) 1.5px, transparent 1.5px);
+  background-size: 20px 20px;
+}
+
+.bg-pattern-dot.bg-pattern-dark {
+  background-image: radial-gradient(circle, rgba(255,255,255,0.12) 1.5px, transparent 1.5px);
+}
+
+/* 横线图案（笔记本风格） */
+.bg-pattern-lined {
+  background-image: linear-gradient(rgba(0,0,0,0.06) 1px, transparent 1px);
+  background-size: 100% 28px;
+}
+
+.bg-pattern-lined.bg-pattern-dark {
+  background-image: linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px);
+}
+
+/* ===== 动效主题 ===== */
+
+/* 星空闪烁 */
+@keyframes twinkle {
+  0%, 100% { opacity: 0.3; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+
+@keyframes fall {
+  0% { transform: translateY(-10vh) rotate(0deg); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translateY(110vh) rotate(360deg); opacity: 0; }
+}
+
+.anim-particle {
+  position: fixed;
+  pointer-events: none;
+  z-index: 0;
+  border-radius: 50%;
+}
+
+/* 浮游几何 */
+@keyframes float-drift {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  25% { transform: translateY(-15px) rotate(5deg); }
+  50% { transform: translateY(-8px) rotate(-3deg); }
+  75% { transform: translateY(-20px) rotate(8deg); }
+}
+
+.anim-geo {
+  position: fixed;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.08;
+}
+
+/* 流光 */
+@keyframes shimmer-slide {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.anim-shimmer-bg {
+  position: relative;
+  overflow: hidden;
+}
+
+.anim-shimmer-bg::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255,255,255,0.15) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer-slide 3s ease-in-out infinite;
+  pointer-events: none;
+}

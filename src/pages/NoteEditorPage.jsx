@@ -1,10 +1,28 @@
-import { useState, useEffect, useRef } from "react";
-import { motion } from "framer-motion";
-import { ArrowLeft, Plus, X, Save, Sparkles, Trash2 } from "lucide-react";
+﻿import { useState, useEffect, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  ArrowLeft, Plus, X, Save, Sparkles, Trash2,
+  Pin, Bell, Folder, Palette, CheckSquare, Award, StickyNote, FileText,
+} from "lucide-react";
 import useNoteStore from "../store/noteStore";
 import useAchievementStore from "../store/achievementStore";
 import useSettingsStore from "../store/settingsStore";
 import { matchAchievements } from "../api/ai";
+import { NOTE_TYPES, NOTE_TYPE_KEYS, BG_COLORS, DEFAULT_FOLDERS } from "../data/noteTypes";
+import TodoChecklist from "../components/todo/TodoChecklist";
+import MarkdownEditor from "../components/editor/MarkdownEditor";
+import BackgroundSelector from "../components/editor/BackgroundSelector";
+import AmbientAnimation from "../components/editor/AmbientAnimation";
+import useFolderStore from "../store/folderStore";
+import NoteLinks from "../components/notes/NoteLinks";
+import { scheduleReminder, cancelReminder } from "../utils/notifications";
+
+const TYPE_ICONS = {
+  journal: FileText,
+  todo: CheckSquare,
+  milestone: Award,
+  flashcard: StickyNote,
+};
 
 export default function NoteEditorPage({ noteId, onBack }) {
   const getNoteById = useNoteStore((s) => s.getNoteById);
@@ -17,92 +35,128 @@ export default function NoteEditorPage({ noteId, onBack }) {
   const [body, setBody] = useState("");
   const [tags, setTags] = useState([]);
   const [tagInput, setTagInput] = useState("");
-  const [saveStatus, setSaveStatus] = useState(""); // "" | "saving" | "saved" | "ai-analyzing"
+  const [noteType, setNoteType] = useState("journal");
+  const [isPinned, setIsPinned] = useState(false);
+  const [bgColorId, setBgColorId] = useState(0);
+  const [folderId, setFolderId] = useState("inbox");
+  const [reminderDate, setReminderDate] = useState("");
+  const [useMarkdown, setUseMarkdown] = useState(false);
+  const [markdownContent, setMarkdownContent] = useState("");
+  const [bgPattern, setBgPattern] = useState("solid");
+  const [animTheme, setAnimTheme] = useState("none");
+  const folders = useFolderStore((s) => s.folders);
+  const { loadFolders } = useFolderStore();
+  const [saveStatus, setSaveStatus] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showMetaPanel, setShowMetaPanel] = useState(false);
+  const [loaded, setLoaded] = useState(false);
 
-  const autoSaveTimer = useRef(null);
   const noteIdRef = useRef(null);
-  const latestRef = useRef({ title: "", body: "", tags: [] });
+  const latestRef = useRef({});
 
-  // Keep latestRef in sync
-  latestRef.current = { title, body, tags };
+  // Sync ref with state
+  const syncRef = () => {
+    latestRef.current = { title, body, tags, noteType, isPinned, bgColorId, bgPattern, animTheme, folderId, reminderDate, useMarkdown, markdownContent, contentMarkdown: useMarkdown ? markdownContent : null };
+  };
+  syncRef();
 
   const isExistingNote = noteId && noteId !== "new";
 
   useEffect(() => {
     if (noteId && noteId !== "new") {
+      setLoaded(false);
       getNoteById(noteId).then((note) => {
         if (note) {
           setTitle(note.title || "");
           setBody(note.body || "");
           setTags(note.tags || []);
+          setNoteType(note.noteType || "journal");
+          setIsPinned(note.isPinned || false);
+          setBgColorId(note.bgColorId ?? 0);
+          setFolderId(note.folderId || "inbox");
+          setReminderDate(note.reminderDate || "");
+          setUseMarkdown(!!note.contentMarkdown);
+          setMarkdownContent(note.contentMarkdown || "");
+          setBgPattern(note.bgPattern || "solid");
+          setAnimTheme(note.animTheme || "none");
           noteIdRef.current = note.id;
         }
+        setLoaded(true);
       });
     } else {
-      // Entering "new" mode: reset ref + form to avoid stale-ref overwrite
       noteIdRef.current = null;
-      setTitle("");
-      setBody("");
-      setTags([]);
-      setTagInput("");
+      setTitle(""); setBody(""); setTags([]); setTagInput("");
+      setNoteType("journal"); setIsPinned(false); setBgColorId(0);
+      setFolderId("inbox"); setReminderDate("");
+      setLoaded(true);
     }
   }, [noteId]);
 
-  // Auto-save after 2s of no input (no AI trigger)
-  // Uses latestRef to avoid stale closure issues
+  // Auto-save
   useEffect(() => {
-    if (!title && !body) return;
+    if (!loaded || (!title && !body)) return;
     const timer = setTimeout(async () => {
-      const { title: t, body: b, tags: tg } = latestRef.current;
-      await performSave(false, t, b, tg);
+      await performSave(false, latestRef.current);
     }, 2000);
     return () => clearTimeout(timer);
-  }, [title, body, tags]);
+  }, [title, body, tags, noteType, isPinned, bgColorId, bgPattern, animTheme, folderId, reminderDate, useMarkdown, markdownContent, loaded]);
 
-  const performSave = async (triggerAI, saveTitle, saveBody, saveTags) => {
-    // Use provided values or fall back to state
-    const st = saveTitle ?? title;
-    const sb = saveBody ?? body;
-    const stags = saveTags ?? tags;
-
+  const performSave = async (triggerAI, snap) => {
+    const s = snap || latestRef.current;
     setSaveStatus(triggerAI ? "ai-analyzing" : "saving");
     try {
       const note = {
         id: noteIdRef.current || undefined,
-        title: st.trim(),
-        body: sb.trim(),
-        tags: [...stags],
+        title: s.title.trim(),
+        body: s.useMarkdown ? "" : s.body.trim(),
+        contentMarkdown: s.useMarkdown ? s.markdownContent : null,
+        tags: [...s.tags],
+        noteType: s.noteType,
+        isPinned: s.isPinned,
+        bgColorId: s.bgColorId,
+        bgPattern: s.bgPattern || "solid",
+        animTheme: s.animTheme || "none",
+        folderId: s.folderId,
+        reminderDate: s.reminderDate || null,
+        images: [],
+        snippet: (s.body || "").slice(0, 120),
       };
       const saved = await saveNoteToStore(note);
       noteIdRef.current = saved.id;
 
       if (triggerAI && apiKey) {
-        const noteContent = `${st}\n${sb}`;
+        const noteContent = s.title + "\n" + s.body;
         const matchedIds = await matchAchievements(noteContent, apiKey, modelProvider, inference);
         for (const id of matchedIds) {
           await unlockAchievement(id, saved.id);
         }
       }
+      // 处理提醒通知
+      const remindDate = s.reminderDate?.trim();
+      if (remindDate) {
+        scheduleReminder(saved.id, s.title, s.body ? s.body.slice(0, 60) : "", remindDate);
+      } else {
+        // 如果之前有提醒现在清除了，取消
+        cancelReminder(saved.id);
+      }
       setSaveStatus("saved");
     } catch (err) {
       console.error("Save failed:", err);
-      setSaveStatus("error");
+      // 显示具体错误信息以便调试
+      setSaveStatus("error:" + (err?.message || "未知错误"));
     }
-
     setTimeout(() => {
       setSaveStatus((prev) => (prev === "saved" || prev === "error" ? "" : prev));
     }, 2000);
   };
 
-  const handleManualSave = () => {
-    performSave(true, title, body, tags);
-  };
+  const handleManualSave = () => performSave(true, latestRef.current);
 
   const handleDelete = async () => {
     const id = noteIdRef.current;
     if (!id) return;
     try {
+      cancelReminder(id);
       await deleteNoteFromStore(id);
       onBack();
     } catch (err) {
@@ -112,170 +166,210 @@ export default function NoteEditorPage({ noteId, onBack }) {
 
   const addTag = () => {
     const t = tagInput.trim();
-    if (t && !tags.includes(t)) {
-      setTags([...tags, t]);
-      setTagInput("");
-    }
+    if (t && !tags.includes(t)) { setTags([...tags, t]); setTagInput(""); }
   };
-
-  const removeTag = (t) => {
-    setTags(tags.filter((tag) => tag !== t));
-  };
-
+  const removeTag = (t) => setTags(tags.filter((tag) => tag !== t));
   const handleTagKeyDown = (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      addTag();
-    }
+    if (e.key === "Enter") { e.preventDefault(); addTag(); }
   };
 
   const today = new Date().toLocaleDateString("zh-CN", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
+    year: "numeric", month: "long", day: "numeric",
   });
+  const currentBgColor = BG_COLORS.find((c) => c.id === bgColorId) || BG_COLORS[0];
+  const isTodo = noteType === "todo";
 
   return (
     <motion.div
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: -20 }}
-      className="min-h-[100dvh] flex flex-col bg-surface"
+      className={"min-h-[100dvh] flex flex-col transition-colors duration-300 " + currentBgColor.class + (bgPattern !== "solid" ? " bg-pattern-" + bgPattern + (bgColorId === 6 ? " bg-pattern-dark" : "") : "")}
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-scribe">
-        <button
-          onClick={onBack}
-          className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-canvas-warm transition-colors -ml-2"
-        >
+      <div className={"flex items-center justify-between px-4 py-3 border-b " + currentBgColor.border}>
+        <button onClick={onBack}
+          className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-black/5 transition-colors -ml-2">
           <ArrowLeft size={20} className="text-warm-steel" />
         </button>
         <span className="text-xs font-mono text-faded-slate">{today}</span>
         <div className="flex items-center gap-2">
-          {saveStatus === "saving" && (
-            <span className="text-xs text-faded-slate">自动保存</span>
-          )}
+          {saveStatus === "saving" && <span className="text-xs text-faded-slate">自动保存</span>}
           {saveStatus === "ai-analyzing" && (
             <span className="flex items-center gap-1.5 text-xs text-emerald">
-              <Sparkles size={12} className="animate-breathe" />
-              AI 分析中            </span>
+              <Sparkles size={12} className="animate-breathe" />AI 分析中
+            </span>
           )}
-          {saveStatus === "error" && (
-            <span className="flex items-center gap-1.5 text-xs text-rose">
-              <span className="w-1.5 h-1.5 rounded-full bg-rose" />
-              保存失败
+          {saveStatus && saveStatus.startsWith("error") && (
+            <span className="flex items-center gap-1.5 text-xs text-rose" title={saveStatus}>
+              <span className="w-1.5 h-1.5 rounded-full bg-rose" />{saveStatus === "error" ? "保存失败" : saveStatus}
             </span>
           )}
           {saveStatus === "saved" && (
             <span className="flex items-center gap-1 text-xs text-emerald">
-              <Save size={12} />
-              已保存            </span>
+              <Save size={12} />已保存
+            </span>
           )}
         </div>
       </div>
 
+      {/* Type selector */}
+      <div className="flex gap-1.5 px-4 pt-3 pb-1 overflow-x-auto scrollbar-none">
+        {NOTE_TYPE_KEYS.map((key) => {
+          const t = NOTE_TYPES[key];
+          const isActive = noteType === key;
+          const Icon = TYPE_ICONS[key];
+          return (
+            <button key={key} onClick={() => setNoteType(key)}
+              className={"flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all " +
+                (isActive ? t.color + " text-white shadow-sm scale-105" : "bg-white/60 text-warm-steel hover:bg-white/80 border border-scribe")}>
+              <Icon size={12} />{t.label}
+            </button>
+          );
+        })}
+      </div>
+
       {/* Editor */}
-      <div className="flex-1 flex flex-col px-4 py-4">
-        <input
-          type="text"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="给自己的此刻..."
-          className="w-full text-[1.5rem] font-bold text-deep-ink placeholder-faded-slate bg-transparent border-none outline-none mb-3"
-        />
-        <textarea
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          placeholder="记录这一刹.."
-          className="flex-1 w-full text-[0.9375rem] text-warm-steel placeholder-faded-slate bg-transparent border-none outline-none resize-none leading-relaxed min-h-[200px]"
-        />
+      <div className="flex-1 flex flex-col px-4 py-3 overflow-y-auto">
+        <input type="text" value={title} onChange={(e) => setTitle(e.target.value)}
+          placeholder={isTodo ? "待办清单标题..." : "给自己的此刻..."}
+          className="w-full text-[1.5rem] font-bold text-deep-ink placeholder-faded-slate bg-transparent border-none outline-none mb-3" />
+
+        {/* 编辑模式切换 */}
+        <div className="flex items-center gap-2 mb-2">
+          <button onClick={() => setUseMarkdown(false)}
+            className={"px-2.5 py-1 text-xs rounded-full transition-colors " + (!useMarkdown ? "bg-emerald text-white shadow-sm" : "bg-white/60 text-faded-slate border border-scribe")}>
+            纯文本
+          </button>
+          <button onClick={() => setUseMarkdown(true)}
+            className={"px-2.5 py-1 text-xs rounded-full transition-colors " + (useMarkdown ? "bg-emerald text-white shadow-sm" : "bg-white/60 text-faded-slate border border-scribe")}>
+            Markdown
+          </button>
+        </div>
+
+        {useMarkdown ? (
+          <MarkdownEditor value={markdownContent} onChange={setMarkdownContent}
+            minHeight={isTodo ? 60 : 200} />
+        ) : (
+          <textarea value={body} onChange={(e) => setBody(e.target.value)}
+            placeholder={isTodo ? "添加备注（可选）..." : "记录这一刹.."}
+            className={"w-full text-[0.9375rem] text-warm-steel placeholder-faded-slate bg-transparent border-none outline-none resize-none leading-relaxed " + (isTodo ? "min-h-[60px]" : "min-h-[200px] flex-1")} />
+        )}
+
+        {/* Todo checklist — shown when noteType is todo */}
+        {isTodo && noteIdRef.current && (
+          <TodoChecklist noteId={noteIdRef.current} />
+        )}
+        {isTodo && !noteIdRef.current && (
+          <div className="border-t border-scribe pt-3 mt-3">
+            <p className="text-xs text-center text-faded-slate py-4">保存笔记后即可添加待办事项</p>
+          </div>
+        )}
+
+        {/* Meta panel toggle */}
+        <button onClick={() => setShowMetaPanel(!showMetaPanel)}
+          className="flex items-center gap-1.5 text-xs text-faded-slate hover:text-warm-steel py-1 mt-2 transition-colors">
+          <Palette size={12} />{showMetaPanel ? "收起设置" : "更多设置"}
+        </button>
+
+        <AnimatePresence>
+          {showMetaPanel && (
+            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+              <div className="pt-3 pb-2 space-y-3 border-t border-scribe mt-1">
+                <div>
+                  <label className="text-xs font-mono text-faded-slate mb-1.5 block">背景颜色</label>
+                  <div className="flex gap-2">
+                    {BG_COLORS.map((c) => (
+                      <button key={c.id} onClick={() => setBgColorId(c.id)}
+                        className={"w-7 h-7 rounded-full transition-all border-2 " +
+                          (bgColorId === c.id ? "border-emerald scale-110 shadow-sm" : "border-transparent") + " " + c.class} title={c.label} />
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-mono text-faded-slate mb-1.5 block flex items-center gap-1"><Folder size={10} /> 文件夹</label>
+                  <select value={folderId} onChange={(e) => setFolderId(e.target.value)}
+                    className="w-full px-3 py-1.5 text-sm border border-scribe rounded-input bg-white/60 text-deep-ink focus:outline-none focus:ring-2 focus:ring-emerald">
+                    {(folders.length > 0 ? folders : DEFAULT_FOLDERS).map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-mono text-faded-slate mb-1.5 block flex items-center gap-1"><Bell size={10} /> 提醒</label>
+                  <input type="datetime-local" value={reminderDate} onChange={(e) => setReminderDate(e.target.value)}
+                    className="w-full px-3 py-1.5 text-sm border border-scribe rounded-input bg-white/60 text-deep-ink focus:outline-none focus:ring-2 focus:ring-emerald" />
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Tags */}
-        <div className="mt-auto pt-4 border-t border-scribe">
+        <div className="pt-3 border-t border-scribe mt-2">
           <div className="flex flex-wrap gap-2 mb-2">
             {tags.map((tag) => (
-              <span
-                key={tag}
-                className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium bg-scribe/30 text-warm-steel rounded-full"
-              >
+              <span key={tag} className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium bg-white/60 text-warm-steel rounded-full">
                 {tag}
-                <button onClick={() => removeTag(tag)} className="hover:text-deep-ink">
-                  <X size={12} />
-                </button>
+                <button onClick={() => removeTag(tag)} className="hover:text-deep-ink"><X size={12} /></button>
               </span>
             ))}
           </div>
           <div className="flex gap-2">
-            <input
-              type="text"
-              value={tagInput}
-              onChange={(e) => setTagInput(e.target.value)}
-              onKeyDown={handleTagKeyDown}
-              placeholder="添加标签..."
-              className="flex-1 px-3 py-1.5 text-sm border border-scribe rounded-input bg-transparent text-deep-ink placeholder-faded-slate outline-none focus:ring-2 focus:ring-emerald"
-            />
-            <button
-              onClick={addTag}
-              className="w-9 h-9 flex items-center justify-center rounded-btn border border-scribe text-warm-steel hover:bg-canvas-warm transition-colors"
-            >
-              <Plus size={16} />
-            </button>
+            <input type="text" value={tagInput} onChange={(e) => setTagInput(e.target.value)} onKeyDown={handleTagKeyDown}
+              placeholder="添加标签..." className="flex-1 px-3 py-1.5 text-sm border border-scribe rounded-input bg-white/60 text-deep-ink placeholder-faded-slate outline-none focus:ring-2 focus:ring-emerald" />
+            <button onClick={addTag} className="w-9 h-9 flex items-center justify-center rounded-btn border border-scribe bg-white/60 text-warm-steel hover:bg-white transition-colors"><Plus size={16} /></button>
           </div>
         </div>
       </div>
 
-      {/* Save button with AI trigger */}
+      {/* Bottom bar */}
       <div className="px-4 py-3 border-t border-scribe">
         <div className="flex gap-2 mb-2">
-          <button
-            onClick={handleManualSave}
-            disabled={saveStatus === "ai-analyzing"}
-            className="flex-1 flex items-center justify-center gap-2 py-3 bg-emerald text-white rounded-btn text-sm font-medium hover:bg-emerald-dark transition-colors active:scale-[0.97] disabled:opacity-50"
-          >
-            <Sparkles size={16} />
-            {saveStatus === "ai-analyzing" ? "AI 分析中.." : "保存"}
+          <button onClick={() => setIsPinned(!isPinned)}
+            className={"px-3 py-3 rounded-btn border transition-colors active:scale-[0.97] " +
+              (isPinned ? "bg-emerald/10 border-emerald/30 text-emerald" : "border-scribe text-warm-steel hover:bg-white/60")}
+            title={isPinned ? "已置顶" : "置顶笔记"}>
+            <Pin size={16} fill={isPinned ? "currentColor" : "none"} />
+          </button>
+          {/* 纯保存按钮（无 AI） */}
+          <button onClick={() => performSave(false, latestRef.current)}
+            className="flex items-center justify-center gap-1.5 px-4 py-3 border border-scribe text-warm-steel rounded-btn text-sm font-medium hover:bg-white/60 transition-colors active:scale-[0.97]">
+            <Save size={14} />
+            保存
+          </button>
+          {/* AI 成就匹配按钮 */}
+          <button onClick={handleManualSave} disabled={saveStatus === "ai-analyzing"}
+            className="flex-1 flex items-center justify-center gap-2 py-3 bg-emerald text-white rounded-btn text-sm font-medium hover:bg-emerald-dark transition-colors active:scale-[0.97] disabled:opacity-50">
+            <Sparkles size={16} />{saveStatus === "ai-analyzing" ? "AI 分析中.." : "匹配成就"}
           </button>
           {isExistingNote && (
-            <button
-              onClick={() => setShowDeleteConfirm(true)}
-              className="px-3 py-3 border border-rose/30 text-rose rounded-btn text-sm hover:bg-rose/5 transition-colors active:scale-[0.97]"
-              title="删除笔记"
-            >
+            <button onClick={() => setShowDeleteConfirm(true)}
+              className="px-3 py-3 border border-rose/30 text-rose rounded-btn text-sm hover:bg-rose/5 transition-colors active:scale-[0.97]" title="删除笔记">
               <Trash2 size={18} />
             </button>
           )}
         </div>
-        <p className="text-center text-xs text-faded-slate mt-2">
-          笔记自动保存，点击上方按钮触发成就匹配
-        </p>
+        <p className="text-center text-xs text-faded-slate mt-2">笔记自动保存 · 点击「匹配成就」触发 AI 成就识别</p>
       </div>
+      {noteIdRef.current && <NoteLinks noteId={noteIdRef.current} parentId={null} onNavigate={() => {}} />}
 
-      {/* Delete confirmation modal */}
+      {/* 环境动效 */}
+      <AmbientAnimation theme={animTheme} />
+
+      {/* Delete confirmation */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-deep-ink/60 flex items-center justify-center z-50 px-4">
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            className="bg-surface rounded-modal p-6 max-w-sm w-full shadow-soft"
-          >
+          <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+            className="bg-surface rounded-modal p-6 max-w-sm w-full shadow-soft">
             <h3 className="text-lg font-bold text-deep-ink mb-2">确认删除</h3>
-            <p className="text-sm text-warm-steel mb-6">
-              此笔记将被永久删除，不可恢复。确定要继续吗？
-            </p>
+            <p className="text-sm text-warm-steel mb-6">此笔记将被移至回收站，可在设置中恢复。确定要继续吗？</p>
             <div className="flex gap-3">
-              <button
-                onClick={() => setShowDeleteConfirm(false)}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 border border-scribe rounded-btn text-sm text-deep-ink hover:bg-canvas-warm"
-              >
-                <X size={16} />
-                取消
+              <button onClick={() => setShowDeleteConfirm(false)}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 border border-scribe rounded-btn text-sm text-deep-ink hover:bg-canvas-warm">
+                <X size={16} />取消
               </button>
-              <button
-                onClick={handleDelete}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-rose text-white rounded-btn text-sm hover:bg-red-600"
-              >
-                <Trash2 size={16} />
-                确认删除
+              <button onClick={handleDelete}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-rose text-white rounded-btn text-sm hover:bg-red-600">
+                <Trash2 size={16} />确认删除
               </button>
             </div>
           </motion.div>

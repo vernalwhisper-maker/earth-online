@@ -1,4 +1,5 @@
-﻿node_modules/
+﻿.reasonix/
+node_modules/
 dist/
 android/app/build/
 *.local

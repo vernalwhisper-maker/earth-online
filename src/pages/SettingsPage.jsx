@@ -1,15 +1,25 @@
-import { useState, useRef } from "react";
+﻿import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Download, Upload, Trash2, RotateCcw, X, Lock, KeyRound } from "lucide-react";
+import {
+  Download, Upload, Trash2, RotateCcw, X, Lock, KeyRound,
+  Archive, RefreshCw, FileText,
+} from "lucide-react";
 import useSettingsStore from "../store/settingsStore";
 import useNoteStore from "../store/noteStore";
-import { getAllNotes, importAllNotes, clearAllData } from "../db";
+import { getAllNotes, importAllNotes, clearAllData, getDeletedNotes, restoreNote, permanentDeleteNote } from "../db";
 import { exportToEonBlob, generateFilename, parseEonFile } from "../utils/notesFile";
 import { Filesystem, Directory } from "@capacitor/filesystem";
 import RangeSlider from "../components/ui/RangeSlider";
+import useFolderStore from "../store/folderStore";
+import { DEFAULT_FOLDERS } from "../data/noteTypes";
+import { Bell, BellOff } from "lucide-react";
+import { checkNotificationPermission, requestNotificationPermission } from "../utils/notifications";
 
 export default function SettingsPage() {
-  const { modelProvider, apiKey, inference, tabBarOpacity, loaded, setModelProvider, setApiKey, setInferenceParam, resetInference, setTabBarOpacity } = useSettingsStore();
+  const {
+    modelProvider, apiKey, inference, tabBarOpacity, loaded,
+    setModelProvider, setApiKey, setInferenceParam, resetInference, setTabBarOpacity,
+  } = useSettingsStore();
   const loadNotes = useNoteStore((s) => s.loadNotes);
   const [showConfirm, setShowConfirm] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -19,8 +29,40 @@ export default function SettingsPage() {
   const [showImportPwd, setShowImportPwd] = useState(false);
   const [pwdInput, setPwdInput] = useState("");
   const [pwdError, setPwdError] = useState("");
+  // Recycle bin state
+  const [deletedNotes, setDeletedNotes] = useState([]);
+  const [showRecycleBin, setShowRecycleBin] = useState(false);
+  const [loadingRecycle, setLoadingRecycle] = useState(false);
+  const [showFolderManager, setShowFolderManager] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
+  const [editingFolderId, setEditingFolderId] = useState(null);
+  const [editingFolderLabel, setEditingFolderLabel] = useState("");
+  const [notifStatus, setNotifStatus] = useState({ native: false, web: false, anyEnabled: false });
   const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    checkNotificationPermission().then(setNotifStatus);
+  }, []);
   const pendingFileRef = useRef(null);
+
+  // Load deleted notes when recycle bin opens
+  useEffect(() => {
+    if (showRecycleBin) {
+      setLoadingRecycle(true);
+      getDeletedNotes().then((notes) => {
+        setDeletedNotes(notes);
+        setLoadingRecycle(false);
+      });
+    }
+  }, [showRecycleBin]);
+
+  const { folders, addFolder, renameFolder, removeFolder } = useFolderStore();
+
+  useEffect(() => {
+    if (showFolderManager) {
+      useFolderStore.getState().loadFolders();
+    }
+  }, [showFolderManager]);
 
   const doExport = async (password) => {
     setExporting(true);
@@ -69,37 +111,36 @@ export default function SettingsPage() {
   };
 
   const handleExportClick = () => {
-    setPwdInput("");
-    setPwdError("");
-    setShowExportPwd(true);
+    setPwdInput(""); setPwdError(""); setShowExportPwd(true);
   };
-
   const handleExportConfirm = () => {
     const pw = pwdInput.trim();
     if (!pw || pw.length < 4) { setPwdError("密码至少4位"); return; }
-    setShowExportPwd(false);
-    doExport(pw);
+    setShowExportPwd(false); doExport(pw);
   };
-
-  const handleImportClick = () => {
-    fileInputRef.current?.click();
-  };
-
+  const handleImportClick = () => { fileInputRef.current?.click(); };
   const handleFileSelected = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     pendingFileRef.current = file;
-    setPwdInput("");
-    setPwdError("");
-    setShowImportPwd(true);
+    setPwdInput(""); setPwdError(""); setShowImportPwd(true);
     e.target.value = "";
   };
-
   const handleImportConfirm = () => {
     const pw = pwdInput.trim();
     if (!pw) { setPwdError("请输入密码"); return; }
-    setShowImportPwd(false);
-    doImport(pw);
+    setShowImportPwd(false); doImport(pw);
+  };
+
+  const handleRestore = async (id) => {
+    await restoreNote(id);
+    await loadNotes();
+    setDeletedNotes((prev) => prev.filter((n) => n.id !== id));
+  };
+
+  const handlePermanentDelete = async (id) => {
+    await permanentDeleteNote(id);
+    setDeletedNotes((prev) => prev.filter((n) => n.id !== id));
   };
 
   const handleClearData = async () => {
@@ -191,6 +232,19 @@ export default function SettingsPage() {
                 : "导入失败：" + importResult.message}
             </div>
           )}
+          <button onClick={() => {
+              useFolderStore.getState().loadFolders();
+              setShowFolderManager(true);
+            }}
+            className="w-full flex items-center justify-between px-3 py-3 rounded-btn hover:bg-canvas-warm transition-colors">
+            <span className="text-sm text-deep-ink">文件夹管理</span>
+            <Folder size={18} className="text-warm-steel" />
+          </button>
+          <button onClick={() => { setShowRecycleBin(true); }}
+            className="w-full flex items-center justify-between px-3 py-3 rounded-btn hover:bg-canvas-warm transition-colors">
+            <span className="text-sm text-deep-ink">回收站</span>
+            <Archive size={18} className="text-warm-steel" />
+          </button>
           <button onClick={() => setShowConfirm(true)}
             className="w-full flex items-center justify-between px-3 py-3 rounded-btn hover:bg-red-50 transition-colors">
             <span className="text-sm text-rose">清空数据</span>
@@ -209,12 +263,176 @@ export default function SettingsPage() {
       </section>
 
       <section className="bg-surface rounded-card border border-scribe p-4 mb-4">
+        <h2 className="text-xs font-mono uppercase tracking-wider text-faded-slate mb-4">通知提醒</h2>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            {notifStatus.anyEnabled ? (
+              <Bell size={16} className="text-emerald" />
+            ) : (
+              <BellOff size={16} className="text-rose" />
+            )}
+            <span className="text-sm text-deep-ink">
+              {notifStatus.anyEnabled ? "通知已开启" : "通知未开启"}
+            </span>
+          </div>
+          {!notifStatus.anyEnabled && (
+            <button onClick={async () => {
+              await requestNotificationPermission();
+              setNotifStatus(await checkNotificationPermission());
+            }}
+              className="px-3 py-1.5 text-xs font-medium bg-emerald text-white rounded-btn hover:bg-emerald-dark transition-colors">
+              开启通知
+            </button>
+          )}
+        </div>
+        <p className="text-xs text-warm-steel">
+          开启后，笔记设置的提醒将在指定时间通过系统通知提醒你
+        </p>
+        <p className="text-xs text-faded-slate mt-1">
+          浏览器: {notifStatus.web ? "已授权" : "未授权"} · 原生: {notifStatus.native ? "已授权" : "未授权"}
+        </p>
+      </section>
+
+      <section className="bg-surface rounded-card border border-scribe p-4 mb-4">
         <h2 className="text-xs font-mono uppercase tracking-wider text-faded-slate mb-4">关于</h2>
-        <p className="text-sm font-mono text-faded-slate">版本 0.1</p>
+        <p className="text-sm font-mono text-faded-slate">版本 0.2</p>
         <p className="text-sm text-warm-steel mt-1">成就总数: 60</p>
+        <p className="text-xs text-faded-slate mt-1">数据模型 v2（支持笔记类型/置顶/回收站）</p>
       </section>
 
       <p className="text-center text-xs text-faded-slate mt-8">地球Online 笔记成就系统</p>
+
+      {/* Folder Manager */}
+      {showFolderManager && (
+        <div className="fixed inset-0 bg-deep-ink/60 flex items-center justify-center z-50 px-4">
+          <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+            className="bg-surface rounded-modal p-6 max-w-sm w-full shadow-soft">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-deep-ink">文件夹管理</h3>
+              <button onClick={() => setShowFolderManager(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-canvas-warm">
+                <X size={18} className="text-warm-steel" />
+              </button>
+            </div>
+
+            {/* Add new folder */}
+            <div className="flex gap-2 mb-4">
+              <input type="text" value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && newFolderName.trim()) {
+                    addFolder(newFolderName.trim());
+                    setNewFolderName("");
+                  }
+                }}
+                placeholder="新建文件夹..."
+                className="flex-1 px-3 py-2 text-sm border border-scribe rounded-input bg-surface text-deep-ink placeholder-faded-slate outline-none focus:ring-2 focus:ring-emerald" />
+              <button onClick={() => {
+                if (newFolderName.trim()) {
+                  addFolder(newFolderName.trim());
+                  setNewFolderName("");
+                }
+              }} disabled={!newFolderName.trim()}
+                className="w-9 h-9 flex items-center justify-center rounded-btn bg-emerald text-white hover:bg-emerald-dark transition-colors disabled:opacity-40 shrink-0">
+                <Plus size={16} />
+              </button>
+            </div>
+
+            {/* Folder list */}
+            <div className="space-y-1 max-h-64 overflow-y-auto">
+              {folders.map((f) => {
+                const isDefault = DEFAULT_FOLDERS.some((d) => d.id === f.id);
+                return (
+                  <div key={f.id} className="flex items-center gap-2 py-2 px-2 rounded-btn hover:bg-canvas-warm group">
+                    <Folder size={16} className="text-faded-slate shrink-0" />
+                    {editingFolderId === f.id ? (
+                      <input autoFocus value={editingFolderLabel}
+                        onChange={(e) => setEditingFolderLabel(e.target.value)}
+                        onBlur={() => {
+                          if (editingFolderLabel.trim()) renameFolder(f.id, editingFolderLabel.trim());
+                          setEditingFolderId(null);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            if (editingFolderLabel.trim()) renameFolder(f.id, editingFolderLabel.trim());
+                            setEditingFolderId(null);
+                          }
+                          if (e.key === "Escape") setEditingFolderId(null);
+                        }}
+                        className="flex-1 px-2 py-0.5 text-sm border border-emerald rounded bg-white text-deep-ink outline-none" />
+                    ) : (
+                      <span className="flex-1 text-sm text-deep-ink">{f.label}</span>
+                    )}
+                    {isDefault ? (
+                      <span className="text-[0.65rem] text-faded-slate">默认</span>
+                    ) : (
+                      <>
+                        <button onClick={() => { setEditingFolderId(f.id); setEditingFolderLabel(f.label); }}
+                          className="shrink-0 opacity-0 group-hover:opacity-100 text-faded-slate hover:text-deep-ink transition-all">
+                          <Edit3 size={12} />
+                        </button>
+                        <button onClick={() => removeFolder(f.id)}
+                          className="shrink-0 opacity-0 group-hover:opacity-100 text-faded-slate hover:text-rose transition-all">
+                          <X size={12} />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </motion.div>
+        </div>
+      )}
+      {/* Recycle Bin Modal */}
+      {showRecycleBin && (
+        <div className="fixed inset-0 bg-deep-ink/60 flex items-center justify-center z-50 px-4">
+          <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+            className="bg-surface rounded-modal p-6 max-w-lg w-full shadow-soft max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-deep-ink">回收站</h3>
+              <button onClick={() => setShowRecycleBin(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-canvas-warm">
+                <X size={18} className="text-warm-steel" />
+              </button>
+            </div>
+            {loadingRecycle ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="w-8 h-8 border-2 border-emerald/30 border-t-emerald rounded-full animate-spin" />
+              </div>
+            ) : deletedNotes.length === 0 ? (
+              <div className="text-center py-12">
+                <Archive size={32} className="text-faded-slate mx-auto mb-3" />
+                <p className="text-sm text-warm-steel">回收站是空的</p>
+              </div>
+            ) : (
+              <div className="flex-1 overflow-y-auto space-y-2">
+                {deletedNotes.map((note) => (
+                  <div key={note.id} className="flex items-center gap-3 p-3 rounded-btn bg-canvas-warm">
+                    <FileText size={16} className="text-faded-slate shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-deep-ink truncate">{note.title || "无标题"}</p>
+                      <p className="text-xs text-faded-slate">
+                        删除于 {new Date(note.deletedAt).toLocaleDateString("zh-CN")}
+                      </p>
+                    </div>
+                    <button onClick={() => handleRestore(note.id)}
+                      className="shrink-0 w-8 h-8 flex items-center justify-center rounded-full hover:bg-emerald/10 text-emerald transition-colors"
+                      title="恢复">
+                      <RefreshCw size={14} />
+                    </button>
+                    <button onClick={() => handlePermanentDelete(note.id)}
+                      className="shrink-0 w-8 h-8 flex items-center justify-center rounded-full hover:bg-rose/10 text-rose transition-colors"
+                      title="永久删除">
+                      <X size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </motion.div>
+        </div>
+      )}
 
       {showExportPwd && (
         <div className="fixed inset-0 bg-deep-ink/60 flex items-center justify-center z-50 px-4">
