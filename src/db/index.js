@@ -15,7 +15,7 @@ function generateId() {
 }
 
 const DB_NAME = "earth-online";
-const DB_VERSION = 4;
+const DB_VERSION = 5;
 
 let dbPromise = null;
 
@@ -84,7 +84,15 @@ function openDatabase() {
             store.createIndex("timestamp", "timestamp", { unique: false });
           }
         }
-      } catch (err) {
+
+        // === v4→v5: 添加 AI 对话存储 ===
+        if (oldVersion < 5) {
+          if (!db.objectStoreNames.contains("chat_messages")) {
+            const store = db.createObjectStore("chat_messages", { keyPath: "id" });
+            store.createIndex("noteId", "noteId", { unique: false });
+            store.createIndex("timestamp", "timestamp", { unique: false });
+          }
+        }      } catch (err) {
         console.error("DB upgrade failed:", err);
         throw err;
       }
@@ -376,6 +384,73 @@ export async function clearSearchHistory() {
     if (db.objectStoreNames.contains("search_history")) await db.clear("search_history");
   } catch { /* ignore */ }
 }
+
+export async function getAllChatMessages() {
+  try {
+    const db = await getDB();
+    if (!db.objectStoreNames.contains("chat_messages")) return [];
+    const all = await db.getAll("chat_messages");
+    all.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    return all;
+  } catch { return []; }
+}
+
+export async function getChatStats() {
+  try {
+    const db = await getDB();
+    if (!db.objectStoreNames.contains("chat_messages")) return { total: 0, notesWithChat: 0 };
+    const all = await db.getAll("chat_messages");
+    const uniqueNotes = new Set(all.map((m) => m.noteId).filter(Boolean));
+    const sorted = [...all].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    return { total: all.length, notesWithChat: uniqueNotes.size, lastAt: sorted[0]?.timestamp || null };
+  } catch { return { total: 0, notesWithChat: 0 }; }
+}
+
+export async function clearAllChatHistory() {
+  try {
+    const db = await getDB();
+    if (db.objectStoreNames.contains("chat_messages")) await db.clear("chat_messages");
+  } catch { /* ignore */ }
+}
+
+// ========== AI Chat Messages ==========
+
+export async function getChatMessages(noteId) {
+  try {
+    const db = await getDB();
+    if (!db.objectStoreNames.contains("chat_messages")) return [];
+    const msgs = await db.getAllFromIndex("chat_messages", "noteId", noteId);
+    msgs.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    return msgs;
+  } catch (err) {
+    console.error("getChatMessages failed:", err);
+    return [];
+  }
+}
+
+export async function saveChatMessage(msg) {
+  try {
+    const db = await getDB();
+    if (!msg.id) msg.id = generateId();
+    if (!msg.timestamp) msg.timestamp = new Date().toISOString();
+    await db.put("chat_messages", msg);
+    return msg;
+  } catch (err) {
+    console.error("saveChatMessage failed:", err);
+    return null;
+  }
+}
+
+export async function deleteChatMessages(noteId) {
+  try {
+    const db = await getDB();
+    const msgs = await db.getAllFromIndex("chat_messages", "noteId", noteId);
+    const tx = db.transaction("chat_messages", "readwrite");
+    for (const m of msgs) await tx.store.delete(m.id);
+    await tx.done;
+  } catch { /* ignore */ }
+}
+
 
 // ========== Settings ==========
 

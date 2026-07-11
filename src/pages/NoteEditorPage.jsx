@@ -125,7 +125,7 @@ export default function NoteEditorPage({ noteId, onBack }) {
       noteIdRef.current = saved.id;
 
       if (triggerAI && apiKey) {
-        const noteContent = s.title + "\n" + s.body;
+        const noteContent = s.title + "\n" + (s.useMarkdown ? s.markdownContent : s.body);
         const matchedIds = await matchAchievements(noteContent, apiKey, modelProvider, inference);
         for (const id of matchedIds) {
           await unlockAchievement(id, saved.id);

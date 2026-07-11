@@ -103,6 +103,7 @@ export default function App() {
         <AnimatePresence mode="wait">{renderPage()}</AnimatePresence>
       </main>
       {showTabBar && <TabBar currentPage={currentPage} onNavigate={navigateTo} />}
+
       <AnimatePresence>
         {lastUnlocked && (
           <UnlockModal achievement={lastUnlocked} onDismiss={dismissLastUnlocked}
