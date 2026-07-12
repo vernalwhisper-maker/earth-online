@@ -12,10 +12,23 @@ import GlassSwitch from "../components/ui/GlassSwitch";
 import AISettingsPage from "./subpages/AISettingsPage";
 import MoreSettingsPage from "./subpages/MoreSettingsPage";
 
-export default function SettingsPage() {
+export default function SettingsPage({ settingsSubPage, onSubPageChange }) {
   const { loaded, darkMode, setDarkMode } = useSettingsStore();
-  const [subPage, setSubPage] = useState(null);
+  const [subPage, setSubPage] = useState(settingsSubPage || null);
   const loadNotes = useNoteStore((s) => s.loadNotes);
+
+  // 当 settingsSubPage 被外部（返回键）清空时，同步内部状态
+  useEffect(() => {
+    if (settingsSubPage === null && subPage !== null) {
+      setSubPage(null);
+    }
+  }, [settingsSubPage]);
+
+  // 子页面变化时通知父组件
+  const navigateTo = (page) => {
+    setSubPage(page);
+    onSubPageChange?.(page);
+  };
 
   const [showRecycleBin, setShowRecycleBin] = useState(false);
   const [deletedNotes, setDeletedNotes] = useState([]);
@@ -40,8 +53,8 @@ export default function SettingsPage() {
   }, [showFolderManager]);
 
   // Sub-page navigation
-  if (subPage === "ai") return <AISettingsPage onBack={() => setSubPage(null)} />;
-  if (subPage === "more") return <MoreSettingsPage onBack={() => setSubPage(null)} />;
+  if (subPage === "ai") return <AISettingsPage onBack={() => { setSubPage(null); onSubPageChange?.(null); }} />;
+  if (subPage === "more") return <MoreSettingsPage onBack={() => { setSubPage(null); onSubPageChange?.(null); }} />;
 
   if (!loaded) {
     return (
@@ -59,7 +72,7 @@ export default function SettingsPage() {
       <h1 className="text-[1.5rem] font-bold text-deep-ink mb-6">设置</h1>
 
       {/* AI 设置按钮 */}
-      <button onClick={() => setSubPage("ai")}
+      <button onClick={() => navigateTo("ai")}
         className="w-full flex items-center justify-between px-4 py-3.5 bg-surface rounded-card border border-scribe text-left hover:bg-canvas-warm transition-colors mb-3">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-violet-500/10 flex items-center justify-center">
@@ -74,7 +87,7 @@ export default function SettingsPage() {
       </button>
 
       {/* 更多设置按钮 */}
-      <button onClick={() => setSubPage("more")}
+      <button onClick={() => navigateTo("more")}
         className="w-full flex items-center justify-between px-4 py-3.5 bg-surface rounded-card border border-scribe text-left hover:bg-canvas-warm transition-colors mb-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gray-500/10 flex items-center justify-center">

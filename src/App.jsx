@@ -38,6 +38,7 @@ export default function App() {
   const darkMode = useSettingsStore((s) => s.darkMode);
   const [editingNoteId, setEditingNoteId] = useState(null);
   const [viewingAchievementId, setViewingAchievementId] = useState(null);
+  const [settingsSubPage, setSettingsSubPage] = useState(null);
   const currentPageRef = useRef(currentPage);
   const prevPageRef = useRef(currentPage);
 
@@ -78,6 +79,9 @@ export default function App() {
         } else if (page === "achievement-detail") {
           setCurrentPage("gallery");
           currentPageRef.current = "gallery";
+        } else if (page === "settings" && settingsSubPage) {
+          // 在设置子页面中 → 返回设置主页面
+          setSettingsSubPage(null);
         } else if (page !== "home") {
           setCurrentPage("home");
           currentPageRef.current = "home";
@@ -180,7 +184,7 @@ export default function App() {
             exit="exit"
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
           >
-            <SettingsPage />
+            <SettingsPage settingsSubPage={settingsSubPage} onSubPageChange={setSettingsSubPage} />
           </motion.div>
         );
       default:
