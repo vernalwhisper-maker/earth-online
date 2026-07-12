@@ -41,6 +41,7 @@ export default function App() {
   const [settingsSubPage, setSettingsSubPage] = useState(null);
   const currentPageRef = useRef(currentPage);
   const prevPageRef = useRef(currentPage);
+  const settingsSubPageRef = useRef(null);
 
   const notes = useNoteStore((s) => s.notes);
   const loadNotes = useNoteStore((s) => s.loadNotes);
@@ -55,6 +56,10 @@ export default function App() {
   useEffect(() => {
     currentPageRef.current = currentPage;
   }, [currentPage]);
+
+  useEffect(() => {
+    settingsSubPageRef.current = settingsSubPage;
+  }, [settingsSubPage]);
 
   useEffect(() => {
     loadNotes();
@@ -79,7 +84,7 @@ export default function App() {
         } else if (page === "achievement-detail") {
           setCurrentPage("gallery");
           currentPageRef.current = "gallery";
-        } else if (page === "settings" && settingsSubPage) {
+        } else if (page === "settings" && settingsSubPageRef.current) {
           // 在设置子页面中 → 返回设置主页面
           setSettingsSubPage(null);
         } else if (page !== "home") {

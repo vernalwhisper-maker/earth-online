@@ -14,19 +14,10 @@ import MoreSettingsPage from "./subpages/MoreSettingsPage";
 
 export default function SettingsPage({ settingsSubPage, onSubPageChange }) {
   const { loaded, darkMode, setDarkMode } = useSettingsStore();
-  const [subPage, setSubPage] = useState(settingsSubPage || null);
   const loadNotes = useNoteStore((s) => s.loadNotes);
-
-  // 当 settingsSubPage 被外部（返回键）清空时，同步内部状态
-  useEffect(() => {
-    if (settingsSubPage === null && subPage !== null) {
-      setSubPage(null);
-    }
-  }, [settingsSubPage]);
 
   // 子页面变化时通知父组件
   const navigateTo = (page) => {
-    setSubPage(page);
     onSubPageChange?.(page);
   };
 
@@ -52,9 +43,9 @@ export default function SettingsPage({ settingsSubPage, onSubPageChange }) {
     if (showFolderManager) useFolderStore.getState().loadFolders();
   }, [showFolderManager]);
 
-  // Sub-page navigation
-  if (subPage === "ai") return <AISettingsPage onBack={() => { setSubPage(null); onSubPageChange?.(null); }} />;
-  if (subPage === "more") return <MoreSettingsPage onBack={() => { setSubPage(null); onSubPageChange?.(null); }} />;
+  // Sub-page navigation — 直接用 props 判断，父组件清空 settingsSubPage 立即生效
+  if (settingsSubPage === "ai") return <AISettingsPage onBack={() => onSubPageChange?.(null)} />;
+  if (settingsSubPage === "more") return <MoreSettingsPage onBack={() => onSubPageChange?.(null)} />;
 
   if (!loaded) {
     return (
