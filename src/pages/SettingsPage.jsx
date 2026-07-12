@@ -153,7 +153,7 @@ export default function SettingsPage({ settingsSubPage, onSubPageChange }) {
           <FileText size={16} className="text-faded-slate" />
           <h2 className="text-xs font-mono uppercase tracking-wider text-faded-slate">关于</h2>
         </div>
-        <p className="text-sm font-mono text-faded-slate">版本 0.2</p>
+        <p className="text-sm font-mono text-faded-slate">版本 0.3</p>
         <p className="text-sm text-warm-steel mt-1">成就总数: 60</p>
       </section>
 
