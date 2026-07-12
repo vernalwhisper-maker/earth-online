@@ -297,14 +297,12 @@ export default function SettingsPage() {
                   </div>
                 )}
               </div>
-              {chatHistory.length > 0 && (
-                <div className="border-t border-scribe pt-3 mt-3">
-                  <button onClick={() => setShowClearChatConfirm(true)}
-                    className="w-full flex items-center justify-center gap-1.5 py-2 text-sm text-rose rounded-btn hover:bg-rose/5 transition-colors">
-                    <Trash2 size={14} />清除所有聊天记录
-                  </button>
-                </div>
-              )}
+              <div className="border-t border-scribe pt-3 mt-3">
+                <button onClick={() => setShowClearChatConfirm(true)}
+                  className="w-full flex items-center justify-center gap-1.5 py-2 text-sm text-rose rounded-btn hover:bg-rose/5 transition-colors">
+                  <Trash2 size={14} />清除所有聊天记录
+                </button>
+              </div>
             </motion.div>
           </motion.div>
         )}

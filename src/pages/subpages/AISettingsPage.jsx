@@ -1,6 +1,5 @@
 ﻿import { motion } from "framer-motion";
-import { ArrowLeft, RotateCcw, Sparkles, MessageSquare, Trash2 } from "lucide-react";
-import { getAllChatMessages, clearAllChatHistory } from "../../db";
+import { ArrowLeft, RotateCcw } from "lucide-react";
 import RangeSlider from "../../components/ui/RangeSlider";
 import useSettingsStore from "../../store/settingsStore";
 
@@ -62,33 +61,6 @@ export default function AISettingsPage({ onBack }) {
           <RangeSlider label="Top-P (核采样)" value={inference.topP}
             onChange={(v) => setInferenceParam("topP", v)} min={0} max={1} step={0.05}
             labels={["严格", "适中", "灵活", "多样"]} formatValue={(v) => v.toFixed(2)} />
-        </div>
-      </section>
-
-      <section className="bg-surface rounded-card border border-scribe p-4 mb-4">
-        <h2 className="text-xs font-mono uppercase tracking-wider text-faded-slate mb-4">AI 聊天</h2>
-        <div className="space-y-2">
-          <button onClick={async () => {
-            const msgs = await getAllChatMessages();
-            const msgStr = msgs.length > 0
-              ? msgs.slice(-5).map(m => (m.role === "user" ? "👤" : "🤖") + " " + (m.content || "").slice(0, 50)).join("\n")
-              : "暂无记录";
-            alert("最近" + msgs.length + "条消息：\n\n" + msgStr)
-          }}
-            className="w-full flex items-center justify-between px-3 py-2 rounded-btn hover:bg-canvas-warm transition-colors">
-            <span className="text-sm text-deep-ink">查看对话历史</span>
-            <MessageSquare size={14} className="text-warm-steel" />
-          </button>
-          <button onClick={async () => {
-            if (window.confirm("确定清除所有聊天记录？")) {
-              await clearAllChatHistory();
-              alert("已清除");
-            }
-          }}
-            className="w-full flex items-center justify-between px-3 py-2 rounded-btn hover:bg-rose/5 transition-colors">
-            <span className="text-sm text-rose">清除所有聊天记录</span>
-            <Trash2 size={14} className="text-rose" />
-          </button>
         </div>
       </section>
 
