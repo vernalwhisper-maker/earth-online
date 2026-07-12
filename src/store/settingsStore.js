@@ -10,6 +10,7 @@ const useSettingsStore = create((set, get) => ({
   inference: { ...defaultInference },
   tabBarOpacity: 40,
   darkMode: false,
+  showAIAssistant: true,
   loaded: false,
 
   loadSettings: async () => {
@@ -22,7 +23,8 @@ const useSettingsStore = create((set, get) => ({
       : Object.assign({}, defaultInference);
         const tabBarOpacity = (await getSetting("tabBarOpacity")) ?? 40;
         const darkMode = (await getSetting("darkMode")) ?? false;
-    set({ modelProvider: provider, apiKey, inference, tabBarOpacity, darkMode, loaded: true });
+        const showAIAssistant = (await getSetting("showAIAssistant")) ?? true;
+    set({ modelProvider: provider, apiKey, inference, tabBarOpacity, darkMode, showAIAssistant, loaded: true });
   },
 
   setModelProvider: async (provider) => {
@@ -57,6 +59,11 @@ const useSettingsStore = create((set, get) => ({
   setTabBarOpacity: async (value) => {
     await setSetting("tabBarOpacity", value);
     set({ tabBarOpacity: value });
+  },
+
+  setShowAIAssistant: async (value) => {
+    await setSetting("showAIAssistant", value);
+    set({ showAIAssistant: value });
   },
 }));
 

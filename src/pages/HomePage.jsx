@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { createPortal } from "react-dom";
 import {
-  Search, Plus, FileText, Inbox, User, Briefcase, BookOpen, Archive,
+  Search, FileText, Inbox, User, Briefcase, BookOpen, Archive,
   FileText as FTI, CheckSquare, Award, StickyNote, Trash2, Folder, Pin,
   X, CheckCircle,
 } from "lucide-react";
@@ -11,7 +11,6 @@ import NoteCard from "../components/notes/NoteCard";
 import { NOTE_TYPES, NOTE_TYPE_KEYS, DEFAULT_FOLDERS } from "../data/noteTypes";
 import useFolderStore from "../store/folderStore";
 import { getSearchHistory, saveSearchQuery, clearSearchHistory } from "../db";
-import AIAssistant from "../components/ai/AIAssistant";
 
 const TYPE_ICONS = { journal: FTI, todo: CheckSquare, milestone: Award, flashcard: StickyNote };
 const FOLDER_ICONS = { inbox: Inbox, personal: User, work: Briefcase, study: BookOpen, archive: Archive };
@@ -328,19 +327,6 @@ export default function HomePage({ onNewNote, onEditNote }) {
         )}
       </AnimatePresence>
 
-      {/* FAB — hide in select mode */}
-      {!selectMode && (
-        <>
-          <AIAssistant noteId={null} notes={notes} />
-          <motion.button onClick={onNewNote}
-            whileTap={{ scale: 0.85 }}
-            transition={{ type: "spring", stiffness: 400, damping: 15 }}
-            className="fixed bottom-32 right-5 w-14 h-14 bg-emerald rounded-full shadow-fab flex items-center justify-center z-20"
-            style={{ willChange: 'transform' }}>
-            <Plus size={24} className="text-white" />
-          </motion.button>
-        </>
-      )}
 
       {/* Bottom action bar in select mode */}
       <AnimatePresence>

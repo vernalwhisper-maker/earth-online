@@ -8,11 +8,12 @@ import { DEFAULT_FOLDERS } from "../data/noteTypes";
 import { getDeletedNotes, restoreNote, permanentDeleteNote } from "../db";
 import { getChatStats, clearAllChatHistory, getAllChatMessages } from "../db";
 
+import GlassSwitch from "../components/ui/GlassSwitch";
 import AISettingsPage from "./subpages/AISettingsPage";
 import MoreSettingsPage from "./subpages/MoreSettingsPage";
 
 export default function SettingsPage() {
-  const { loaded } = useSettingsStore();
+  const { loaded, darkMode, setDarkMode } = useSettingsStore();
   const [subPage, setSubPage] = useState(null);
   const loadNotes = useNoteStore((s) => s.loadNotes);
 
@@ -96,16 +97,11 @@ export default function SettingsPage() {
         </div>
         <div className="mt-3 flex items-center justify-between">
           <span className="text-sm text-deep-ink">{"深色模式"}</span>
-          <button
-            onClick={async () => {
-              const { setDarkMode } = useSettingsStore.getState();
-              const next = !useSettingsStore.getState().darkMode;
-              await setDarkMode(next);
-            }}
-            className={`relative w-11 h-6 rounded-full transition-colors ${useSettingsStore.getState().darkMode ? "bg-emerald" : "bg-scribe"}`}
-          >
-            <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-transform ${useSettingsStore.getState().darkMode ? "translate-x-5" : "translate-x-0"}`} />
-          </button>
+          <GlassSwitch
+            value={darkMode}
+            onChange={setDarkMode}
+            ariaLabel="深色模式"
+          />
         </div>
       </section>
 

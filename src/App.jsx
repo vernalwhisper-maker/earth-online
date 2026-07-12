@@ -1,5 +1,6 @@
 ﻿import { useState, useEffect, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { Plus } from "lucide-react";
 import useNoteStore from "./store/noteStore";
 import useAchievementStore from "./store/achievementStore";
 import useSettingsStore from "./store/settingsStore";
@@ -13,6 +14,7 @@ import SettingsPage from "./pages/SettingsPage";
 import TabBar from "./components/layout/TabBar";
 import UnlockModal from "./components/achievements/UnlockModal";
 import ToastContainer from "./components/ui/Toast";
+import AIAssistant from "./components/ai/AIAssistant";
 
 const PAGE_ORDER = ["home", "settings", "gallery", "achievement-detail"];
 
@@ -39,9 +41,12 @@ export default function App() {
   const currentPageRef = useRef(currentPage);
   const prevPageRef = useRef(currentPage);
 
+  const notes = useNoteStore((s) => s.notes);
   const loadNotes = useNoteStore((s) => s.loadNotes);
   const loadState = useAchievementStore((s) => s.loadState);
   const loadSettings = useSettingsStore((s) => s.loadSettings);
+  const showAIAssistant = useSettingsStore((s) => s.showAIAssistant);
+  const setShowAIAssistant = useSettingsStore((s) => s.setShowAIAssistant);
   const loadTodos = useTodoStore((s) => s.loadAll);
   const lastUnlocked = useAchievementStore((s) => s.lastUnlocked);
   const dismissLastUnlocked = useAchievementStore((s) => s.dismissLastUnlocked);
@@ -67,6 +72,7 @@ export default function App() {
       App.addListener("backButton", () => {
         const page = currentPageRef.current;
         if (page === "editor") {
+          setEditingNoteId(null);
           setCurrentPage("home");
           currentPageRef.current = "home";
         } else if (page === "achievement-detail") {
@@ -132,7 +138,7 @@ export default function App() {
             exit={{ x: 120, opacity: 0 }}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
           >
-            <NoteEditorPage noteId={editingNoteId} onBack={() => setCurrentPage("home")} />
+            <NoteEditorPage noteId={editingNoteId} onBack={() => { setEditingNoteId(null); setCurrentPage("home"); }} />
           </motion.div>
         );
       case "gallery":
@@ -186,9 +192,26 @@ export default function App() {
 
   return (
     <div className="min-h-[100dvh] bg-canvas-warm flex flex-col">
-      <main className="flex-1 overflow-y-auto pt-6 pb-24">
+      <main className={"flex-1 overflow-y-auto " + (currentPage === "editor" ? "pt-0 pb-0" : "pt-6 pb-24")}>
         <AnimatePresence mode="wait">{renderPage()}</AnimatePresence>
       </main>
+
+      {/* 浮动按钮 — 放在 <main> 外，不受页面过渡动画影响 */}
+      {currentPage === "home" && !editingNoteId && (
+        <>
+          {showAIAssistant && <AIAssistant noteId={null} notes={notes} />}
+          <motion.button
+            onClick={() => { prevPageRef.current = currentPage; setEditingNoteId("new"); setCurrentPage("editor"); }}
+            whileTap={{ scale: 0.85 }}
+            transition={{ type: "spring", stiffness: 400, damping: 15 }}
+            className="fixed bottom-32 right-5 w-14 h-14 bg-emerald rounded-full shadow-fab flex items-center justify-center z-20"
+            style={{ willChange: 'transform' }}
+          >
+            <Plus size={24} className="text-white" />
+          </motion.button>
+        </>
+      )}
+
       {showTabBar && <TabBar currentPage={currentPage} onNavigate={navigateTo} />}
 
       <AnimatePresence>

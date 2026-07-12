@@ -1,10 +1,11 @@
 ﻿import { motion } from "framer-motion";
 import { ArrowLeft, RotateCcw } from "lucide-react";
 import RangeSlider from "../../components/ui/RangeSlider";
+import GlassSwitch from "../../components/ui/GlassSwitch";
 import useSettingsStore from "../../store/settingsStore";
 
 export default function AISettingsPage({ onBack }) {
-  const { modelProvider, apiKey, inference, setModelProvider, setApiKey, setInferenceParam, resetInference } = useSettingsStore();
+  const { modelProvider, apiKey, inference, setModelProvider, setApiKey, setInferenceParam, resetInference, showAIAssistant, setShowAIAssistant } = useSettingsStore();
   const { loaded } = useSettingsStore();
 
   if (!loaded) {
@@ -61,6 +62,21 @@ export default function AISettingsPage({ onBack }) {
           <RangeSlider label="Top-P (核采样)" value={inference.topP}
             onChange={(v) => setInferenceParam("topP", v)} min={0} max={1} step={0.05}
             labels={["严格", "适中", "灵活", "多样"]} formatValue={(v) => v.toFixed(2)} />
+        </div>
+      </section>
+
+      <section className="bg-surface rounded-card border border-scribe p-4 mb-4">
+        <h2 className="text-xs font-mono uppercase tracking-wider text-faded-slate mb-4">显示选项</h2>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-deep-ink">AI 助手按钮</p>
+            <p className="text-xs text-faded-slate mt-0.5">在首页底部显示 AI 助手浮动按钮</p>
+          </div>
+          <GlassSwitch
+            value={showAIAssistant}
+            onChange={setShowAIAssistant}
+            ariaLabel="AI 助手按钮"
+          />
         </div>
       </section>
 
