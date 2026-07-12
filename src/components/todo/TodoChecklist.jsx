@@ -132,14 +132,19 @@ export default function TodoChecklist({ noteId }) {
       <AnimatePresence initial={false}>
         {activeItems.map((item) => (
           <motion.div key={item.id}
-            initial={{ opacity: 0, y: -8, height: 0 }}
+            initial={{ opacity: 0, y: -6, height: 0 }}
             animate={{ opacity: 1, y: 0, height: "auto" }}
             exit={{ opacity: 0, height: 0, marginBottom: 0 }}
-            transition={{ duration: 0.15 }}
+            transition={{ type: "spring", stiffness: 300, damping: 25 }}
             className="flex items-center gap-2 py-1.5 group">
-            <button onClick={() => handleToggle(item.id)} className="shrink-0 text-warm-steel hover:text-emerald transition-colors">
+            <motion.button
+              onClick={() => handleToggle(item.id)}
+              whileTap={{ scale: 0.8 }}
+              transition={{ type: "spring", stiffness: 400, damping: 15 }}
+              className="shrink-0 text-warm-steel hover:text-emerald"
+            >
               <Circle size={18} />
-            </button>
+            </motion.button>
             {editingId === item.id ? (
               <input autoFocus value={editText} onChange={(e) => setEditText(e.target.value)}
                 onBlur={handleEditSave} onKeyDown={handleEditKeyDown}

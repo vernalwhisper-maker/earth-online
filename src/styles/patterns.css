@@ -56,6 +56,7 @@
   pointer-events: none;
   z-index: 0;
   border-radius: 50%;
+  will-change: transform, opacity;
 }
 
 /* 浮游几何 */
@@ -71,6 +72,7 @@
   pointer-events: none;
   z-index: 0;
   opacity: 0.08;
+  will-change: transform;
 }
 
 /* 流光 */
@@ -82,6 +84,7 @@
 .anim-shimmer-bg {
   position: relative;
   overflow: hidden;
+  will-change: background-position;
 }
 
 .anim-shimmer-bg::before {
@@ -97,4 +100,15 @@
   background-size: 200% 100%;
   animation: shimmer-slide 3s ease-in-out infinite;
   pointer-events: none;
+}
+
+/* 减少动效 — Apple 无障碍原则 */
+@media (prefers-reduced-motion: reduce) {
+  .anim-particle,
+  .anim-geo,
+  .anim-shimmer-bg::before {
+    animation: none !important;
+  }
+  .anim-particle { opacity: 0.15; }
+  .anim-geo { opacity: 0.04; }
 }

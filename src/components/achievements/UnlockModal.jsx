@@ -2,18 +2,24 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, X } from "lucide-react";
 import { getRarityLevel, getIconFilename } from "../../data/achievements";
 
-const fade = {
+const overlay = {
   hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { duration: 0.3 } },
+  visible: { opacity: 1, transition: { duration: 0.25 } },
+  exit: { opacity: 0, transition: { duration: 0.15 } },
 };
 
-const slideUp = {
-  hidden: { y: "100%" },
+const sheet = {
+  hidden: { y: "100%", opacity: 0 },
   visible: {
     y: 0,
-    transition: { type: "spring", stiffness: 120, damping: 18 },
+    opacity: 1,
+    transition: { type: "spring", stiffness: 200, damping: 22, mass: 0.8 },
   },
-  exit: { y: "100%", transition: { duration: 0.2 } },
+  exit: {
+    y: "100%",
+    opacity: 0,
+    transition: { type: "spring", stiffness: 300, damping: 25, mass: 0.8 },
+  },
 };
 
 const scaleIn = {
@@ -21,20 +27,20 @@ const scaleIn = {
   visible: {
     scale: 1,
     opacity: 1,
-    transition: { type: "spring", stiffness: 150, damping: 12 },
+    transition: { type: "spring", stiffness: 180, damping: 14 },
   },
 };
 
 const stagger = {
   hidden: {},
   visible: {
-    transition: { staggerChildren: 0.06, delayChildren: 0.15 },
+    transition: { staggerChildren: 0.05, delayChildren: 0.2 },
   },
 };
 
 const fadeUp = {
-  hidden: { opacity: 0, y: 12 },
-  visible: { opacity: 1, y: 0 },
+  hidden: { opacity: 0, y: 10 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.2 } },
 };
 
 export default function UnlockModal({ achievement, onDismiss, onViewAll }) {
@@ -47,10 +53,10 @@ export default function UnlockModal({ achievement, onDismiss, onViewAll }) {
   return (
     <motion.div
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
-      variants={fade}
+      variants={overlay}
       initial="hidden"
       animate="visible"
-      exit="hidden"
+      exit="exit"
     >
       {/* Backdrop */}
       <motion.div
@@ -58,21 +64,23 @@ export default function UnlockModal({ achievement, onDismiss, onViewAll }) {
         onClick={onDismiss}
       />
 
-      {/* Card */}
+      {/* Card — spatial consistency: enters from bottom, exits to bottom */}
       <motion.div
         className="relative bg-surface rounded-[1.5rem] w-full max-w-[420px] mx-4 p-8 shadow-soft flex flex-col items-center gap-5 sm:mb-0"
-        variants={slideUp}
+        variants={sheet}
         initial="hidden"
         animate="visible"
         exit="exit"
       >
-        {/* Close */}
-        <button
+        {/* Close button with pointer-down feedback */}
+        <motion.button
           onClick={onDismiss}
-          className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full hover:bg-canvas-warm transition-colors"
+          whileTap={{ scale: 0.85 }}
+          transition={{ type: "spring", stiffness: 400, damping: 15 }}
+          className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full hover:bg-canvas-warm"
         >
           <X size={18} className="text-warm-steel" />
-        </button>
+        </motion.button>
 
         <motion.div variants={stagger} initial="hidden" animate="visible" className="flex flex-col items-center gap-5 w-full">
           {/* Sparkle icon */}
@@ -122,18 +130,22 @@ export default function UnlockModal({ achievement, onDismiss, onViewAll }) {
 
           {/* Buttons */}
           <motion.div variants={fadeUp} className="w-full flex flex-col gap-2 mt-2">
-            <button
+            <motion.button
               onClick={onDismiss}
-              className="w-full py-2.5 bg-emerald text-white rounded-btn text-sm font-medium hover:bg-emerald-dark transition-colors active:scale-[0.97]"
+              whileTap={{ scale: 0.97 }}
+              transition={{ type: "spring", stiffness: 400, damping: 17 }}
+              className="w-full py-2.5 bg-emerald text-white rounded-btn text-sm font-medium hover:bg-emerald-dark"
             >
               继续记录
-            </button>
-            <button
+            </motion.button>
+            <motion.button
               onClick={onViewAll}
-              className="w-full py-2.5 border border-scribe text-warm-steel rounded-btn text-sm font-medium hover:bg-canvas-warm transition-colors"
+              whileTap={{ scale: 0.97 }}
+              transition={{ type: "spring", stiffness: 400, damping: 17 }}
+              className="w-full py-2.5 border border-scribe text-warm-steel rounded-btn text-sm font-medium hover:bg-canvas-warm"
             >
               查看全部成就
-            </button>
+            </motion.button>
           </motion.div>
         </motion.div>
       </motion.div>

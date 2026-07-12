@@ -38,6 +38,8 @@ export default function NoteEditorPage({ noteId, onBack }) {
   const [isPinned, setIsPinned] = useState(false);
   const [bgColorId, setBgColorId] = useState(0);
   const [folderId, setFolderId] = useState("inbox");
+  const [useMarkdown, setUseMarkdown] = useState(false);
+  const [markdownContent, setMarkdownContent] = useState("");
   const [bgPattern, setBgPattern] = useState("solid");
   const [animTheme, setAnimTheme] = useState("none");
   const folders = useFolderStore((s) => s.folders);

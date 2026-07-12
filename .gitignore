@@ -5,3 +5,5 @@ android/app/build/
 *.local
 .DS_Store
 *.log
+skills-main/
+skills-main.zip

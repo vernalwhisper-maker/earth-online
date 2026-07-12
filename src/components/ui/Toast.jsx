@@ -14,6 +14,12 @@ const COLORS = {
   info: "bg-warm-steel text-white",
 };
 
+const toastVariants = {
+  initial: { opacity: 0, x: 60, scale: 0.9 },
+  animate: { opacity: 1, x: 0, scale: 1 },
+  exit: { opacity: 0, x: 60, scale: 0.9 },
+};
+
 export default function ToastContainer() {
   const toasts = useToastStore((s) => s.toasts);
   const removeToast = useToastStore((s) => s.removeToast);
@@ -26,16 +32,23 @@ export default function ToastContainer() {
           return (
             <motion.div
               key={toast.id}
-              initial={{ opacity: 0, x: 50, scale: 0.95 }}
-              animate={{ opacity: 1, x: 0, scale: 1 }}
-              exit={{ opacity: 0, x: 50, scale: 0.95 }}
+              variants={toastVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              transition={{ type: "spring", stiffness: 300, damping: 24, mass: 0.9 }}
               className={"pointer-events-auto flex items-start gap-2.5 px-3.5 py-3 rounded-btn shadow-soft text-sm " + (COLORS[toast.type] || COLORS.info)}
             >
               <Icon size={16} className="shrink-0 mt-0.5" />
               <span className="flex-1">{toast.message}</span>
-              <button onClick={() => removeToast(toast.id)} className="shrink-0 opacity-70 hover:opacity-100 transition-opacity">
+              <motion.button
+                onClick={() => removeToast(toast.id)}
+                whileTap={{ scale: 0.85 }}
+                transition={{ type: "spring", stiffness: 400, damping: 15 }}
+                className="shrink-0 opacity-70 hover:opacity-100"
+              >
                 <X size={14} />
-              </button>
+              </motion.button>
             </motion.div>
           );
         })}

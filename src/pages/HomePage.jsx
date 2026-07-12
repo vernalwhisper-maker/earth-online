@@ -332,9 +332,13 @@ export default function HomePage({ onNewNote, onEditNote }) {
       {!selectMode && (
         <>
           <AIAssistant noteId={null} notes={notes} />
-          <button onClick={onNewNote} className="fixed bottom-32 right-5 w-14 h-14 bg-emerald rounded-full shadow-fab flex items-center justify-center active:scale-90 transition-transform z-20">
+          <motion.button onClick={onNewNote}
+            whileTap={{ scale: 0.85 }}
+            transition={{ type: "spring", stiffness: 400, damping: 15 }}
+            className="fixed bottom-32 right-5 w-14 h-14 bg-emerald rounded-full shadow-fab flex items-center justify-center z-20"
+            style={{ willChange: 'transform' }}>
             <Plus size={24} className="text-white" />
-          </button>
+          </motion.button>
         </>
       )}
 

@@ -105,25 +105,38 @@ export default function AIAssistant({ noteId, notes = [], folders = [], noteTitl
 
   return (
     <>
-      <button onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-48 right-5 w-14 h-14 bg-violet-500 rounded-full shadow-fab flex items-center justify-center active:scale-90 transition-transform z-20"
-        title="AI 助手">
+      <motion.button
+        onClick={() => setIsOpen(!isOpen)}
+        whileTap={{ scale: 0.85 }}
+        transition={{ type: "spring", stiffness: 400, damping: 15 }}
+        className="fixed bottom-48 right-5 w-14 h-14 bg-violet-500 rounded-full shadow-fab flex items-center justify-center z-20"
+        title="AI 助手"
+        style={{ willChange: 'transform' }}
+      >
         <Sparkles size={20} className="text-white" />
-      </button>
+      </motion.button>
 
       <AnimatePresence>
         {isOpen && (
-          <motion.div initial={{ opacity: 0, y: 20, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            className="fixed bottom-40 right-4 w-80 max-w-[calc(100vw-2rem)] h-96 bg-surface rounded-modal border border-scribe shadow-soft z-50 flex flex-col overflow-hidden">
+          <motion.div
+        initial={{ opacity: 0, y: 20, scale: 0.95 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: 20, scale: 0.9 }}
+        transition={{ type: "spring", stiffness: 350, damping: 25, mass: 0.9 }}
+        className="fixed bottom-40 right-4 w-80 max-w-[calc(100vw-2rem)] h-96 bg-surface rounded-modal border border-scribe shadow-soft z-50 flex flex-col overflow-hidden">
             <div className="flex items-center justify-between px-4 py-3 border-b border-scribe bg-violet-500/5">
               <div className="flex items-center gap-2">
                 <Bot size={16} className="text-violet-500" />
                 <span className="text-sm font-semibold text-deep-ink">AI 助手</span>
               </div>
-              <button onClick={() => setIsOpen(false)} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-black/5">
+              <motion.button
+                onClick={() => setIsOpen(false)}
+                whileTap={{ scale: 0.8 }}
+                transition={{ type: "spring", stiffness: 400, damping: 15 }}
+                className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-black/5"
+              >
                 <X size={14} className="text-warm-steel" />
-              </button>
+              </motion.button>
             </div>
 
             <div className="px-3 py-2 border-b border-scribe/50 bg-canvas-warm/30">

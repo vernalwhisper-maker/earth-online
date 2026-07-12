@@ -42,7 +42,9 @@ export default function NoteCard({ note, onClick }) {
     <motion.button
       layout
       onClick={onClick}
-      className="w-full bg-surface border border-scribe rounded-card p-4 text-left hover:bg-canvas-warm transition-colors relative overflow-hidden"
+      whileTap={{ scale: 0.97 }}
+      transition={{ type: "spring", stiffness: 400, damping: 17 }}
+      className="w-full bg-surface border border-scribe rounded-card p-4 text-left relative overflow-hidden"
     >
       {note.isPinned && (
         <div className="absolute top-0 right-0 w-12 h-12">
@@ -78,7 +80,12 @@ export default function NoteCard({ note, onClick }) {
       {isTodo && todoStats.total > 0 && (
         <div className="flex items-center gap-2 mb-2">
           <div className="flex-1 h-1.5 bg-scribe/30 rounded-full overflow-hidden">
-            <div className="h-full bg-emerald rounded-full transition-all" style={{ width: Math.round((todoStats.completed / todoStats.total) * 100) + "%" }} />
+            <motion.div
+              className="h-full bg-emerald rounded-full"
+              initial={{ width: 0 }}
+              animate={{ width: Math.round((todoStats.completed / todoStats.total) * 100) + "%" }}
+              transition={{ type: "spring", stiffness: 100, damping: 20 }}
+            />
           </div>
           <span className="text-[0.65rem] font-mono text-faded-slate">{todoStats.completed}/{todoStats.total}</span>
         </div>

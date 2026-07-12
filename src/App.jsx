@@ -1,5 +1,5 @@
 ﻿import { useState, useEffect, useRef } from "react";
-import { AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import useNoteStore from "./store/noteStore";
 import useAchievementStore from "./store/achievementStore";
 import useSettingsStore from "./store/settingsStore";
@@ -14,12 +14,30 @@ import TabBar from "./components/layout/TabBar";
 import UnlockModal from "./components/achievements/UnlockModal";
 import ToastContainer from "./components/ui/Toast";
 
+const PAGE_ORDER = ["home", "settings", "gallery", "achievement-detail"];
+
+const pageVariants = {
+  enter: (direction) => ({
+    x: direction > 0 ? 80 : -80,
+    opacity: 0,
+  }),
+  center: {
+    x: 0,
+    opacity: 1,
+  },
+  exit: (direction) => ({
+    x: direction > 0 ? -80 : 80,
+    opacity: 0,
+  }),
+};
+
 export default function App() {
   const [currentPage, setCurrentPage] = useState("home");
   const darkMode = useSettingsStore((s) => s.darkMode);
   const [editingNoteId, setEditingNoteId] = useState(null);
   const [viewingAchievementId, setViewingAchievementId] = useState(null);
   const currentPageRef = useRef(currentPage);
+  const prevPageRef = useRef(currentPage);
 
   const loadNotes = useNoteStore((s) => s.loadNotes);
   const loadState = useAchievementStore((s) => s.loadState);
@@ -69,30 +87,96 @@ export default function App() {
   }, [darkMode]);
 
   const navigateTo = (page) => {
+    prevPageRef.current = currentPage;
     setCurrentPage(page);
     currentPageRef.current = page;
     setEditingNoteId(null);
     setViewingAchievementId(null);
   };
 
+  const getDirection = (from, to) => {
+    if (to === "editor") return 1;
+    const idxFrom = PAGE_ORDER.indexOf(from);
+    const idxTo = PAGE_ORDER.indexOf(to);
+    if (idxFrom === -1 || idxTo === -1) return 1;
+    return idxTo > idxFrom ? 1 : -1;
+  };
+
   const renderPage = () => {
+    const direction = getDirection(prevPageRef.current, currentPage);
     switch (currentPage) {
       case "home":
         return (
-          <HomePage
-            onNewNote={() => { setEditingNoteId("new"); setCurrentPage("editor"); }}
-            onEditNote={(id) => { setEditingNoteId(id); setCurrentPage("editor"); }}
-            onViewAchievement={(id) => { setViewingAchievementId(id); setCurrentPage("achievement-detail"); }}
-          />
+          <motion.div
+            key="home"
+            custom={direction}
+            variants={pageVariants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          >
+            <HomePage
+              onNewNote={() => { prevPageRef.current = currentPage; setEditingNoteId("new"); setCurrentPage("editor"); }}
+              onEditNote={(id) => { prevPageRef.current = currentPage; setEditingNoteId(id); setCurrentPage("editor"); }}
+              onViewAchievement={(id) => { prevPageRef.current = currentPage; setViewingAchievementId(id); setCurrentPage("achievement-detail"); }}
+            />
+          </motion.div>
         );
       case "editor":
-        return <NoteEditorPage noteId={editingNoteId} onBack={() => setCurrentPage("home")} />;
+        return (
+          <motion.div
+            key="editor"
+            initial={{ x: 120, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: 120, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          >
+            <NoteEditorPage noteId={editingNoteId} onBack={() => setCurrentPage("home")} />
+          </motion.div>
+        );
       case "gallery":
-        return <AchievementGalleryPage onViewAchievement={(id) => { setViewingAchievementId(id); setCurrentPage("achievement-detail"); }} />;
+        return (
+          <motion.div
+            key="gallery"
+            custom={direction}
+            variants={pageVariants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          >
+            <AchievementGalleryPage onViewAchievement={(id) => { prevPageRef.current = currentPage; setViewingAchievementId(id); setCurrentPage("achievement-detail"); }} />
+          </motion.div>
+        );
       case "achievement-detail":
-        return <AchievementDetailPage achievementId={viewingAchievementId} onBack={() => setCurrentPage("gallery")} />;
+        return (
+          <motion.div
+            key="achievement-detail"
+            custom={direction}
+            variants={pageVariants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          >
+            <AchievementDetailPage achievementId={viewingAchievementId} onBack={() => { prevPageRef.current = currentPage; setCurrentPage("gallery"); }} />
+          </motion.div>
+        );
       case "settings":
-        return <SettingsPage />;
+        return (
+          <motion.div
+            key="settings"
+            custom={direction}
+            variants={pageVariants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          >
+            <SettingsPage />
+          </motion.div>
+        );
       default:
         return <HomePage onNewNote={() => setCurrentPage("editor")} />;
     }
