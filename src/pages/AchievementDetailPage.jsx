@@ -30,7 +30,6 @@ export default function AchievementDetailPage({ achievementId, onBack }) {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0 }}
-      className="min-h-[100dvh]"
     >
       <div className="sticky top-0 bg-canvas-warm/90 backdrop-blur-sm z-10 px-4 py-3">
         <button

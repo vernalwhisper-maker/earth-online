@@ -176,7 +176,7 @@ export default function NoteEditorPage({ noteId, onBack }) {
       className={"min-h-[100dvh] flex flex-col transition-colors duration-300 " + currentBgColor.class + (bgPattern !== "solid" ? " bg-pattern-" + bgPattern + (bgColorId === 6 ? " bg-pattern-dark" : "") : "")}
     >
       {/* Header */}
-      <div className={"flex items-center justify-between px-4 py-3 border-b " + currentBgColor.border}>
+      <div className={"flex items-center justify-between px-4 pt-4 pb-3 border-b safe-area-top " + currentBgColor.border}>
         <button onClick={onBack}
           className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-black/5 transition-colors -ml-2">
           <ArrowLeft size={20} className="text-warm-steel" />
