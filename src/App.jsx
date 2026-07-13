@@ -39,9 +39,11 @@ export default function App() {
   const [editingNoteId, setEditingNoteId] = useState(null);
   const [viewingAchievementId, setViewingAchievementId] = useState(null);
   const [settingsSubPage, setSettingsSubPage] = useState(null);
+  const [homeSelectMode, setHomeSelectMode] = useState(false);
   const currentPageRef = useRef(currentPage);
   const prevPageRef = useRef(currentPage);
   const settingsSubPageRef = useRef(null);
+  const homeSelectModeRef = useRef(false);
 
   const notes = useNoteStore((s) => s.notes);
   const loadNotes = useNoteStore((s) => s.loadNotes);
@@ -58,8 +60,8 @@ export default function App() {
   }, [currentPage]);
 
   useEffect(() => {
-    settingsSubPageRef.current = settingsSubPage;
-  }, [settingsSubPage]);
+    homeSelectModeRef.current = homeSelectMode;
+  }, [homeSelectMode]);
 
   useEffect(() => {
     loadNotes();
@@ -87,6 +89,9 @@ export default function App() {
         } else if (page === "settings" && settingsSubPageRef.current) {
           // 在设置子页面中 → 返回设置主页面
           setSettingsSubPage(null);
+        } else if (page === "home" && homeSelectModeRef.current) {
+          // 主页选择模式中 → 退出选择模式
+          setHomeSelectMode(false);
         } else if (page !== "home") {
           setCurrentPage("home");
           currentPageRef.current = "home";
@@ -135,6 +140,7 @@ export default function App() {
               onNewNote={() => { prevPageRef.current = currentPage; setEditingNoteId("new"); setCurrentPage("editor"); }}
               onEditNote={(id) => { prevPageRef.current = currentPage; setEditingNoteId(id); setCurrentPage("editor"); }}
               onViewAchievement={(id) => { prevPageRef.current = currentPage; setViewingAchievementId(id); setCurrentPage("achievement-detail"); }}
+              selectMode={homeSelectMode} onSelectModeChange={setHomeSelectMode}
             />
           </motion.div>
         );

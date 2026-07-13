@@ -15,7 +15,7 @@ import { getSearchHistory, saveSearchQuery, clearSearchHistory } from "../db";
 const TYPE_ICONS = { journal: FTI, todo: CheckSquare, milestone: Award, flashcard: StickyNote };
 const FOLDER_ICONS = { inbox: Inbox, personal: User, work: Briefcase, study: BookOpen, archive: Archive };
 
-export default function HomePage({ onNewNote, onEditNote }) {
+export default function HomePage({ onNewNote, onEditNote, onViewAchievement, selectMode: externalSelectMode, onSelectModeChange }) {
   const { notes, tags, loading, searchQuery, selectedTag, selectedType, selectedFolder,
     setSearchQuery, setSelectedTag, setSelectedType, setSelectedFolder, getFilteredNotes, saveNote, deleteNote } = useNoteStore();
 
@@ -30,6 +30,19 @@ export default function HomePage({ onNewNote, onEditNote }) {
   const [selectedIds, setSelectedIds] = useState(new Set());
   const longPressTimer = useRef(null);
   const [showMoveDialog, setShowMoveDialog] = useState(false);
+
+  // 选择模式变化时通知父组件（用于返回按钮判断）
+  useEffect(() => {
+    onSelectModeChange?.(selectMode);
+  }, [selectMode]);
+
+  // 父组件清空选择模式（返回键触发）时同步内部状态
+  useEffect(() => {
+    if (externalSelectMode === false && selectMode === true) {
+      setSelectMode(false);
+      setSelectedIds(new Set());
+    }
+  }, [externalSelectMode]);
   // Calculate pin state of selected notes
   const pinState = useMemo(() => {
     if (selectedIds.size === 0) return "none";
