@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   ArrowLeft, Plus, X, Save, Sparkles, Trash2,
-  Pin, Folder, Palette, CheckSquare, Award, StickyNote, FileText,
+  Pin, Folder, CheckSquare, Award, StickyNote, FileText,
 } from "lucide-react";
 import useNoteStore from "../store/noteStore";
 import useAchievementStore from "../store/achievementStore";
@@ -47,7 +47,6 @@ export default function NoteEditorPage({ noteId, onBack }) {
   const { loadFolders } = useFolderStore();
   const [saveStatus, setSaveStatus] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [showMetaPanel, setShowMetaPanel] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
   const noteIdRef = useRef(null);
@@ -108,15 +107,18 @@ export default function NoteEditorPage({ noteId, onBack }) {
       onSaveWithAI: handleManualSave,
       onPinToggle: () => setIsPinned((p) => !p),
       onDelete: handleDelete,
-      onMetaToggle: () => setShowMetaPanel((p) => !p),
       isPinned,
       isExistingNote,
       isAIAnalyzing: saveStatus === "ai-analyzing",
+      bgColorId,
+      onChangeBgColor: setBgColorId,
+      folderId,
+      onChangeFolder: setFolderId,
       tags,
       onAddTag: (tag) => { if (tag && !tags.includes(tag)) { setTags([...tags, tag]); setTagInput(""); } },
       onRemoveTag: (tag) => setTags(tags.filter((t) => t !== tag)),
     });
-  }, [isPinned, isExistingNote, saveStatus, tags]);
+  }, [isPinned, isExistingNote, saveStatus, bgColorId, folderId, tags]);
 
   // 离开编辑器时清除操作
   useEffect(() => {
@@ -280,43 +282,7 @@ export default function NoteEditorPage({ noteId, onBack }) {
 
         </div>
 
-        {/* 底部固定区域：meta 面板 + 标签 + 操作栏 */}
-        <div className="sticky bottom-0 z-10 bg-surface/95 backdrop-blur-sm border-t border-scribe">
 
-          {/* Meta panel toggle */}
-          <button onClick={() => setShowMetaPanel(!showMetaPanel)}
-            className="w-full flex items-center gap-1.5 px-4 py-2 text-xs text-faded-slate hover:text-warm-steel transition-colors">
-            <Palette size={12} />{showMetaPanel ? "收起设置" : "更多设置"}
-          </button>
-
-          <AnimatePresence>
-            {showMetaPanel && (
-              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-                <div className="px-4 pb-2 space-y-3">
-                  <div>
-                    <label className="text-xs font-mono text-faded-slate mb-1.5 block">背景颜色</label>
-                    <div className="flex gap-2">
-                      {BG_COLORS.map((c) => (
-                        <button key={c.id} onClick={() => setBgColorId(c.id)}
-                          className={"w-7 h-7 rounded-full transition-all border-2 " +
-                            (bgColorId === c.id ? "border-emerald scale-110 shadow-sm" : "border-transparent") + " " + c.class} title={c.label} />
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-xs font-mono text-faded-slate mb-1.5 block flex items-center gap-1"><Folder size={10} /> 文件夹</label>
-                    <select value={folderId} onChange={(e) => setFolderId(e.target.value)}
-                      className="w-full px-3 py-1.5 text-sm border border-scribe rounded-input bg-white/60 text-deep-ink focus:outline-none focus:ring-2 focus:ring-emerald">
-                      {(folders.length > 0 ? folders : DEFAULT_FOLDERS).map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
-                    </select>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-
-        </div>
       {noteIdRef.current && <NoteLinks noteId={noteIdRef.current} parentId={null} onNavigate={() => {}} />}
 
       {/* 环境动效 */}

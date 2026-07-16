@@ -5,6 +5,7 @@ import useAchievementStore from "../../store/achievementStore";
 import useTodoStore from "../../store/todoStore";
 import useSettingsStore from "../../store/settingsStore";
 import useEditorActionsStore from "../../store/editorActionsStore";
+import { BG_COLORS, DEFAULT_FOLDERS } from "../../data/noteTypes";
 
 const tabs = [
   { key: "home", label: "笔记", icon: FileText },
@@ -17,7 +18,7 @@ const editorActions = [
   { key: "pin", icon: Pin, getLabel: (pinned) => pinned ? "已置顶" : "置顶", getIconClass: (pinned) => pinned ? "text-emerald" : "text-warm-steel/70", action: "onPinToggle" },
   { key: "save", icon: Save, label: "保存", iconClass: "text-warm-steel/70", action: "onSave" },
   { key: "ai", icon: Sparkles, getLabel: (_, analyzing) => analyzing ? "分析中" : "匹配成就", iconClass: "text-emerald", action: "onSaveWithAI", disabled: "isAIAnalyzing" },
-  { key: "more", icon: Palette, label: "更多", iconClass: "text-warm-steel/70", action: "onMetaToggle" },
+  { key: "more", icon: Palette, label: "更多", iconClass: "text-warm-steel/70" },
   { key: "tags", icon: Hash, label: "标签", iconClass: "text-warm-steel/70" },
   { key: "delete", icon: Trash2, label: "删除", iconClass: "text-rose/70", action: "onDelete", conditional: "isExistingNote", needsConfirm: true },
 ];
@@ -53,6 +54,9 @@ export default function TabBar({ currentPage, onNavigate }) {
   const [tagInput, setTagInput] = useState("");
   const tagInputRef = useRef(null);
 
+  // 更多弹窗状态
+  const [showMorePopup, setShowMorePopup] = useState(false);
+
   const glassBase = isDark
     ? `linear-gradient(135deg, rgba(30,30,30,${tabBarOpacity / 90}) 0%, rgba(16,185,129,${tabBarOpacity / 500}) 40%, rgba(30,30,30,${tabBarOpacity / 80}) 100%)`
     : `linear-gradient(135deg, rgba(255,255,255,${tabBarOpacity / 100}) 0%, rgba(16,185,129,${tabBarOpacity / 600}) 40%, rgba(255,255,255,${tabBarOpacity / 150}) 100%)`;
@@ -68,6 +72,8 @@ export default function TabBar({ currentPage, onNavigate }) {
   const handleActionClick = (act) => {
     if (act.key === "tags") {
       setShowTagPopup(true);
+    } else if (act.key === "more") {
+      setShowMorePopup(true);
     } else if (act.needsConfirm) {
       setConfirmTarget({
         action: () => editor[act.action]?.(),
@@ -223,6 +229,70 @@ export default function TabBar({ currentPage, onNavigate }) {
                   >
                     <Plus size={16} />
                   </motion.button>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* 更多设置弹窗 */}
+      <AnimatePresence>
+        {showMorePopup && (
+          <>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 z-30" onClick={() => setShowMorePopup(false)} />
+            <motion.div
+              initial={{ scale: 0.6, opacity: 0, y: 40 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.6, opacity: 0, y: 40 }}
+              transition={{ type: "spring", stiffness: 400, damping: 28, mass: 0.8 }}
+              className="fixed left-1/2 -translate-x-1/2 z-40 w-[280px] rounded-[1.5rem] overflow-hidden shadow-[0_8px_40px_rgba(0,0,0,0.2)]"
+              style={{ bottom: "calc(100px)" }}
+            >
+              <div className="absolute inset-0"
+                style={{
+                  background: isDark
+                    ? "linear-gradient(135deg, rgba(30,30,30,0.98), rgba(20,20,20,0.95))"
+                    : "linear-gradient(135deg, rgba(255,255,255,0.98), rgba(248,247,244,0.95))",
+                  backdropFilter: "blur(35px) saturate(200%)",
+                  WebkitBackdropFilter: "blur(35px) saturate(200%)",
+                }} />
+              <div className="absolute top-0 left-4 right-4 h-[1.5px]" style={{ background: specularTop }} />
+              <div className="absolute inset-0 rounded-[1.5rem] border border-white/25" />
+              <div className="absolute inset-[1px] rounded-[1.5rem] border border-white/70" />
+
+              <div className="relative z-10 px-5 py-4 space-y-4">
+                <p className="text-sm font-semibold text-center mb-1" style={{ color: isDark ? "rgba(255,255,255,0.9)" : "#1c1b1a" }}>
+                  更多设置
+                </p>
+                <div>
+                  <label className="text-xs font-mono mb-1.5 block" style={{ color: isDark ? "rgba(163,162,158,0.8)" : "rgba(107,106,103,0.8)" }}>
+                    背景颜色
+                  </label>
+                  <div className="flex gap-2 flex-wrap">
+                    {BG_COLORS.map((c) => (
+                      <button key={c.id} onClick={() => editor.onChangeBgColor?.(c.id)}
+                        className={"w-7 h-7 rounded-full transition-all border-2 " +
+                          (editor.bgColorId === c.id ? "border-emerald scale-110 shadow-sm" : "border-transparent") + " " + c.class}
+                        title={c.label} />
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-mono mb-1.5 block flex items-center gap-1"
+                    style={{ color: isDark ? "rgba(163,162,158,0.8)" : "rgba(107,106,103,0.8)" }}>
+                    <Folder size={10} /> 文件夹
+                  </label>
+                  <select value={editor.folderId} onChange={(e) => editor.onChangeFolder?.(e.target.value)}
+                    className="w-full px-3 py-1.5 text-sm rounded-xl border outline-none"
+                    style={{
+                      background: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.02)",
+                      borderColor: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)",
+                      color: isDark ? "rgba(255,255,255,0.8)" : "#1c1b1a",
+                    }}>
+                    {DEFAULT_FOLDERS.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
+                  </select>
                 </div>
               </div>
             </motion.div>

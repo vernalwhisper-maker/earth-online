@@ -14,6 +14,10 @@ const useEditorActionsStore = create((set) => ({
   isPinned: false,
   isExistingNote: false,
   isAIAnalyzing: false,
+  bgColorId: 0,
+  onChangeBgColor: null,   // (id: number) => void
+  folderId: "inbox",
+  onChangeFolder: null,     // (id: string) => void
   tags: [],
   onAddTag: null,    // (tag: string) => void
   onRemoveTag: null, // (tag: string) => void
@@ -38,6 +42,10 @@ const useEditorActionsStore = create((set) => ({
       isPinned: !!actions.isPinned,
       isExistingNote: !!actions.isExistingNote,
       isAIAnalyzing: !!actions.isAIAnalyzing,
+      bgColorId: actions.bgColorId ?? 0,
+      onChangeBgColor: actions.onChangeBgColor || null,
+      folderId: actions.folderId || "inbox",
+      onChangeFolder: actions.onChangeFolder || null,
       tags: actions.tags || [],
       onAddTag: actions.onAddTag || null,
       onRemoveTag: actions.onRemoveTag || null,
@@ -66,6 +74,10 @@ const useEditorActionsStore = create((set) => ({
       isPinned: false,
       isExistingNote: false,
       isAIAnalyzing: false,
+      bgColorId: 0,
+      onChangeBgColor: null,
+      folderId: "inbox",
+      onChangeFolder: null,
       tags: [],
       onAddTag: null,
       onRemoveTag: null,
