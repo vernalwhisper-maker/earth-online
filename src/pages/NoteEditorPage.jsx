@@ -15,6 +15,7 @@ import BackgroundSelector from "../components/editor/BackgroundSelector";
 import AmbientAnimation from "../components/editor/AmbientAnimation";
 import useFolderStore from "../store/folderStore";
 import NoteLinks from "../components/notes/NoteLinks";
+import useEditorActionsStore from "../store/editorActionsStore";
 
 const TYPE_ICONS = {
   journal: FileText,
@@ -99,6 +100,28 @@ export default function NoteEditorPage({ noteId, onBack }) {
     }, 2000);
     return () => clearTimeout(timer);
   }, [title, body, tags, noteType, isPinned, bgColorId, bgPattern, animTheme, folderId, useMarkdown, markdownContent, loaded]);
+
+  // 注册编辑器操作到 Store（供 TabBar 消费）
+  useEffect(() => {
+    useEditorActionsStore.getState().setEditorActions({
+      onSave: () => performSave(false, latestRef.current),
+      onSaveWithAI: handleManualSave,
+      onPinToggle: () => setIsPinned((p) => !p),
+      onDelete: handleDelete,
+      onMetaToggle: () => setShowMetaPanel((p) => !p),
+      isPinned,
+      isExistingNote,
+      isAIAnalyzing: saveStatus === "ai-analyzing",
+      tags,
+      onAddTag: (tag) => { if (tag && !tags.includes(tag)) { setTags([...tags, tag]); setTagInput(""); } },
+      onRemoveTag: (tag) => setTags(tags.filter((t) => t !== tag)),
+    });
+  }, [isPinned, isExistingNote, saveStatus, tags]);
+
+  // 离开编辑器时清除操作
+  useEffect(() => {
+    return () => useEditorActionsStore.getState().clearActions();
+  }, []);
 
   const performSave = async (triggerAI, snap) => {
     const s = snap || latestRef.current;
@@ -292,49 +315,7 @@ export default function NoteEditorPage({ noteId, onBack }) {
             )}
           </AnimatePresence>
 
-          {/* Tags */}
-          <div className="px-4 py-2 border-t border-scribe/50">
-            <div className="flex flex-wrap gap-2 mb-2">
-              {tags.map((tag) => (
-                <span key={tag} className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium bg-white/60 text-warm-steel rounded-full">
-                  {tag}
-                  <button onClick={() => removeTag(tag)} className="hover:text-deep-ink"><X size={12} /></button>
-                </span>
-              ))}
-            </div>
-            <div className="flex gap-2">
-              <input type="text" value={tagInput} onChange={(e) => setTagInput(e.target.value)} onKeyDown={handleTagKeyDown}
-                placeholder="添加标签..." className="flex-1 px-3 py-1.5 text-sm border border-scribe rounded-input bg-white/60 text-deep-ink placeholder-faded-slate outline-none focus:ring-2 focus:ring-emerald" />
-              <button onClick={addTag} className="w-9 h-9 flex items-center justify-center rounded-btn border border-scribe bg-white/60 text-warm-steel hover:bg-white transition-colors"><Plus size={16} /></button>
-            </div>
-          </div>
 
-          {/* Bottom bar */}
-          <div className="px-4 py-3">
-            <div className="flex gap-2 mb-2">
-              <button onClick={() => setIsPinned(!isPinned)}
-                className={"px-3 py-3 rounded-btn border transition-colors active:scale-[0.97] " +
-                  (isPinned ? "bg-emerald/10 border-emerald/30 text-emerald" : "border-scribe text-warm-steel hover:bg-white/60")}
-                title={isPinned ? "已置顶" : "置顶笔记"}>
-                <Pin size={16} fill={isPinned ? "currentColor" : "none"} />
-              </button>
-              <button onClick={() => performSave(false, latestRef.current)}
-                className="flex items-center justify-center gap-1.5 px-4 py-3 border border-scribe text-warm-steel rounded-btn text-sm font-medium hover:bg-white/60 transition-colors active:scale-[0.97]">
-                <Save size={14} />
-                保存
-              </button>
-              <button onClick={handleManualSave} disabled={saveStatus === "ai-analyzing"}
-                className="flex-1 flex items-center justify-center gap-2 py-3 bg-emerald text-white rounded-btn text-sm font-medium hover:bg-emerald-dark transition-colors active:scale-[0.97] disabled:opacity-50">
-                <Sparkles size={16} />{saveStatus === "ai-analyzing" ? "AI 分析中.." : "匹配成就"}
-              </button>
-              {isExistingNote && (
-                <button onClick={() => setShowDeleteConfirm(true)}
-                  className="px-3 py-3 border border-rose/30 text-rose rounded-btn text-sm hover:bg-rose/5 transition-colors active:scale-[0.97]" title="删除笔记">
-                  <Trash2 size={18} />
-                </button>
-              )}
-            </div>
-          </div>
         </div>
       {noteIdRef.current && <NoteLinks noteId={noteIdRef.current} parentId={null} onNavigate={() => {}} />}
 

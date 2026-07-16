@@ -10,6 +10,7 @@ import useNoteStore from "../store/noteStore";
 import NoteCard from "../components/notes/NoteCard";
 import { NOTE_TYPES, NOTE_TYPE_KEYS, DEFAULT_FOLDERS } from "../data/noteTypes";
 import useFolderStore from "../store/folderStore";
+import useEditorActionsStore from "../store/editorActionsStore";
 import { getSearchHistory, saveSearchQuery, clearSearchHistory } from "../db";
 
 const TYPE_ICONS = { journal: FTI, todo: CheckSquare, milestone: Award, flashcard: StickyNote };
@@ -43,6 +44,7 @@ export default function HomePage({ onNewNote, onEditNote, onViewAchievement, sel
       setSelectedIds(new Set());
     }
   }, [externalSelectMode]);
+
   // Calculate pin state of selected notes
   const pinState = useMemo(() => {
     if (selectedIds.size === 0) return "none";
@@ -52,6 +54,28 @@ export default function HomePage({ onNewNote, onEditNote, onViewAchievement, sel
     if (sel.every((n) => !n.isPinned)) return "none_pinned";
     return "mixed";
   }, [selectedIds, notes]);
+
+  // 选择模式变化时，注册操作到 Store（供 TabBar 消费）
+  useEffect(() => {
+    if (selectMode) {
+      useEditorActionsStore.getState().setSelectActions({
+        onBatchDelete: batchDelete,
+        onBatchMove: () => setShowMoveDialog(true),
+        onBatchTogglePin: batchTogglePin,
+        selectCount: selectedIds.size,
+        selectPinState: pinState,
+      });
+    } else {
+      useEditorActionsStore.getState().setSelectActions({
+        onBatchDelete: null,
+        onBatchMove: null,
+        onBatchTogglePin: null,
+        selectCount: 0,
+        selectPinState: "none",
+      });
+    }
+  }, [selectMode, selectedIds.size, pinState]);
+
 
   const filteredNotes = useMemo(() => getFilteredNotes(), [notes, searchQuery, selectedTag, selectedType, selectedFolder]);
 
@@ -340,26 +364,6 @@ export default function HomePage({ onNewNote, onEditNote, onViewAchievement, sel
         )}
       </AnimatePresence>
 
-
-      {/* Bottom action bar in select mode */}
-      <AnimatePresence>
-        {selectMode && (
-          <motion.div initial={{ y: 100 }} animate={{ y: 0 }} exit={{ y: 100 }}
-            className="fixed bottom-0 left-0 right-0 bg-surface border-t border-scribe px-4 py-3 z-50 safe-area-bottom">
-            <div className="flex items-center justify-around max-w-md mx-auto">
-              <button onClick={batchDelete} className="flex flex-col items-center gap-1 px-4 py-2 text-rose">
-                <Trash2 size={20} /><span className="text-[0.65rem]">删除</span>
-              </button>
-              <button onClick={() => setShowMoveDialog(true)} className="flex flex-col items-center gap-1 px-4 py-2 text-warm-steel">
-                <Folder size={20} /><span className="text-[0.65rem]">移动</span>
-              </button>
-              <button onClick={batchTogglePin} className="flex flex-col items-center gap-1 px-4 py-2 text-warm-steel">
-                <Pin size={20} fill={pinState === "all_pinned" ? "currentColor" : "none"} /><span className="text-[0.65rem]">{pinState === "all_pinned" ? "取消置顶" : "切换置顶"}</span>
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Move to folder dialog */}
       {showMoveDialog && (

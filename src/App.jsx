@@ -227,7 +227,7 @@ export default function App() {
         </>
       )}
 
-      {showTabBar && <TabBar currentPage={currentPage} onNavigate={navigateTo} />}
+      <TabBar currentPage={currentPage} onNavigate={navigateTo} />
 
       <AnimatePresence>
         {lastUnlocked && (
