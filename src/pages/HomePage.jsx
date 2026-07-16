@@ -168,14 +168,14 @@ export default function HomePage({ onNewNote, onEditNote, onViewAchievement, sel
             className="relative">
             {/* Selection checkbox */}
             {selectMode && (
-              <div className="absolute left-2 top-1/2 -translate-y-1/2 z-10">
+              <div className="absolute -left-1 top-1/2 -translate-y-1/2 z-10">
                 <div className={"w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors " +
                   (selectedIds.has(note.id) ? "bg-emerald border-emerald" : "bg-white border-scribe")}>
                   {selectedIds.has(note.id) && <CheckCircle size={14} className="text-white" />}
                 </div>
               </div>
             )}
-            <div className={selectMode ? "ml-8" : ""}>
+            <div className={selectMode ? "ml-9" : ""}>
               <NoteCard note={note} onClick={() => {}} />
             </div>
           </div>

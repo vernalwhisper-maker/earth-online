@@ -255,85 +255,87 @@ export default function NoteEditorPage({ noteId, onBack }) {
           </div>
         )}
 
-        {/* Meta panel toggle */}
-        <button onClick={() => setShowMetaPanel(!showMetaPanel)}
-          className="flex items-center gap-1.5 text-xs text-faded-slate hover:text-warm-steel py-1 mt-2 transition-colors">
-          <Palette size={12} />{showMetaPanel ? "收起设置" : "更多设置"}
-        </button>
+        </div>
 
-        <AnimatePresence>
-          {showMetaPanel && (
-            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-              <div className="pt-3 pb-2 space-y-3 border-t border-scribe mt-1">
-                <div>
-                  <label className="text-xs font-mono text-faded-slate mb-1.5 block">背景颜色</label>
-                  <div className="flex gap-2">
-                    {BG_COLORS.map((c) => (
-                      <button key={c.id} onClick={() => setBgColorId(c.id)}
-                        className={"w-7 h-7 rounded-full transition-all border-2 " +
-                          (bgColorId === c.id ? "border-emerald scale-110 shadow-sm" : "border-transparent") + " " + c.class} title={c.label} />
-                    ))}
+        {/* 底部固定区域：meta 面板 + 标签 + 操作栏 */}
+        <div className="sticky bottom-0 z-10 bg-surface/95 backdrop-blur-sm border-t border-scribe">
+
+          {/* Meta panel toggle */}
+          <button onClick={() => setShowMetaPanel(!showMetaPanel)}
+            className="w-full flex items-center gap-1.5 px-4 py-2 text-xs text-faded-slate hover:text-warm-steel transition-colors">
+            <Palette size={12} />{showMetaPanel ? "收起设置" : "更多设置"}
+          </button>
+
+          <AnimatePresence>
+            {showMetaPanel && (
+              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                <div className="px-4 pb-2 space-y-3">
+                  <div>
+                    <label className="text-xs font-mono text-faded-slate mb-1.5 block">背景颜色</label>
+                    <div className="flex gap-2">
+                      {BG_COLORS.map((c) => (
+                        <button key={c.id} onClick={() => setBgColorId(c.id)}
+                          className={"w-7 h-7 rounded-full transition-all border-2 " +
+                            (bgColorId === c.id ? "border-emerald scale-110 shadow-sm" : "border-transparent") + " " + c.class} title={c.label} />
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs font-mono text-faded-slate mb-1.5 block flex items-center gap-1"><Folder size={10} /> 文件夹</label>
+                    <select value={folderId} onChange={(e) => setFolderId(e.target.value)}
+                      className="w-full px-3 py-1.5 text-sm border border-scribe rounded-input bg-white/60 text-deep-ink focus:outline-none focus:ring-2 focus:ring-emerald">
+                      {(folders.length > 0 ? folders : DEFAULT_FOLDERS).map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
+                    </select>
                   </div>
                 </div>
-                <div>
-                  <label className="text-xs font-mono text-faded-slate mb-1.5 block flex items-center gap-1"><Folder size={10} /> 文件夹</label>
-                  <select value={folderId} onChange={(e) => setFolderId(e.target.value)}
-                    className="w-full px-3 py-1.5 text-sm border border-scribe rounded-input bg-white/60 text-deep-ink focus:outline-none focus:ring-2 focus:ring-emerald">
-                    {(folders.length > 0 ? folders : DEFAULT_FOLDERS).map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
-                  </select>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-        {/* Tags */}
-        <div className="pt-3 border-t border-scribe mt-2">
-          <div className="flex flex-wrap gap-2 mb-2">
-            {tags.map((tag) => (
-              <span key={tag} className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium bg-white/60 text-warm-steel rounded-full">
-                {tag}
-                <button onClick={() => removeTag(tag)} className="hover:text-deep-ink"><X size={12} /></button>
-              </span>
-            ))}
+          {/* Tags */}
+          <div className="px-4 py-2 border-t border-scribe/50">
+            <div className="flex flex-wrap gap-2 mb-2">
+              {tags.map((tag) => (
+                <span key={tag} className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium bg-white/60 text-warm-steel rounded-full">
+                  {tag}
+                  <button onClick={() => removeTag(tag)} className="hover:text-deep-ink"><X size={12} /></button>
+                </span>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <input type="text" value={tagInput} onChange={(e) => setTagInput(e.target.value)} onKeyDown={handleTagKeyDown}
+                placeholder="添加标签..." className="flex-1 px-3 py-1.5 text-sm border border-scribe rounded-input bg-white/60 text-deep-ink placeholder-faded-slate outline-none focus:ring-2 focus:ring-emerald" />
+              <button onClick={addTag} className="w-9 h-9 flex items-center justify-center rounded-btn border border-scribe bg-white/60 text-warm-steel hover:bg-white transition-colors"><Plus size={16} /></button>
+            </div>
           </div>
-          <div className="flex gap-2">
-            <input type="text" value={tagInput} onChange={(e) => setTagInput(e.target.value)} onKeyDown={handleTagKeyDown}
-              placeholder="添加标签..." className="flex-1 px-3 py-1.5 text-sm border border-scribe rounded-input bg-white/60 text-deep-ink placeholder-faded-slate outline-none focus:ring-2 focus:ring-emerald" />
-            <button onClick={addTag} className="w-9 h-9 flex items-center justify-center rounded-btn border border-scribe bg-white/60 text-warm-steel hover:bg-white transition-colors"><Plus size={16} /></button>
+
+          {/* Bottom bar */}
+          <div className="px-4 py-3">
+            <div className="flex gap-2 mb-2">
+              <button onClick={() => setIsPinned(!isPinned)}
+                className={"px-3 py-3 rounded-btn border transition-colors active:scale-[0.97] " +
+                  (isPinned ? "bg-emerald/10 border-emerald/30 text-emerald" : "border-scribe text-warm-steel hover:bg-white/60")}
+                title={isPinned ? "已置顶" : "置顶笔记"}>
+                <Pin size={16} fill={isPinned ? "currentColor" : "none"} />
+              </button>
+              <button onClick={() => performSave(false, latestRef.current)}
+                className="flex items-center justify-center gap-1.5 px-4 py-3 border border-scribe text-warm-steel rounded-btn text-sm font-medium hover:bg-white/60 transition-colors active:scale-[0.97]">
+                <Save size={14} />
+                保存
+              </button>
+              <button onClick={handleManualSave} disabled={saveStatus === "ai-analyzing"}
+                className="flex-1 flex items-center justify-center gap-2 py-3 bg-emerald text-white rounded-btn text-sm font-medium hover:bg-emerald-dark transition-colors active:scale-[0.97] disabled:opacity-50">
+                <Sparkles size={16} />{saveStatus === "ai-analyzing" ? "AI 分析中.." : "匹配成就"}
+              </button>
+              {isExistingNote && (
+                <button onClick={() => setShowDeleteConfirm(true)}
+                  className="px-3 py-3 border border-rose/30 text-rose rounded-btn text-sm hover:bg-rose/5 transition-colors active:scale-[0.97]" title="删除笔记">
+                  <Trash2 size={18} />
+                </button>
+              )}
+            </div>
           </div>
         </div>
-      </div>
-
-      {/* Bottom bar */}
-      <div className="px-4 py-3 border-t border-scribe">
-        <div className="flex gap-2 mb-2">
-          <button onClick={() => setIsPinned(!isPinned)}
-            className={"px-3 py-3 rounded-btn border transition-colors active:scale-[0.97] " +
-              (isPinned ? "bg-emerald/10 border-emerald/30 text-emerald" : "border-scribe text-warm-steel hover:bg-white/60")}
-            title={isPinned ? "已置顶" : "置顶笔记"}>
-            <Pin size={16} fill={isPinned ? "currentColor" : "none"} />
-          </button>
-          {/* 纯保存按钮（无 AI） */}
-          <button onClick={() => performSave(false, latestRef.current)}
-            className="flex items-center justify-center gap-1.5 px-4 py-3 border border-scribe text-warm-steel rounded-btn text-sm font-medium hover:bg-white/60 transition-colors active:scale-[0.97]">
-            <Save size={14} />
-            保存
-          </button>
-          {/* AI 成就匹配按钮 */}
-          <button onClick={handleManualSave} disabled={saveStatus === "ai-analyzing"}
-            className="flex-1 flex items-center justify-center gap-2 py-3 bg-emerald text-white rounded-btn text-sm font-medium hover:bg-emerald-dark transition-colors active:scale-[0.97] disabled:opacity-50">
-            <Sparkles size={16} />{saveStatus === "ai-analyzing" ? "AI 分析中.." : "匹配成就"}
-          </button>
-          {isExistingNote && (
-            <button onClick={() => setShowDeleteConfirm(true)}
-              className="px-3 py-3 border border-rose/30 text-rose rounded-btn text-sm hover:bg-rose/5 transition-colors active:scale-[0.97]" title="删除笔记">
-              <Trash2 size={18} />
-            </button>
-          )}
-        </div>
-        <p className="text-center text-xs text-faded-slate mt-2">笔记自动保存 · 点击「匹配成就」触发 AI 成就识别</p>
-      </div>
       {noteIdRef.current && <NoteLinks noteId={noteIdRef.current} parentId={null} onNavigate={() => {}} />}
 
       {/* 环境动效 */}

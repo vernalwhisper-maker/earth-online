@@ -4,3 +4,7 @@ allow = ["Edit"]
 [sandbox]
 workspace_root = "D:/Codex/New/earth-online"
 allow_write = ["D:/Codex/New/earth-online"]
+
+
+[skills]
+paths = ["D:\\reasonix-skills"]
