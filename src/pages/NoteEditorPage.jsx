@@ -98,31 +98,37 @@ export default function NoteEditorPage({ noteId, onBack }) {
       await performSave(false, latestRef.current);
     }, 2000);
     return () => clearTimeout(timer);
-  }, [title, body, tags, noteType, isPinned, bgColorId, bgPattern, animTheme, folderId, useMarkdown, markdownContent, loaded]);
+  }, [title, body, markdownContent, loaded]);
+
+  // 即时保存：非文本操作后立即触发
+  const immediateSave = () => setTimeout(() => performSave(false, latestRef.current), 0);
 
   // 注册编辑器操作到 Store（供 TabBar 消费）
   useEffect(() => {
     useEditorActionsStore.getState().setEditorActions({
       onSave: () => performSave(false, latestRef.current),
       onSaveWithAI: handleManualSave,
-      onPinToggle: () => setIsPinned((p) => !p),
+      onPinToggle: () => { setIsPinned((p) => !p); immediateSave(); },
       onDelete: handleDelete,
       isPinned,
       isExistingNote,
       isAIAnalyzing: saveStatus === "ai-analyzing",
       bgColorId,
-      onChangeBgColor: setBgColorId,
+      onChangeBgColor: (id) => { setBgColorId(id); immediateSave(); },
       folderId,
-      onChangeFolder: setFolderId,
+      onChangeFolder: (id) => { setFolderId(id); immediateSave(); },
       tags,
-      onAddTag: (tag) => { if (tag && !tags.includes(tag)) { setTags([...tags, tag]); setTagInput(""); } },
-      onRemoveTag: (tag) => setTags(tags.filter((t) => t !== tag)),
+      onAddTag: (tag) => { if (tag && !tags.includes(tag)) { setTags([...tags, tag]); setTagInput(""); immediateSave(); } },
+      onRemoveTag: (tag) => { setTags(tags.filter((t) => t !== tag)); immediateSave(); },
     });
   }, [isPinned, isExistingNote, saveStatus, bgColorId, folderId, tags]);
 
-  // 离开编辑器时清除操作
+  // 离开编辑器时保存并清除操作
   useEffect(() => {
-    return () => useEditorActionsStore.getState().clearActions();
+    return () => {
+      performSave(false, latestRef.current).catch(() => {});
+      useEditorActionsStore.getState().clearActions();
+    };
   }, []);
 
   const performSave = async (triggerAI, snap) => {
@@ -202,7 +208,7 @@ export default function NoteEditorPage({ noteId, onBack }) {
     >
       {/* Header */}
       <div className={"grid grid-cols-3 items-center px-4 pt-4 pb-3 border-b safe-area-top " + currentBgColor.border}>
-        <button onClick={onBack}
+        <button onClick={async () => { await performSave(false, latestRef.current); onBack(); }}
           className="justify-self-start w-10 h-10 flex items-center justify-center rounded-full hover:bg-black/5 transition-colors -ml-2">
           <ArrowLeft size={20} className="text-warm-steel" />
         </button>
@@ -234,7 +240,7 @@ export default function NoteEditorPage({ noteId, onBack }) {
           const isActive = noteType === key;
           const Icon = TYPE_ICONS[key];
           return (
-            <button key={key} onClick={() => setNoteType(key)}
+            <button key={key} onClick={() => { setNoteType(key); immediateSave(); }}
               className={"flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all " +
                 (isActive ? t.color + " text-white shadow-sm scale-105" : "bg-white/60 text-warm-steel hover:bg-white/80 border border-scribe")}>
               <Icon size={12} />{t.label}
@@ -251,11 +257,11 @@ export default function NoteEditorPage({ noteId, onBack }) {
 
         {/* 编辑模式切换 */}
         <div className="flex items-center gap-2 mb-2">
-          <button onClick={() => setUseMarkdown(false)}
+          <button onClick={() => { setUseMarkdown(false); immediateSave(); }}
             className={"px-2.5 py-1 text-xs rounded-full transition-colors " + (!useMarkdown ? "bg-emerald text-white shadow-sm" : "bg-white/60 text-faded-slate border border-scribe")}>
             纯文本
           </button>
-          <button onClick={() => setUseMarkdown(true)}
+          <button onClick={() => { setUseMarkdown(true); immediateSave(); }}
             className={"px-2.5 py-1 text-xs rounded-full transition-colors " + (useMarkdown ? "bg-emerald text-white shadow-sm" : "bg-white/60 text-faded-slate border border-scribe")}>
             Markdown
           </button>
@@ -263,7 +269,7 @@ export default function NoteEditorPage({ noteId, onBack }) {
 
         {useMarkdown ? (
           <MarkdownEditor value={markdownContent} onChange={setMarkdownContent}
-            minHeight={isTodo ? 60 : 200} />
+            minHeight={isTodo ? 60 : 200} onModeChange={immediateSave} />
         ) : (
           <textarea value={body} onChange={(e) => setBody(e.target.value)}
             placeholder={isTodo ? "添加备注（可选）..." : "记录这一刹.."}
@@ -272,7 +278,7 @@ export default function NoteEditorPage({ noteId, onBack }) {
 
         {/* Todo checklist — shown when noteType is todo */}
         {isTodo && noteIdRef.current && (
-          <TodoChecklist noteId={noteIdRef.current} />
+          <TodoChecklist noteId={noteIdRef.current} onToggle={immediateSave} />
         )}
         {isTodo && !noteIdRef.current && (
           <div className="border-t border-scribe pt-3 mt-3">

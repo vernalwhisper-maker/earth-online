@@ -26,6 +26,7 @@ const useEditorActionsStore = create((set) => ({
   onBatchDelete: null,
   onBatchMove: null,
   onBatchTogglePin: null,
+  onSelectAll: null,
   selectCount: 0,
   selectPinState: "none", // "none" | "all_pinned" | "mixed"
 
@@ -59,6 +60,7 @@ const useEditorActionsStore = create((set) => ({
       onBatchDelete: actions.onBatchDelete || null,
       onBatchMove: actions.onBatchMove || null,
       onBatchTogglePin: actions.onBatchTogglePin || null,
+      onSelectAll: actions.onSelectAll || null,
       selectCount: actions.selectCount || 0,
       selectPinState: actions.selectPinState || "none",
     }),
@@ -84,6 +86,7 @@ const useEditorActionsStore = create((set) => ({
       onBatchDelete: null,
       onBatchMove: null,
       onBatchTogglePin: null,
+      onSelectAll: null,
       selectCount: 0,
       selectPinState: "none",
     }),

@@ -378,6 +378,18 @@ export default function TabBar({ currentPage, onNavigate }) {
             ) : isSelectMode ? (
               /* ========== 选择模式 ========== */
               <div className="flex items-center justify-center gap-0 w-full py-1">
+                <motion.button
+                  onClick={() => editor.onSelectAll?.()}
+                  whileTap={{ scale: 0.88 }}
+                  transition={springTap}
+                  className="flex flex-col items-center gap-0.5 py-1.5 px-2 min-w-[48px] rounded-xl hover:bg-white/10 transition-colors"
+                  aria-label="全选"
+                >
+                  <span className="text-[9px] font-semibold tracking-wide"
+                    style={{ color: isDark ? "rgba(163,162,158,0.8)" : "rgba(107,106,103,0.7)" }}>
+                    全选
+                  </span>
+                </motion.button>
                 <motion.div className="relative w-[46px] h-[42px] flex items-center justify-center mr-1">
                   <motion.div
                     layoutId="liquid-pill"

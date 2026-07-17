@@ -62,6 +62,7 @@ export default function HomePage({ onNewNote, onEditNote, onViewAchievement, sel
         onBatchDelete: batchDelete,
         onBatchMove: () => setShowMoveDialog(true),
         onBatchTogglePin: batchTogglePin,
+        onSelectAll: selectAll,
         selectCount: selectedIds.size,
         selectPinState: pinState,
       });
@@ -70,6 +71,7 @@ export default function HomePage({ onNewNote, onEditNote, onViewAchievement, sel
         onBatchDelete: null,
         onBatchMove: null,
         onBatchTogglePin: null,
+        onSelectAll: null,
         selectCount: 0,
         selectPinState: "none",
       });
@@ -128,6 +130,16 @@ export default function HomePage({ onNewNote, onEditNote, onViewAchievement, sel
   const exitSelectMode = () => {
     setSelectMode(false);
     setSelectedIds(new Set());
+  };
+
+  const selectAll = () => {
+    const currentIds = filteredNotes.map((n) => n.id);
+    // 如果已经全选，则取消全选；否则全选
+    if (currentIds.every((id) => selectedIds.has(id))) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(currentIds));
+    }
   };
 
   const batchDelete = async () => {

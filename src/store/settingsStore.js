@@ -11,6 +11,7 @@ const useSettingsStore = create((set, get) => ({
   tabBarOpacity: 40,
   darkMode: false,
   showAIAssistant: true,
+  reduceMotion: false,
   loaded: false,
 
   loadSettings: async () => {
@@ -24,7 +25,8 @@ const useSettingsStore = create((set, get) => ({
         const tabBarOpacity = (await getSetting("tabBarOpacity")) ?? 40;
         const darkMode = (await getSetting("darkMode")) ?? false;
         const showAIAssistant = (await getSetting("showAIAssistant")) ?? true;
-    set({ modelProvider: provider, apiKey, inference, tabBarOpacity, darkMode, showAIAssistant, loaded: true });
+        const reduceMotion = (await getSetting("reduceMotion")) ?? false;
+    set({ modelProvider: provider, apiKey, inference, tabBarOpacity, darkMode, showAIAssistant, reduceMotion, loaded: true });
   },
 
   setModelProvider: async (provider) => {
@@ -64,6 +66,11 @@ const useSettingsStore = create((set, get) => ({
   setShowAIAssistant: async (value) => {
     await setSetting("showAIAssistant", value);
     set({ showAIAssistant: value });
+  },
+
+  setReduceMotion: async (value) => {
+    await setSetting("reduceMotion", value);
+    set({ reduceMotion: value });
   },
 }));
 

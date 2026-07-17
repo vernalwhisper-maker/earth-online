@@ -36,6 +36,7 @@ const pageVariants = {
 export default function App() {
   const [currentPage, setCurrentPage] = useState("home");
   const darkMode = useSettingsStore((s) => s.darkMode);
+  const reduceMotion = useSettingsStore((s) => s.reduceMotion);
   const [editingNoteId, setEditingNoteId] = useState(null);
   const [viewingAchievementId, setViewingAchievementId] = useState(null);
   const [settingsSubPage, setSettingsSubPage] = useState(null);
@@ -109,6 +110,10 @@ export default function App() {
   useEffect(() => {
     document.documentElement.classList.toggle("dark", darkMode);
   }, [darkMode]);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("reduce-motion", reduceMotion);
+  }, [reduceMotion]);
 
   const navigateTo = (page) => {
     prevPageRef.current = currentPage;

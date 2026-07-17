@@ -17,7 +17,7 @@ function getRelativeDate(dateStr) {
   return d.toLocaleDateString("zh-CN", { month: "short", day: "numeric" });
 }
 
-export default function TodoChecklist({ noteId }) {
+export default function TodoChecklist({ noteId, onToggle }) {
   const { loadByNoteId, addItem, updateItem, toggleItem, removeItem } = useTodoStore();
   const [items, setItems] = useState([]);
   const [newTodoText, setNewTodoText] = useState("");
@@ -61,6 +61,7 @@ export default function TodoChecklist({ noteId }) {
   const handleToggle = async (id) => {
     await toggleItem(id);
     refresh();
+    onToggle?.();
   };
 
   const handleRemove = async (id) => {

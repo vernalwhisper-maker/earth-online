@@ -29,8 +29,15 @@ function insertSyntax(textarea, syntax, wrap, prefix, suffix) {
   return { newValue, cursorPos };
 }
 
-export default function MarkdownEditor({ value, onChange, minHeight = 200 }) {
+export default function MarkdownEditor({ value, onChange, minHeight = 200, onModeChange }) {
   const [mode, setMode] = useState("edit");
+
+  const handleModeSwitch = (newMode) => {
+    if (newMode !== mode) {
+      setMode(newMode);
+      onModeChange?.();
+    }
+  };
 
   const handleToolbarClick = (item) => {
     const ta = document.getElementById("md-textarea");
@@ -58,11 +65,11 @@ export default function MarkdownEditor({ value, onChange, minHeight = 200 }) {
           ))}
         </div>
         <div className="flex items-center gap-1 bg-scribe/20 rounded-full p-0.5">
-          <button onClick={() => setMode("edit")}
+          <button onClick={() => handleModeSwitch("edit")}
             className={"px-2.5 py-1 text-xs rounded-full transition-colors " + (mode === "edit" ? "bg-white text-deep-ink shadow-sm" : "text-faded-slate")}>
             <Code size={12} className="inline mr-1" />编辑
           </button>
-          <button onClick={() => setMode("preview")}
+          <button onClick={() => handleModeSwitch("preview")}
             className={"px-2.5 py-1 text-xs rounded-full transition-colors " + (mode === "preview" ? "bg-white text-deep-ink shadow-sm" : "text-faded-slate")}>
             <Eye size={12} className="inline mr-1" />预览
           </button>
