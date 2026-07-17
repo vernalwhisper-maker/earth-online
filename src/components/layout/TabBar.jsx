@@ -20,7 +20,6 @@ const editorActions = [
   { key: "ai", icon: Sparkles, getLabel: (_, analyzing) => analyzing ? "分析中" : "匹配成就", iconClass: "text-emerald", action: "onSaveWithAI", disabled: "isAIAnalyzing" },
   { key: "more", icon: Palette, label: "更多", iconClass: "text-warm-steel/70" },
   { key: "tags", icon: Hash, label: "标签", iconClass: "text-warm-steel/70" },
-  { key: "delete", icon: Trash2, label: "删除", iconClass: "text-rose/70", action: "onDelete", conditional: "isExistingNote", needsConfirm: true },
 ];
 
 // 选择模式操作按钮
@@ -294,6 +293,28 @@ export default function TabBar({ currentPage, onNavigate }) {
                     {DEFAULT_FOLDERS.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
                   </select>
                 </div>
+                {/* 删除笔记 — 仅在已有笔记时显示 */}
+                {editor.isExistingNote && (
+                  <>
+                    <div className="h-px" style={{ background: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)" }} />
+                    <motion.button
+                      onClick={() => {
+                        setShowMorePopup(false);
+                        setConfirmTarget({
+                          action: () => editor.onDelete?.(),
+                          label: "确认删除？",
+                          key: "delete",
+                        });
+                      }}
+                      whileTap={{ scale: 0.92 }}
+                      transition={springTap}
+                      className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-medium"
+                      style={{ color: isDark ? "#fca5a5" : "#dc2626" }}
+                    >
+                      <Trash2 size={16} /> 删除笔记
+                    </motion.button>
+                  </>
+                )}
               </div>
             </motion.div>
           </>
@@ -337,6 +358,7 @@ export default function TabBar({ currentPage, onNavigate }) {
                     <motion.button
                       key={act.key}
                       ref={act.key === "delete" ? deleteBtnRef : null}
+                      aria-label={label}
                       onClick={() => handleActionClick(act)}
                       whileTap={{ scale: 0.88 }}
                       transition={springTap}
@@ -382,6 +404,7 @@ export default function TabBar({ currentPage, onNavigate }) {
                   return (
                     <motion.button
                       key={act.key}
+                      aria-label={label}
                       onClick={() => handleActionClick(act)}
                       whileTap={{ scale: 0.88 }}
                       transition={springTap}
@@ -408,6 +431,8 @@ export default function TabBar({ currentPage, onNavigate }) {
                   return (
                     <motion.button
                       key={tab.key}
+                      aria-label={tab.label}
+                      aria-current={isActive ? "page" : undefined}
                       onClick={() => onNavigate(tab.key)}
                       whileTap={{ scale: 0.92 }}
                       transition={springTap}

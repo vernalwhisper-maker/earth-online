@@ -192,7 +192,8 @@ export default function HomePage({ onNewNote, onEditNote, onViewAchievement, sel
             className="relative">
             {/* Selection checkbox */}
             {selectMode && (
-              <div className="absolute -left-1 top-1/2 -translate-y-1/2 z-10">
+              <div role="checkbox" aria-checked={selectedIds.has(note.id)}
+                className="absolute -left-1 top-1/2 -translate-y-1/2 z-10">
                 <div className={"w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors " +
                   (selectedIds.has(note.id) ? "bg-emerald border-emerald" : "bg-white border-scribe")}>
                   {selectedIds.has(note.id) && <CheckCircle size={14} className="text-white" />}
@@ -281,6 +282,7 @@ export default function HomePage({ onNewNote, onEditNote, onViewAchievement, sel
             onBlur={() => setTimeout(() => { commitSearch(); setSearchFocused(false); }, 200)}
             onKeyDown={(e) => { if (e.key === "Enter") commitSearch(); }}
             placeholder="搜索笔记..."
+            aria-label="搜索笔记"
             className="w-full pl-9 pr-3 py-2.5 bg-surface border border-scribe rounded-btn text-sm text-deep-ink placeholder-faded-slate outline-none focus:ring-2 focus:ring-emerald transition-all" />
           {searchDropdown}
         </div>

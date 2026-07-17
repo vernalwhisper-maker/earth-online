@@ -201,13 +201,13 @@ export default function NoteEditorPage({ noteId, onBack }) {
       className={"min-h-[100dvh] flex flex-col transition-colors duration-300 " + currentBgColor.class + (bgPattern !== "solid" ? " bg-pattern-" + bgPattern + (bgColorId === 6 ? " bg-pattern-dark" : "") : "")}
     >
       {/* Header */}
-      <div className={"flex items-center justify-between px-4 pt-4 pb-3 border-b safe-area-top " + currentBgColor.border}>
+      <div className={"grid grid-cols-3 items-center px-4 pt-4 pb-3 border-b safe-area-top " + currentBgColor.border}>
         <button onClick={onBack}
-          className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-black/5 transition-colors -ml-2">
+          className="justify-self-start w-10 h-10 flex items-center justify-center rounded-full hover:bg-black/5 transition-colors -ml-2">
           <ArrowLeft size={20} className="text-warm-steel" />
         </button>
-        <span className="text-xs font-mono text-faded-slate">{today}</span>
-        <div className="flex items-center gap-2">
+        <span className="text-xs font-mono text-faded-slate text-center">{today}</span>
+        <div className="flex items-center gap-2 justify-self-end">
           {saveStatus === "saving" && <span className="text-xs text-faded-slate">自动保存</span>}
           {saveStatus === "ai-analyzing" && (
             <span className="flex items-center gap-1.5 text-xs text-emerald">

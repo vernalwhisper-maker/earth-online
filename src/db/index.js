@@ -15,13 +15,13 @@ function generateId() {
 }
 
 const DB_NAME = "earth-online";
-const DB_VERSION = 5;
+const DB_VERSION = 6;
 
 let dbPromise = null;
 
 function openDatabase() {
   return openDB(DB_NAME, DB_VERSION, {
-    upgrade(db, oldVersion, newVersion, transaction) {
+    async upgrade(db, oldVersion, newVersion, transaction) {
       try {
         // === v1: notes + settings ===
         if (!db.objectStoreNames.contains("notes")) {
@@ -33,14 +33,11 @@ function openDatabase() {
           db.createObjectStore("settings", { keyPath: "key" });
         }
 
-        // === v1→v2: 迁移新字段 ===
+        // === v1→v2: 迁移新字段（Promise 风格 cursor） ===
         if (oldVersion < 2) {
           const store = transaction.objectStore("notes");
-          // 同步迁移：直接遍历所有记录
-          const req = store.openCursor();
-          req.onsuccess = function (e) {
-            const cursor = e.target.result;
-            if (!cursor) return;
+          let cursor = await store.openCursor();
+          while (cursor) {
             const note = cursor.value;
             let needsUpdate = false;
 
@@ -57,8 +54,8 @@ function openDatabase() {
             if (note.deletedAt === undefined) { note.deletedAt = null; needsUpdate = true; }
 
             if (needsUpdate) { cursor.update(note); }
-            cursor.continue();
-          };
+            cursor = await cursor.continue();
+          }
         }
 
         // === v2→v3: 添加 todos 存储 ===

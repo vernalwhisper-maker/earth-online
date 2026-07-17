@@ -64,6 +64,10 @@ export default function App() {
   }, [homeSelectMode]);
 
   useEffect(() => {
+    settingsSubPageRef.current = settingsSubPage;
+  }, [settingsSubPage]);
+
+  useEffect(() => {
     loadNotes();
     loadState();
     loadSettings();
@@ -216,6 +220,7 @@ export default function App() {
         <>
           {showAIAssistant && <AIAssistant noteId={null} notes={notes} />}
           <motion.button
+            aria-label="新建笔记"
             onClick={() => { prevPageRef.current = currentPage; setEditingNoteId("new"); setCurrentPage("editor"); }}
             whileTap={{ scale: 0.85 }}
             transition={{ type: "spring", stiffness: 400, damping: 15 }}

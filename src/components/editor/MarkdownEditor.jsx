@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Code, Eye, Bold, Italic, Heading, List, Link as LinkIcon, Image } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import rehypeRaw from "rehype-raw";
 
 const TOOLBAR_ITEMS = [
   { label: "B", icon: Bold, syntax: "**", wrap: true, prefix: "**", suffix: "**", title: "粗体" },
@@ -82,7 +83,7 @@ export default function MarkdownEditor({ value, onChange, minHeight = 200 }) {
             className="px-3 py-2.5 text-[0.9375rem] text-deep-ink leading-relaxed markdown-preview overflow-x-auto"
             style={{ minHeight: minHeight + "px" }}>
             {hasContent ? (
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{value}</ReactMarkdown>
+              <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>{value}</ReactMarkdown>
             ) : (
               <p className="text-faded-slate italic">暂无内容</p>
             )}
