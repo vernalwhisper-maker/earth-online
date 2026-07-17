@@ -61,6 +61,9 @@ export default function TabBar({ currentPage, onNavigate }) {
   // 批量删标签弹窗
   const [showBatchTagPopup, setShowBatchTagPopup] = useState(false);
 
+  // 文件夹选择弹窗
+  const [showFolderPicker, setShowFolderPicker] = useState(false);
+
   const glassBase = isDark
     ? `linear-gradient(135deg, rgba(30,30,30,${tabBarOpacity / 90}) 0%, rgba(16,185,129,${tabBarOpacity / 500}) 40%, rgba(30,30,30,${tabBarOpacity / 80}) 100%)`
     : `linear-gradient(135deg, rgba(255,255,255,${tabBarOpacity / 100}) 0%, rgba(16,185,129,${tabBarOpacity / 600}) 40%, rgba(255,255,255,${tabBarOpacity / 150}) 100%)`;
@@ -292,15 +295,46 @@ export default function TabBar({ currentPage, onNavigate }) {
                     style={{ color: isDark ? "rgba(163,162,158,0.8)" : "rgba(107,106,103,0.8)" }}>
                     <Folder size={10} /> 文件夹
                   </label>
-                  <select value={editor.folderId} onChange={(e) => editor.onChangeFolder?.(e.target.value)}
-                    className="w-full px-3 py-1.5 text-sm rounded-xl border outline-none"
+                  <motion.button
+                    onClick={() => setShowFolderPicker(!showFolderPicker)}
+                    whileTap={{ scale: 0.97 }}
+                    className="w-full flex items-center justify-between px-3 py-2 text-sm rounded-xl border outline-none"
                     style={{
                       background: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.02)",
                       borderColor: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)",
                       color: isDark ? "rgba(255,255,255,0.8)" : "#1c1b1a",
-                    }}>
-                    {DEFAULT_FOLDERS.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
-                  </select>
+                    }}
+                  >
+                    <span>{DEFAULT_FOLDERS.find((f) => f.id === editor.folderId)?.label || "选择文件夹"}</span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ opacity: 0.5, transform: showFolderPicker ? "rotate(180deg)" : "none" }}><path d="m6 9 6 6 6-6"/></svg>
+                  </motion.button>
+                  <AnimatePresence>
+                    {showFolderPicker && (
+                      <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                        className="overflow-hidden rounded-xl mt-1"
+                        style={{ background: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)" }}>
+                        {DEFAULT_FOLDERS.map((f) => {
+                          const isActive = editor.folderId === f.id;
+                          return (
+                            <motion.button
+                              key={f.id}
+                              onClick={() => { editor.onChangeFolder?.(f.id); setShowFolderPicker(false); }}
+                              whileTap={{ scale: 0.97 }}
+                              className="w-full flex items-center gap-3 px-3 py-2.5 text-sm transition-colors"
+                              style={{
+                                background: isActive ? (isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.04)") : "transparent",
+                                color: isActive ? (isDark ? "#34d399" : "#059669") : (isDark ? "rgba(255,255,255,0.7)" : "#1c1b1a"),
+                              }}
+                            >
+                              <Folder size={14} style={{ opacity: 0.6 }} />
+                              <span className="flex-1 text-left">{f.label}</span>
+                              {isActive && <Check size={14} />}
+                            </motion.button>
+                          );
+                        })}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
                 {/* 删除笔记 — 仅在已有笔记时显示 */}
                 {editor.isExistingNote && (

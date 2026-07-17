@@ -29,6 +29,7 @@ export default function SettingsPage({ settingsSubPage, onSubPageChange }) {
   const [newFolderName, setNewFolderName] = useState("");
   const [editingFolderId, setEditingFolderId] = useState(null);
   const [editingFolderLabel, setEditingFolderLabel] = useState("");
+  const [folderSelectedIds, setFolderSelectedIds] = useState(new Set());
   const [showChatHistory, setShowChatHistory] = useState(false);
   const [chatHistory, setChatHistory] = useState([]);
   const [loadingChatHistory, setLoadingChatHistory] = useState(false);
@@ -62,8 +63,25 @@ export default function SettingsPage({ settingsSubPage, onSubPageChange }) {
     setDeletedNotes(deletedNotes.filter((n) => !recycleSelectedIds.has(n.id)));
   };
 
+  const toggleFolderSelect = (id) => {
+    setFolderSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+  const toggleAllFolders = () => {
+    if (folderSelectedIds.size === folders.length) setFolderSelectedIds(new Set());
+    else setFolderSelectedIds(new Set(folders.map((f) => f.id)));
+  };
+  const batchDeleteFolders = async () => {
+    for (const id of folderSelectedIds) await removeFolder(id);
+    setFolderSelectedIds(new Set());
+    useFolderStore.getState().loadFolders();
+  };
+
   useEffect(() => {
-    if (showFolderManager) useFolderStore.getState().loadFolders();
+    if (showFolderManager) { useFolderStore.getState().loadFolders(); setFolderSelectedIds(new Set()); }
   }, [showFolderManager]);
 
   // Sub-page navigation — 直接用 props 判断，父组件清空 settingsSubPage 立即生效
@@ -259,14 +277,28 @@ export default function SettingsPage({ settingsSubPage, onSubPageChange }) {
             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
               className="bg-surface rounded-modal p-6 max-w-sm w-full shadow-soft">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-deep-ink">文件夹管理</h3>
+                <div className="flex items-center gap-3">
+                  <h3 className="text-lg font-bold text-deep-ink">文件夹管理</h3>
+                  {folders.length > 0 && (
+                    <button onClick={toggleAllFolders}
+                      className="text-xs text-emerald hover:text-emerald-dark font-medium">
+                      {folderSelectedIds.size === folders.length ? "取消全选" : "全选"}
+                    </button>
+                  )}
+                </div>
                 <button onClick={() => setShowFolderManager(false)} className="p-1 rounded-full hover:bg-scribe/30 transition-colors">
                   <X size={18} className="text-warm-steel" />
                 </button>
               </div>
-              <div className="space-y-2 mb-4">
+              <div className="space-y-2 mb-4 max-h-[50vh] overflow-y-auto">
                 {folders.map((f) => (
-                  <div key={f.id} className="flex items-center gap-2">
+                  <div key={f.id}
+                    className={"flex items-center gap-2 px-2 py-2 rounded-btn transition-colors " + (folderSelectedIds.has(f.id) ? "bg-emerald/5 ring-1 ring-emerald/30" : "")}>
+                    <button onClick={() => toggleFolderSelect(f.id)}
+                      className="shrink-0 w-4 h-4 rounded border-2 flex items-center justify-center transition-colors"
+                      style={{ borderColor: folderSelectedIds.has(f.id) ? "#10b981" : "rgba(163,162,158,0.5)" }}>
+                      {folderSelectedIds.has(f.id) && <CheckCircle size={10} className="text-emerald" />}
+                    </button>
                     {editingFolderId === f.id ? (
                       <>
                         <input type="text" value={editingFolderLabel}
@@ -297,6 +329,15 @@ export default function SettingsPage({ settingsSubPage, onSubPageChange }) {
                   </div>
                 ))}
               </div>
+              {folderSelectedIds.size > 0 && (
+                <div className="flex items-center justify-between pb-3">
+                  <span className="text-xs text-faded-slate font-mono">已选 {folderSelectedIds.size} 项</span>
+                  <button onClick={batchDeleteFolders}
+                    className="text-xs text-rose bg-rose/10 px-3 py-1.5 rounded-full hover:bg-rose/20 transition-colors font-medium">
+                    <Trash2 size={12} className="inline mr-1" />批量删除
+                  </button>
+                </div>
+              )}
               <div className="flex gap-2 border-t border-scribe pt-3">
                 <input type="text" value={newFolderName}
                   onChange={(e) => setNewFolderName(e.target.value)}
