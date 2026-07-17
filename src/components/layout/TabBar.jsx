@@ -27,6 +27,7 @@ const selectActions = [
   { key: "delete", icon: Trash2, label: "删除", iconClass: "text-rose", action: "onBatchDelete", needsConfirm: true },
   { key: "move", icon: Folder, label: "移动", iconClass: "text-warm-steel/70", action: "onBatchMove" },
   { key: "pin", icon: Pin, iconClass: "text-warm-steel/70", action: "onBatchTogglePin", getLabel: (pinState) => pinState === "all_pinned" ? "取消置顶" : "置顶" },
+  { key: "ai", icon: Sparkles, label: "量建标签", iconClass: "text-violet-500", action: "onAutoTag", conditional: "hasApiKey" },
 ];
 
 // iOS 26 Liquid Glass 弹簧物理参数
@@ -410,6 +411,7 @@ export default function TabBar({ currentPage, onNavigate }) {
                   <span className="relative z-10 text-sm font-mono font-bold text-emerald drop-shadow-[0_1px_3px_rgba(16,185,129,0.3)]">{editor.selectCount}</span>
                 </motion.div>
                 {selectActions.map((act) => {
+                  if (act.conditional && !editor[act.conditional]) return null;
                   const Icon = act.icon;
                   const label = act.getLabel ? act.getLabel(editor.selectPinState) : act.label;
 

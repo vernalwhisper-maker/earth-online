@@ -2,7 +2,6 @@
 import { motion } from "framer-motion";
 import { ArrowLeft, Download, Upload, Trash2, RotateCcw, X, Lock, KeyRound } from "lucide-react";
 import RangeSlider from "../../components/ui/RangeSlider";
-import GlassSwitch from "../../components/ui/GlassSwitch";
 import useSettingsStore from "../../store/settingsStore";
 import useNoteStore from "../../store/noteStore";
 import { getAllNotes, importAllNotes, clearAllData } from "../../db";
@@ -11,8 +10,6 @@ import { Filesystem, Directory } from "@capacitor/filesystem";
 
 export default function MoreSettingsPage({ onBack }) {
   const { tabBarOpacity, setTabBarOpacity } = useSettingsStore();
-  const reduceMotion = useSettingsStore((s) => s.reduceMotion);
-  const setReduceMotion = useSettingsStore((s) => s.setReduceMotion);
   const loadNotes = useNoteStore((s) => s.loadNotes);
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -84,10 +81,6 @@ export default function MoreSettingsPage({ onBack }) {
           <RangeSlider label="导航栏通透度" value={tabBarOpacity}
             onChange={(v) => setTabBarOpacity(v)} min={10} max={90} step={5}
             labels={["通透", "半透", "微透", "厚重"]} formatValue={(v) => v + "%"} />
-          <div className="flex items-center justify-between pt-2">
-            <span className="text-sm text-deep-ink">关闭所有动画</span>
-            <GlassSwitch value={reduceMotion} onChange={setReduceMotion} ariaLabel="关闭所有动画" />
-          </div>
         </div>
       </section>
 

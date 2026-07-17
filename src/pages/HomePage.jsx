@@ -11,6 +11,9 @@ import NoteCard from "../components/notes/NoteCard";
 import { NOTE_TYPES, NOTE_TYPE_KEYS, DEFAULT_FOLDERS } from "../data/noteTypes";
 import useFolderStore from "../store/folderStore";
 import useEditorActionsStore from "../store/editorActionsStore";
+import useSettingsStore from "../store/settingsStore";
+import useToastStore from "../store/toastStore";
+import { generateTags, keywordTagMatch } from "../utils/aiChat";
 import { getSearchHistory, saveSearchQuery, clearSearchHistory } from "../db";
 
 const TYPE_ICONS = { journal: FTI, todo: CheckSquare, milestone: Award, flashcard: StickyNote };
@@ -63,6 +66,8 @@ export default function HomePage({ onNewNote, onEditNote, onViewAchievement, sel
         onBatchMove: () => setShowMoveDialog(true),
         onBatchTogglePin: batchTogglePin,
         onSelectAll: selectAll,
+        onAutoTag: autoTagSelected,
+        hasApiKey: !!useSettingsStore.getState().apiKey,
         selectCount: selectedIds.size,
         selectPinState: pinState,
       });
@@ -72,6 +77,7 @@ export default function HomePage({ onNewNote, onEditNote, onViewAchievement, sel
         onBatchMove: null,
         onBatchTogglePin: null,
         onSelectAll: null,
+        onAutoTag: null,
         selectCount: 0,
         selectPinState: "none",
       });
@@ -134,12 +140,65 @@ export default function HomePage({ onNewNote, onEditNote, onViewAchievement, sel
 
   const selectAll = () => {
     const currentIds = filteredNotes.map((n) => n.id);
-    // 如果已经全选，则取消全选；否则全选
     if (currentIds.every((id) => selectedIds.has(id))) {
       setSelectedIds(new Set());
     } else {
       setSelectedIds(new Set(currentIds));
     }
+  };
+
+  const autoTagSelected = async () => {
+    const ids = [...selectedIds];
+    if (ids.length === 0) return;
+    const toast = useToastStore.getState();
+    const { modelProvider, apiKey } = useSettingsStore.getState();
+
+    const snippets = ids.slice(0, 10).map((id) => {
+      const note = notes.find((n) => n.id === id);
+      if (!note) return "";
+      const content = note.body || note.contentMarkdown || "";
+      return (note.title || "") + ": " + content.slice(0, 200);
+    }).filter(Boolean);
+    if (snippets.length === 0) return;
+
+    const combined = snippets.join(" ");
+    const keywordTags = keywordTagMatch(combined);
+    console.log("量建标签: snippets=", snippets, "keywordTags=", keywordTags);
+
+    // 收集所有已有标签（去重），供 AI 优先选择
+    const allExistingTags = [...new Set(
+      ids.map((id) => notes.find((n) => n.id === id))
+        .filter(Boolean)
+        .flatMap((n) => n.tags || [])
+    )];
+
+    let aiTags = [];
+    if (apiKey) {
+      toast.info("AI 正在分析笔记...");
+      aiTags = await generateTags(snippets.join("\n---\n"), apiKey, modelProvider, allExistingTags);
+      console.log("量建标签: aiTags=", aiTags);
+    }
+
+    const allTags = [...new Set([...keywordTags, ...aiTags])];
+    if (allTags.length === 0) {
+      const reason = !apiKey ? "未配置 API Key" : keywordTags.length === 0 && aiTags.length === 0 ? "关键词和 AI 均未匹配到标签" : aiTags.length === 0 ? "AI 未返回标签" : "关键词未匹配";
+      toast.error("未能生成标签（" + reason + "）");
+      return;
+    }
+
+    let count = 0;
+    for (const id of ids) {
+      const note = notes.find((n) => n.id === id);
+      if (!note) continue;
+      const existing = new Set(note.tags || []);
+      const newTags = allTags.filter((t) => !existing.has(t));
+      if (newTags.length > 0) {
+        note.tags = [...(note.tags || []), ...newTags];
+        await saveNote(note);
+        count++;
+      }
+    }
+    toast.success(`已为 ${count} 条笔记添加标签: ${allTags.join(", ")}`);
   };
 
   const batchDelete = async () => {

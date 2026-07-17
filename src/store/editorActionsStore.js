@@ -27,6 +27,8 @@ const useEditorActionsStore = create((set) => ({
   onBatchMove: null,
   onBatchTogglePin: null,
   onSelectAll: null,
+  onAutoTag: null,
+  hasApiKey: false,
   selectCount: 0,
   selectPinState: "none", // "none" | "all_pinned" | "mixed"
 
@@ -61,6 +63,8 @@ const useEditorActionsStore = create((set) => ({
       onBatchMove: actions.onBatchMove || null,
       onBatchTogglePin: actions.onBatchTogglePin || null,
       onSelectAll: actions.onSelectAll || null,
+      onAutoTag: actions.onAutoTag || null,
+      hasApiKey: !!actions.hasApiKey,
       selectCount: actions.selectCount || 0,
       selectPinState: actions.selectPinState || "none",
     }),
@@ -87,6 +91,8 @@ const useEditorActionsStore = create((set) => ({
       onBatchMove: null,
       onBatchTogglePin: null,
       onSelectAll: null,
+      onAutoTag: null,
+      hasApiKey: false,
       selectCount: 0,
       selectPinState: "none",
     }),
