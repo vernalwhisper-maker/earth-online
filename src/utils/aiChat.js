@@ -1,11 +1,34 @@
 // AI 对话与摘要 API 工具
 
+import useSettingsStore from "../store/settingsStore";
+
 const API_CONFIG = {
   deepseek: { endpoint: "https://api.deepseek.com/v1/chat/completions", model: "deepseek-chat" },
   zhipu: { endpoint: "https://open.bigmodel.cn/api/paas/v4/chat/completions", model: "glm-4v-flash" },
   qwen: { endpoint: "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions", model: "qwen-vl-plus" },
   ollama: { endpoint: "http://localhost:11434/v1/chat/completions", model: "llama3" },
 };
+
+// 根据 useMode 返回有效的 API 配置
+function getEffectiveConfig() {
+  try {
+    const s = useSettingsStore.getState ? useSettingsStore.getState() : {};
+    const { useMode, localEndpoint, localModel, modelProvider } = s;
+    if (useMode === "ollama") {
+      const ep = (localEndpoint || "http://localhost:11434").replace(/\/+$/, "");
+      // 开发环境通过 Vite proxy 避免 CORS，生产环境直接连
+      const isLocalDev = ep.includes("localhost") || ep.includes("127.0.0.1");
+      const proxyPath = isLocalDev ? "/ollama" : ep;
+      return { endpoint: proxyPath + "/v1/chat/completions", model: localModel || "qwen2.5:1.5b", requiresAuth: false };
+    }
+    if (useMode === "webllm") {
+      return { useWebLLM: true, requiresAuth: false };
+    }
+    return { ...API_CONFIG[modelProvider || "deepseek"] || API_CONFIG.deepseek, requiresAuth: true };
+  } catch {
+    return API_CONFIG.deepseek;
+  }
+}
 
 // 关键词标签兜底 — 无需 API Key，从笔记内容匹配关键词推荐标签
 const COMMON_TAGS = {
@@ -118,9 +141,16 @@ const SYSTEM_PROMPT = [
 
 // 生成笔记摘要
 export async function generateSummary(noteContent, apiKey, provider, inference) {
-  if (!apiKey) return null;
-  const config = API_CONFIG[provider || "deepseek"];
+  const config = getEffectiveConfig();
   if (!config) return null;
+
+  // WebLLM 模式
+  if (config.useWebLLM) {
+    const { webllmChat } = await import("../utils/webllm");
+    return await webllmChat([{ role: "system", content: "用一句话概括用户笔记的核心内容。直接输出摘要。" }, { role: "user", content: noteContent }], inference);
+  }
+
+  if (!apiKey && config.requiresAuth !== false) return null;
   try {
     const response = await fetch(config.endpoint, {
       method: "POST",
@@ -145,9 +175,16 @@ export async function generateSummary(noteContent, apiKey, provider, inference) 
 
 // AI 对话
 export async function chatWithAIStream(messages, apiKey, provider, inference, onChunk) {
-  if (!apiKey) return null;
-  const config = API_CONFIG[provider || "deepseek"];
+  const config = getEffectiveConfig();
   if (!config) return null;
+
+  // WebLLM 模式
+  if (config.useWebLLM) {
+    const { webllmChatStream } = await import("../utils/webllm");
+    return await webllmChatStream(messages, inference, onChunk);
+  }
+
+  if (!apiKey && config.requiresAuth !== false) return null;
   try {
     const response = await fetch(config.endpoint, {
       method: "POST",
@@ -195,9 +232,16 @@ export async function chatWithAIStream(messages, apiKey, provider, inference, on
 }
 
 export async function chatWithAI(messages, apiKey, provider, inference) {
-  if (!apiKey) return null;
-  const config = API_CONFIG[provider || "deepseek"];
+  const config = getEffectiveConfig();
   if (!config) return null;
+
+  // WebLLM 模式
+  if (config.useWebLLM) {
+    const { webllmChat } = await import("../utils/webllm");
+    return await webllmChat(messages, inference);
+  }
+
+  if (!apiKey && config.requiresAuth !== false) return null;
   try {
     const response = await fetch(config.endpoint, {
       method: "POST",
@@ -244,12 +288,22 @@ function getTagCacheKey(content, existingTagStr) {
 
 // AI 批量标签生成
 export async function generateTags(notesContent, apiKey, provider, existingTags) {
-  if (!apiKey) return [];
-  const config = API_CONFIG[provider || "deepseek"];
+  const config = getEffectiveConfig();
   if (!config) return [];
 
-  // 缓存查找
   const existingTagStr = (existingTags || []).sort().join(",");
+
+  // WebLLM 模式
+  if (config.useWebLLM) {
+    const { webllmChat } = await import("../utils/webllm");
+    const result = await webllmChat([{ role: "system", content: TAGGING_SYSTEM_PROMPT }, { role: "user", content: "已有标签：" + (existingTagStr || "无") + "\n\n笔记内容：\n" + notesContent }], { temperature: 0.1, maxTokens: 100, topP: 1.0 });
+    if (!result) return [];
+    try { return JSON.parse(result.replace(/^```(?:json)?\s*|\s*```$/g, "").trim()); } catch { return []; }
+  }
+
+  if (!apiKey && config.requiresAuth !== false) return [];
+
+  // 缓存查找
   const cacheKey = getTagCacheKey(notesContent.slice(0, 500), existingTagStr);
   const cached = tagCache.get(cacheKey);
   if (cached) return cached;

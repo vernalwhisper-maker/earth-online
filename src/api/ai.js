@@ -1,7 +1,36 @@
 // AI 成就匹配模块
-// 双引擎策略：AI语义匹配 + 关键词兜底
+// 三引擎策略：AI语义匹配 + 嵌入匹配 + 关键词兜底
 
 import achievementsData from "../data/achievements";
+import useSettingsStore from "../store/settingsStore";
+
+// 嵌入匹配（动态导入，避免阻塞主流程）
+let embedMatch = null;
+async function getEmbedMatch() {
+  if (embedMatch === null) {
+    try {
+      embedMatch = await import("../utils/embeddings");
+    } catch {
+      embedMatch = false;
+    }
+  }
+  return embedMatch;
+}
+
+function getMatchConfig() {
+  try {
+    const s = useSettingsStore.getState();
+    const { useMode, localEndpoint, localModel } = s;
+    if (useMode === "ollama") {
+      const ep = (localEndpoint || "http://localhost:11434").replace(/\/+$/, "");
+      const isLocalDev = ep.includes("localhost") || ep.includes("127.0.0.1");
+      const proxyPath = isLocalDev ? "/ollama" : ep;
+      return { endpoint: proxyPath + "/v1/chat/completions", model: localModel || "qwen2.5:1.5b" };
+    }
+    if (useMode === "webllm") return null; // WebLLM 暂不支持成就匹配
+    return API_CONFIG[s.modelProvider || "deepseek"];
+  } catch { return API_CONFIG.deepseek; }
+}
 
 const API_CONFIG = {
   deepseek: { endpoint: "https://api.deepseek.com/v1/chat/completions", model: "deepseek-chat", label: "DeepSeek V4 Flash" },
@@ -84,11 +113,11 @@ function buildKeywords() {
 
 const ACHIEVEMENT_KEYWORDS = buildKeywords();
 
-// Pre-filter keywords at module level (skip 2-char or fewer — too generic)
+// Pre-filter keywords at module level
 const KEYWORDS_FILTERED = Object.fromEntries(
   Object.entries(ACHIEVEMENT_KEYWORDS).map(([id, kws]) => [
     id,
-    kws.filter((kw) => kw.length >= 3),
+    kws.filter((kw) => kw.length >= 2),
   ])
 );
 
@@ -108,7 +137,7 @@ function keywordMatch(noteContent) {
       scores[id] = matchCount;
     } else if (matchCount === 1) {
       for (const kw of validKws) {
-        if (text.includes(kw.toLowerCase()) && kw.length >= 4) {
+        if (text.includes(kw.toLowerCase()) && kw.length >= 3) {
           scores[id] = 1;
           break;
         }
@@ -122,14 +151,14 @@ function keywordMatch(noteContent) {
 }
 
 const SYSTEM_PROMPT = [
-  "你是一个精确的人生成就匹配专家。你的任务是将用户的笔记内容与成就列表进行匹配。",
+  "你是一个精确的人生成就匹配专家。只根据笔记内容中的**具体事件和行为**匹配成就。",
   "匹配规则：",
-  "1. 分析笔记中包含的关键事件、行为、状态和情感",
-  "2. 与成就库中的每个成就逐一比对",
+  "1. 笔记中必须明确提及成就对应的行为或事件",
+  "2. 不要过度联想——如果笔记没提，就不匹配",
   "3. 只看语义相关度，忽略稀有度高低",
   "4. 只返回1-2个最匹配的成就",
   "5. 非常不相关就返回空数组[]",
-  "6. 只输出JSON格式，不要带任何说明文字",
+  "6. 只输出JSON格式，不要任何说明文字",
 ].join("\n");
 
 const EXAMPLE = [
@@ -143,16 +172,16 @@ const EXAMPLE = [
   "输出：[42, 10]",
   "",
   "示例3：",
+  "笔记：我有一个陪伴我5年的狗狗，每天都陪我散步。",
+  "输出：[30]",
+  "",
+  "示例4：",
   "笔记：今天加班到凌晨两点，项目终于交付了",
   "输出：[59]",
   "",
-  "示例4：",
+  "示例5：",
   "笔记：领证了！从今天开始我们就是合法夫妻了",
   "输出：[33]",
-  "",
-  "示例5：",
-  "笔记：路过花店给妈妈买了一束花",
-  "输出：[44]",
   "",
   "示例6：",
   "笔记：一个人在这个城市打拼三年了，最大的感受就是学会了和自己相处",
@@ -160,7 +189,11 @@ const EXAMPLE = [
   "",
   "示例7：",
   "笔记：又刷了一晚上短视频，根本停不下来",
-  "输出：[32]",
+  "输出：[31]",
+  "",
+  "示例8：",
+  "笔记：周末去公园走路了，天气很好",
+  "输出：[]",
   "",
 ].join("\n");
 
@@ -181,7 +214,20 @@ function parseIds(text) {
     const clean = text.trim();
     if (clean.startsWith("[") && clean.endsWith("]")) {
       const parsed = JSON.parse(clean);
-      if (Array.isArray(parsed)) return parsed.filter((id) => id >= 1 && id <= 60);
+      if (Array.isArray(parsed)) {
+        // 支持数字 ID 和成就名称
+        const ids = parsed.map((item) => {
+          if (typeof item === "number" && item >= 1 && item <= 60) return item;
+          if (typeof item === "string") {
+            const match = achievementsData.find(
+              (a) => a.name === item || a.name.includes(item) || item.includes(a.name)
+            );
+            return match ? match.id : null;
+          }
+          return null;
+        }).filter((id) => id !== null);
+        return ids;
+      }
     }
   } catch (e) {
     // Not valid JSON — try regex fallback
@@ -200,9 +246,24 @@ function parseIds(text) {
 
 export async function matchAchievements(noteContent, apiKey, provider, inference) {
   const keywordResults = keywordMatch(noteContent);
-  if (!apiKey) return keywordResults;
-  const config = API_CONFIG[provider || "zhipu"];
-  if (!config) return keywordResults;
+
+  // 引擎1：嵌入匹配（语义相似度，轻量快速）
+  let embedIds = [];
+  try {
+    const emb = await getEmbedMatch();
+    if (emb && emb.isEmbeddingsReady()) {
+      const results = await emb.matchByEmbedding(noteContent, 3, 0.35);
+      embedIds = results.map((r) => r.id);
+    } else if (emb) {
+      emb.initEmbeddings().catch(() => {});
+    }
+  } catch {}
+  const embedResults = embedIds;
+
+  // 引擎2：AI 语义匹配
+  const config = getMatchConfig();
+  if (!config) return [...new Set([...embedIds, ...keywordResults])].slice(0, 3);
+  if (!apiKey && config.endpoint?.startsWith?.("http") && !config.endpoint.includes("localhost") && !config.endpoint.includes("127.0.0.1") && !config.endpoint.includes("/ollama")) return [...new Set([...embedIds, ...keywordResults])].slice(0, 3);
 
   const userPrompt = [
     "以下是成就列表（序号.成就名-简短描述）：",
@@ -242,11 +303,11 @@ export async function matchAchievements(noteContent, apiKey, provider, inference
     const data = await response.json();
     const text = data.choices?.[0]?.message?.content || "";
     const aiIds = parseIds(text);
-    const merged = [...new Set([...aiIds, ...keywordResults])].slice(0, 3);
+    const merged = [...new Set([...aiIds, ...embedIds, ...keywordResults])].slice(0, 3);
     return merged;
   } catch (err) {
     console.error("AI matching error:", err);
-    return keywordResults;
+    return [...new Set([...embedIds, ...keywordResults])].slice(0, 3);
   }
 }
 

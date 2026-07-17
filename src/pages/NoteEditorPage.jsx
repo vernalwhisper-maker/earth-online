@@ -126,7 +126,10 @@ export default function NoteEditorPage({ noteId, onBack }) {
   // 离开编辑器时保存并清除操作
   useEffect(() => {
     return () => {
-      performSave(false, latestRef.current).catch(() => {});
+      const snap = latestRef.current;
+      if (snap?.title?.trim() || snap?.body?.trim() || snap?.markdownContent?.trim()) {
+        performSave(false, snap).catch(() => {});
+      }
       useEditorActionsStore.getState().clearActions();
     };
   }, []);
@@ -153,9 +156,9 @@ export default function NoteEditorPage({ noteId, onBack }) {
       const saved = await saveNoteToStore(note);
       noteIdRef.current = saved.id;
 
-      if (triggerAI && apiKey) {
+      if (triggerAI && (apiKey || useSettingsStore.getState().useMode !== "online")) {
         const noteContent = s.title + "\n" + (s.useMarkdown ? s.markdownContent : s.body);
-        const matchedIds = await matchAchievements(noteContent, apiKey, modelProvider, inference);
+        const matchedIds = await matchAchievements(noteContent, apiKey || "", modelProvider, inference);
         for (const id of matchedIds) {
           await unlockAchievement(id, saved.id);
         }
@@ -208,7 +211,13 @@ export default function NoteEditorPage({ noteId, onBack }) {
     >
       {/* Header */}
       <div className={"grid grid-cols-3 items-center px-4 pt-4 pb-3 border-b safe-area-top " + currentBgColor.border}>
-        <button onClick={async () => { await performSave(false, latestRef.current); onBack(); }}
+        <button onClick={async () => {
+          const snap = latestRef.current;
+          if (snap.title?.trim() || snap.body?.trim() || snap.markdownContent?.trim()) {
+            await performSave(false, snap);
+          }
+          onBack();
+        }}
           className="justify-self-start w-10 h-10 flex items-center justify-center rounded-full hover:bg-black/5 transition-colors -ml-2">
           <ArrowLeft size={20} className="text-warm-steel" />
         </button>

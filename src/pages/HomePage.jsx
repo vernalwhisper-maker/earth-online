@@ -69,7 +69,7 @@ export default function HomePage({ onNewNote, onEditNote, onViewAchievement, sel
         onAutoTag: autoTagSelected,
         onBatchRemoveTag: batchRemoveTag,
         batchTagList: [...new Set([...selectedIds].map((id) => notes.find((n) => n.id === id)).filter(Boolean).flatMap((n) => n.tags || []))],
-        hasApiKey: !!useSettingsStore.getState().apiKey,
+        hasApiKey: !!useSettingsStore.getState().apiKey || useSettingsStore.getState().useMode !== "online",
         selectCount: selectedIds.size,
         selectPinState: pinState,
       });
@@ -175,9 +175,9 @@ export default function HomePage({ onNewNote, onEditNote, onViewAchievement, sel
 
       // AI 分析（本笔记）
       let aiTags = [];
-      if (apiKey) {
+      if (apiKey || useSettingsStore.getState().useMode !== "online") {
         const existing = note.tags || [];
-        aiTags = await generateTags(snippet, apiKey, modelProvider, existing);
+        aiTags = await generateTags(snippet, apiKey || "", modelProvider, existing);
       }
 
       const allTags = [...new Set([...keywordTags, ...aiTags])];

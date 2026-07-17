@@ -8,7 +8,7 @@ import { parseActions, stripActions, executeAction } from "../../utils/aiTools";
 import useSettingsStore from "../../store/settingsStore";
 
 export default function AIAssistant({ noteId, notes = [], folders = [], noteTitle, noteBody, noteMarkdown, onSummaryGenerated }) {
-  const { modelProvider, apiKey, inference, loaded: settingsLoaded } = useSettingsStore();
+  const { modelProvider, apiKey, inference, loaded: settingsLoaded, useMode } = useSettingsStore();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
@@ -24,7 +24,7 @@ export default function AIAssistant({ noteId, notes = [], folders = [], noteTitl
 
   const handleSend = async () => {
     const text = input.trim();
-    if (!text || !apiKey) return;
+    if (!text || !canUseAI) return;
     setInput("");
     const userMsg = { noteId, role: "user", content: text };
     await saveChatMessage(userMsg);
@@ -86,7 +86,7 @@ export default function AIAssistant({ noteId, notes = [], folders = [], noteTitl
 
   const handleSummarize = async () => {
     const content = noteMarkdown || noteBody;
-    if (!content || !apiKey) return;
+    if (!content || !canUseAI) return;
     setSummarizing(true);
     const summary = await generateSummary(content, apiKey, modelProvider, inference);
     if (summary) {
@@ -101,7 +101,8 @@ export default function AIAssistant({ noteId, notes = [], folders = [], noteTitl
   };
 
   // 设置未加载或未配置 API Key 时隐藏按钮
-  if (!settingsLoaded || !apiKey) return null;
+  if (!settingsLoaded) return null;
+  const canUseAI = apiKey || useMode !== "online";
 
   return (
     <>
