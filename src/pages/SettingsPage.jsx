@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { MessageSquare, Settings, FileText, Trophy, Sparkles, Trash2, X, RefreshCw, Archive, Folder as FolderIcon, Plus } from "lucide-react";
+import { MessageSquare, Settings, FileText, Trophy, Sparkles, Trash2, X, RefreshCw, Archive, Folder as FolderIcon, Plus, CheckCircle } from "lucide-react";
 import useSettingsStore from "../store/settingsStore";
 import useNoteStore from "../store/noteStore";
 import useFolderStore from "../store/folderStore";
@@ -24,6 +24,7 @@ export default function SettingsPage({ settingsSubPage, onSubPageChange }) {
   const [showRecycleBin, setShowRecycleBin] = useState(false);
   const [deletedNotes, setDeletedNotes] = useState([]);
   const [loadingRecycle, setLoadingRecycle] = useState(false);
+  const [recycleSelectedIds, setRecycleSelectedIds] = useState(new Set());
   const [showFolderManager, setShowFolderManager] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const [editingFolderId, setEditingFolderId] = useState(null);
@@ -36,8 +37,30 @@ export default function SettingsPage({ settingsSubPage, onSubPageChange }) {
   const { folders, addFolder, renameFolder, removeFolder } = useFolderStore();
 
   useEffect(() => {
-    if (showRecycleBin) { setLoadingRecycle(true); getDeletedNotes().then((n) => { setDeletedNotes(n); setLoadingRecycle(false); }); }
+    if (showRecycleBin) { setLoadingRecycle(true); setRecycleSelectedIds(new Set()); getDeletedNotes().then((n) => { setDeletedNotes(n); setLoadingRecycle(false); }); }
   }, [showRecycleBin]);
+
+  const toggleRecycleSelect = (id) => {
+    setRecycleSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+  const recycleSelectAll = () => {
+    if (recycleSelectedIds.size === deletedNotes.length) setRecycleSelectedIds(new Set());
+    else setRecycleSelectedIds(new Set(deletedNotes.map((n) => n.id)));
+  };
+  const batchRecycleRestore = async () => {
+    for (const id of recycleSelectedIds) await restoreNote(id);
+    setRecycleSelectedIds(new Set());
+    setDeletedNotes(deletedNotes.filter((n) => !recycleSelectedIds.has(n.id)));
+  };
+  const batchRecycleDelete = async () => {
+    for (const id of recycleSelectedIds) await permanentDeleteNote(id);
+    setRecycleSelectedIds(new Set());
+    setDeletedNotes(deletedNotes.filter((n) => !recycleSelectedIds.has(n.id)));
+  };
 
   useEffect(() => {
     if (showFolderManager) useFolderStore.getState().loadFolders();
@@ -158,7 +181,15 @@ export default function SettingsPage({ settingsSubPage, onSubPageChange }) {
             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
               className="bg-surface rounded-modal p-6 max-w-sm w-full shadow-soft max-h-[80vh] flex flex-col">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-deep-ink">回收站</h3>
+                <div className="flex items-center gap-3">
+                  <h3 className="text-lg font-bold text-deep-ink">回收站</h3>
+                  {deletedNotes.length > 0 && (
+                    <button onClick={recycleSelectAll}
+                      className="text-xs text-emerald hover:text-emerald-dark font-medium">
+                      {recycleSelectedIds.size === deletedNotes.length ? "取消全选" : "全选"}
+                    </button>
+                  )}
+                </div>
                 <button onClick={() => setShowRecycleBin(false)} className="p-1 rounded-full hover:bg-scribe/30 transition-colors">
                   <X size={18} className="text-warm-steel" />
                 </button>
@@ -173,13 +204,19 @@ export default function SettingsPage({ settingsSubPage, onSubPageChange }) {
                 ) : (
                   <div className="space-y-2">
                     {deletedNotes.map((note) => (
-                      <div key={note.id} className="flex items-center justify-between px-3 py-2.5 rounded-btn bg-canvas-warm">
+                      <div key={note.id}
+                        className={"flex items-center gap-2 px-3 py-2.5 rounded-btn transition-colors " + (recycleSelectedIds.has(note.id) ? "bg-emerald/5 ring-1 ring-emerald/30" : "bg-canvas-warm hover:bg-canvas-warm/80")}>
+                        <button onClick={() => toggleRecycleSelect(note.id)}
+                          className="shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors "
+                          style={{ borderColor: recycleSelectedIds.has(note.id) ? "#10b981" : "rgba(163,162,158,0.5)" }}>
+                          {recycleSelectedIds.has(note.id) && <CheckCircle size={12} className="text-emerald" />}
+                        </button>
                         <div className="flex-1 min-w-0 mr-2">
                           <p className="text-sm text-deep-ink truncate">{note.title || "无标题"}</p>
                           <p className="text-xs text-faded-slate">{new Date(note.deletedAt).toLocaleDateString("zh-CN")}</p>
                         </div>
                         <div className="flex gap-1 shrink-0">
-                          <button onClick={async () => { await restoreNote(note.id); const n = await getDeletedNotes(); setDeletedNotes(n); }}
+                          <button onClick={async () => { await restoreNote(note.id); setDeletedNotes(deletedNotes.filter((n) => n.id !== note.id)); }}
                             className="px-2 py-1 text-xs text-emerald bg-emerald/10 rounded-full hover:bg-emerald/20 transition-colors">
                             <RefreshCw size={12} className="inline mr-0.5" />恢复
                           </button>
@@ -193,6 +230,22 @@ export default function SettingsPage({ settingsSubPage, onSubPageChange }) {
                   </div>
                 )}
               </div>
+              {/* 批量操作栏 */}
+              {recycleSelectedIds.size > 0 && (
+                <div className="flex items-center justify-between pt-3 mt-3 border-t border-scribe">
+                  <span className="text-xs text-faded-slate font-mono">已选 {recycleSelectedIds.size} 项</span>
+                  <div className="flex gap-2">
+                    <button onClick={batchRecycleRestore}
+                      className="px-3 py-1.5 text-xs text-emerald bg-emerald/10 rounded-full hover:bg-emerald/20 transition-colors font-medium">
+                      <RefreshCw size={12} className="inline mr-1" />批量恢复
+                    </button>
+                    <button onClick={batchRecycleDelete}
+                      className="px-3 py-1.5 text-xs text-rose bg-rose/10 rounded-full hover:bg-rose/20 transition-colors font-medium">
+                      <Trash2 size={12} className="inline mr-1" />批量删除
+                    </button>
+                  </div>
+                </div>
+              )}
             </motion.div>
           </motion.div>
         )}

@@ -67,6 +67,8 @@ export default function HomePage({ onNewNote, onEditNote, onViewAchievement, sel
         onBatchTogglePin: batchTogglePin,
         onSelectAll: selectAll,
         onAutoTag: autoTagSelected,
+        onBatchRemoveTag: batchRemoveTag,
+        batchTagList: [...new Set([...selectedIds].map((id) => notes.find((n) => n.id === id)).filter(Boolean).flatMap((n) => n.tags || []))],
         hasApiKey: !!useSettingsStore.getState().apiKey,
         selectCount: selectedIds.size,
         selectPinState: pinState,
@@ -78,6 +80,8 @@ export default function HomePage({ onNewNote, onEditNote, onViewAchievement, sel
         onBatchTogglePin: null,
         onSelectAll: null,
         onAutoTag: null,
+        onBatchRemoveTag: null,
+        batchTagList: [],
         selectCount: 0,
         selectPinState: "none",
       });
@@ -153,52 +157,64 @@ export default function HomePage({ onNewNote, onEditNote, onViewAchievement, sel
     const toast = useToastStore.getState();
     const { modelProvider, apiKey } = useSettingsStore.getState();
 
-    const snippets = ids.slice(0, 10).map((id) => {
+    toast.info("AI 正在逐条分析笔记...");
+    let totalCount = 0;
+    let totalTags = new Set();
+
+    // 逐条处理（最多 5 条，避免过多 API 调用）
+    const batch = ids.slice(0, 5);
+    for (const id of batch) {
       const note = notes.find((n) => n.id === id);
-      if (!note) return "";
+      if (!note) continue;
       const content = note.body || note.contentMarkdown || "";
-      return (note.title || "") + ": " + content.slice(0, 200);
-    }).filter(Boolean);
-    if (snippets.length === 0) return;
+      const snippet = (note.title || "") + ": " + content.slice(0, 200);
+      if (!snippet.trim()) continue;
 
-    const combined = snippets.join(" ");
-    const keywordTags = keywordTagMatch(combined);
-    console.log("量建标签: snippets=", snippets, "keywordTags=", keywordTags);
+      // 关键词匹配（本笔记）
+      const keywordTags = keywordTagMatch(snippet);
 
-    // 收集所有已有标签（去重），供 AI 优先选择
-    const allExistingTags = [...new Set(
-      ids.map((id) => notes.find((n) => n.id === id))
-        .filter(Boolean)
-        .flatMap((n) => n.tags || [])
-    )];
+      // AI 分析（本笔记）
+      let aiTags = [];
+      if (apiKey) {
+        const existing = note.tags || [];
+        aiTags = await generateTags(snippet, apiKey, modelProvider, existing);
+      }
 
-    let aiTags = [];
-    if (apiKey) {
-      toast.info("AI 正在分析笔记...");
-      aiTags = await generateTags(snippets.join("\n---\n"), apiKey, modelProvider, allExistingTags);
-      console.log("量建标签: aiTags=", aiTags);
+      const allTags = [...new Set([...keywordTags, ...aiTags])];
+      if (allTags.length === 0) continue;
+
+      // 追加去重
+      const existingSet = new Set(note.tags || []);
+      const newTags = allTags.filter((t) => !existingSet.has(t));
+      if (newTags.length > 0) {
+        note.tags = [...(note.tags || []), ...newTags];
+        await saveNote(note);
+        totalCount++;
+        newTags.forEach((t) => totalTags.add(t));
+      }
     }
 
-    const allTags = [...new Set([...keywordTags, ...aiTags])];
-    if (allTags.length === 0) {
-      const reason = !apiKey ? "未配置 API Key" : keywordTags.length === 0 && aiTags.length === 0 ? "关键词和 AI 均未匹配到标签" : aiTags.length === 0 ? "AI 未返回标签" : "关键词未匹配";
-      toast.error("未能生成标签（" + reason + "）");
+    if (totalCount === 0) {
+      toast.error("未能生成标签，请检查笔记内容或配置 AI");
       return;
     }
+    toast.success(`已为 ${totalCount} 条笔记添加标签: ${[...totalTags].join(", ")}`);
+  };
 
+  const batchRemoveTag = async (tagToRemove) => {
+    const ids = [...selectedIds];
+    const toast = useToastStore.getState();
     let count = 0;
     for (const id of ids) {
       const note = notes.find((n) => n.id === id);
-      if (!note) continue;
-      const existing = new Set(note.tags || []);
-      const newTags = allTags.filter((t) => !existing.has(t));
-      if (newTags.length > 0) {
-        note.tags = [...(note.tags || []), ...newTags];
+      if (!note || !note.tags) continue;
+      if (note.tags.includes(tagToRemove)) {
+        note.tags = note.tags.filter((t) => t !== tagToRemove);
         await saveNote(note);
         count++;
       }
     }
-    toast.success(`已为 ${count} 条笔记添加标签: ${allTags.join(", ")}`);
+    if (count > 0) toast.success(`已从 ${count} 条笔记移除标签「${tagToRemove}」`);
   };
 
   const batchDelete = async () => {

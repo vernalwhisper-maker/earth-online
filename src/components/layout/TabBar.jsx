@@ -27,6 +27,7 @@ const selectActions = [
   { key: "delete", icon: Trash2, label: "删除", iconClass: "text-rose", action: "onBatchDelete", needsConfirm: true },
   { key: "move", icon: Folder, label: "移动", iconClass: "text-warm-steel/70", action: "onBatchMove" },
   { key: "pin", icon: Pin, iconClass: "text-warm-steel/70", action: "onBatchTogglePin", getLabel: (pinState) => pinState === "all_pinned" ? "取消置顶" : "置顶" },
+  { key: "tags", icon: Hash, label: "删标签", iconClass: "text-warm-steel/70" },
   { key: "ai", icon: Sparkles, label: "量建标签", iconClass: "text-violet-500", action: "onAutoTag", conditional: "hasApiKey" },
 ];
 
@@ -57,6 +58,9 @@ export default function TabBar({ currentPage, onNavigate }) {
   // 更多弹窗状态
   const [showMorePopup, setShowMorePopup] = useState(false);
 
+  // 批量删标签弹窗
+  const [showBatchTagPopup, setShowBatchTagPopup] = useState(false);
+
   const glassBase = isDark
     ? `linear-gradient(135deg, rgba(30,30,30,${tabBarOpacity / 90}) 0%, rgba(16,185,129,${tabBarOpacity / 500}) 40%, rgba(30,30,30,${tabBarOpacity / 80}) 100%)`
     : `linear-gradient(135deg, rgba(255,255,255,${tabBarOpacity / 100}) 0%, rgba(16,185,129,${tabBarOpacity / 600}) 40%, rgba(255,255,255,${tabBarOpacity / 150}) 100%)`;
@@ -71,7 +75,11 @@ export default function TabBar({ currentPage, onNavigate }) {
 
   const handleActionClick = (act) => {
     if (act.key === "tags") {
-      setShowTagPopup(true);
+      if (currentPage === "home" && editor.selectCount > 0) {
+        setShowBatchTagPopup(true);
+      } else {
+        setShowTagPopup(true);
+      }
     } else if (act.key === "more") {
       setShowMorePopup(true);
     } else if (act.needsConfirm) {
@@ -315,6 +323,66 @@ export default function TabBar({ currentPage, onNavigate }) {
                       <Trash2 size={16} /> 删除笔记
                     </motion.button>
                   </>
+                )}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* 批量删标签弹窗 */}
+      <AnimatePresence>
+        {showBatchTagPopup && (
+          <>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 z-30" onClick={() => setShowBatchTagPopup(false)} />
+            <motion.div
+              initial={{ scale: 0.6, opacity: 0, y: 40 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.6, opacity: 0, y: 40 }}
+              transition={{ type: "spring", stiffness: 400, damping: 28, mass: 0.8 }}
+              className="fixed left-1/2 -translate-x-1/2 z-40 w-[260px] rounded-[1.5rem] overflow-hidden shadow-[0_8px_40px_rgba(0,0,0,0.2)]"
+              style={{ bottom: "calc(100px)" }}
+            >
+              <div className="absolute inset-0"
+                style={{
+                  background: isDark
+                    ? "linear-gradient(135deg, rgba(30,30,30,0.98), rgba(20,20,20,0.95))"
+                    : "linear-gradient(135deg, rgba(255,255,255,0.98), rgba(248,247,244,0.95))",
+                  backdropFilter: "blur(35px) saturate(200%)",
+                  WebkitBackdropFilter: "blur(35px) saturate(200%)",
+                }} />
+              <div className="absolute top-0 left-4 right-4 h-[1.5px]" style={{ background: specularTop }} />
+              <div className="absolute inset-0 rounded-[1.5rem] border border-white/25" />
+              <div className="absolute inset-[1px] rounded-[1.5rem] border border-white/70" />
+
+              <div className="relative z-10 px-4 py-4">
+                <p className="text-sm font-semibold text-center mb-3" style={{ color: isDark ? "rgba(255,255,255,0.9)" : "#1c1b1a" }}>
+                  选择要移除的标签
+                </p>
+                {editor.batchTagList.length === 0 ? (
+                  <p className="text-xs text-center py-4" style={{ color: isDark ? "rgba(163,162,158,0.6)" : "rgba(107,106,103,0.6)" }}>
+                    选中笔记暂无标签
+                  </p>
+                ) : (
+                  <div className="flex flex-wrap gap-2 justify-center">
+                    {editor.batchTagList.map((tag) => (
+                      <motion.button
+                        key={tag}
+                        onClick={() => { editor.onBatchRemoveTag?.(tag); setShowBatchTagPopup(false); }}
+                        whileTap={{ scale: 0.88 }}
+                        transition={springTap}
+                        className="px-3 py-1.5 rounded-full text-xs font-medium border transition-colors"
+                        style={{
+                          background: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.03)",
+                          borderColor: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)",
+                          color: isDark ? "#fca5a5" : "#dc2626",
+                        }}
+                      >
+                        <X size={10} className="inline mr-1" />{tag}
+                      </motion.button>
+                    ))}
+                  </div>
                 )}
               </div>
             </motion.div>
