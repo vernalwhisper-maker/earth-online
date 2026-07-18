@@ -26,7 +26,7 @@ function getMatchConfig() {
       const ep = (localEndpoint || "http://localhost:11434").replace(/\/+$/, "");
       const isLocalDev = ep.includes("localhost") || ep.includes("127.0.0.1");
       const proxyPath = isLocalDev ? "/ollama" : ep;
-      return { endpoint: proxyPath + "/v1/chat/completions", model: localModel || "qwen2.5:1.5b" };
+      return { endpoint: proxyPath + "/v1/chat/completions", model: localModel || "qwen2.5:1.5b", requiresAuth: false };
     }
     if (useMode === "webllm") return { useWebLLM: true, model: s.webllmModel || "Qwen2.5-1.5B-Instruct-q4f16_1-MLC" };
     return API_PROVIDERS[s.modelProvider || DEFAULT_PROVIDER] || API_PROVIDERS[DEFAULT_PROVIDER];
@@ -258,7 +258,7 @@ export async function matchAchievements(noteContent, apiKey, provider, inference
   // 引擎2：AI 语义匹配
   const config = getMatchConfig();
   if (!config) return [...new Set([...embedIds, ...keywordResults])].slice(0, 3);
-  if (!apiKey && config.endpoint?.startsWith?.("http") && !config.endpoint.includes("localhost") && !config.endpoint.includes("127.0.0.1") && !config.endpoint.includes("/ollama")) return [...new Set([...embedIds, ...keywordResults])].slice(0, 3);
+  if (!apiKey && config.requiresAuth !== false && !config.useWebLLM) return [...new Set([...embedIds, ...keywordResults])].slice(0, 3);
 
   const userPrompt = [
     "以下是成就列表（序号.成就名-简短描述）：",

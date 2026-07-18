@@ -4,11 +4,13 @@ A gamified life journal and achievement system that turns your daily life into a
 
 Built with React 19, Framer Motion, Tailwind CSS 4, and IndexedDB. Ships as a Progressive Web App (PWA) and a native Android APK via Capacitor.
 
-> 🌐 **Now supporting local AI models!** Run Qwen2.5 locally via Ollama (desktop) or WebLLM (browser) for fully offline AI features — no API key required.
+> 🌐 **Now supporting local AI models!** Run Qwen2.5 locally via Ollama (desktop, phone connects via LAN) or WebLLM (browser WebGPU) for fully offline AI features — no API key required.
 >
-> 🔍 **Three-engine achievement matching:** Transformers.js semantic embedding + AI model + keyword matching for accurate note-to-achievement pairing.
+> 🔍 **Three-engine achievement matching:** Transformers.js semantic embedding + AI/WebLLM model + keyword matching for accurate note-to-achievement pairing.
 >
-> 🏷 **AI batch tagging:** Select multiple notes and auto-generate tags with one tap, either via local model or keyword matching.
+> 🏷 **AI batch tagging:** Select multiple notes and auto-generate tags with one tap, via local model (Ollama/WebLLM), cloud AI, or keyword matching — shown in a glass panel above the TabBar.
+>
+> 📱 **v1.2.0:** WebLLM achievement matching, AI assistant engine health checks, Ollama LAN connectivity test, batch tag/delete glass panel, and auto-fallback to local keyword matching when AI is unavailable.
 
 ---
 
@@ -17,8 +19,8 @@ Built with React 19, Framer Motion, Tailwind CSS 4, and IndexedDB. Ships as a Pr
 - **Notes** -- Multiple types (journal, todo, milestone, flashcard), Markdown editing, background patterns and ambient animations, folders, pinning, tags, soft-delete (recycle bin), and search with recent search history.
 - **Todos** -- Per-note todo lists with priorities, due dates, and inline progress bars. Active todo count shown on the TabBar badge.
 - **Achievements** -- 60 gamified life achievements (e.g., "Bought a House", "Learned an Instrument") with rarity tiers. Unlocked automatically by matching your note content against AI or keyword rules. Celebrated with an unlock modal and confetti for rare finds.
-- **AI Assistant** -- Built-in chat panel that can analyze your notes, generate summaries, and execute actions (move between folders, add/remove tags, change note type, pin/delete). Supports DeepSeek, Zhipu, Qwen providers, **plus local models via Ollama** (desktop) **and WebLLM** (browser with WebGPU).
-- **Local Models** -- Run Qwen2.5-1.5B/3B entirely offline. Two modes: **Ollama** (desktop server, phone connects via LAN) and **WebLLM** (browser WebGPU, ~1GB download). No API key needed.
+- **AI Assistant** -- Built-in chat panel that can analyze your notes, generate summaries, and execute actions (move between folders, add/remove tags, change note type, pin/delete). Supports DeepSeek, Zhipu, Qwen providers, **plus local models via Ollama** (desktop, phone connects via LAN) **and WebLLM** (browser with WebGPU). Includes engine health detection: prompts you to load WebLLM if not ready, checks Ollama connectivity when opening the panel.
+- **Local Models** -- Run Qwen2.5-1.5B/3B entirely offline. Two modes: **Ollama** (desktop server, phone connects via LAN) and **WebLLM** (browser WebGPU, ~1GB download). No API key needed. Both modes include a **connectivity test button** in Settings for easy debugging.
 - **AI Batch Tagging** -- Select multiple notes → one tap generates relevant Chinese tags via AI or keyword matching. Tags are deduplicated and appended.
 - **Achievement Matching** -- Three-engine system: **semantic embedding** (Transformers.js BERT, ~113MB), **AI reasoning** (local or cloud), and **keyword matching**. Results are merged and deduplicated.
 - **Background Themes** -- 7 background colors, 4 CSS-only patterns (grid, dot, lined, solid), and 3 ambient animations (starry particles, floating geometry, shimmer slide). Zero image overhead.

@@ -37,7 +37,7 @@ export default function HomePage({ onNewNote, onEditNote, onViewAchievement, sel
   const [showMoveDialog, setShowMoveDialog] = useState(false);
 
   // Tag result sheet state
-  const [tagSheet, setTagSheet] = useState({ visible: false, status: "processing", totalCount: 0, tags: [] });
+  const [tagSheet, setTagSheet] = useState({ visible: false, mode: "autoTag", status: "processing", totalCount: 0, tags: [], removedTag: "", aiMode: "" });
 
   // 选择模式变化时通知父组件（用于返回按钮判断）
   useEffect(() => {
@@ -158,9 +158,23 @@ export default function HomePage({ onNewNote, onEditNote, onViewAchievement, sel
   const autoTagSelected = async () => {
     const ids = [...selectedIds];
     if (ids.length === 0) return;
-    const { modelProvider, apiKey } = useSettingsStore.getState();
+    const s = useSettingsStore.getState();
+    const { modelProvider, apiKey, useMode, localModel } = s;
 
-    setTagSheet({ visible: true, status: "processing", totalCount: 0, tags: [] });
+    // 判断当前 AI 模式
+    let aiMode = "";
+    if (useMode === "ollama") {
+      aiMode = `Ollama · ${localModel || "qwen2.5:1.5b"}`;
+    } else if (useMode === "webllm") {
+      aiMode = "WebLLM 浏览器模型";
+    } else if (apiKey) {
+      const labels = { deepseek: "DeepSeek", zhipu: "智谱", qwen: "通义千问" };
+      aiMode = `在线AI · ${labels[modelProvider] || modelProvider}`;
+    } else {
+      aiMode = "本地关键词匹配";
+    }
+
+    setTagSheet({ visible: true, mode: "autoTag", status: "processing", totalCount: 0, tags: [], removedTag: "", aiMode });
     let totalCount = 0;
     let totalTags = new Set();
 
@@ -198,15 +212,14 @@ export default function HomePage({ onNewNote, onEditNote, onViewAchievement, sel
     }
 
     if (totalCount === 0) {
-      setTagSheet({ visible: true, status: "error", totalCount: 0, tags: [] });
+      setTagSheet({ visible: true, mode: "autoTag", status: "error", totalCount: 0, tags: [], removedTag: "", aiMode });
       return;
     }
-    setTagSheet({ visible: true, status: "success", totalCount, tags: [...totalTags] });
+    setTagSheet({ visible: true, mode: "autoTag", status: "success", totalCount, tags: [...totalTags], removedTag: "", aiMode });
   };
 
   const batchRemoveTag = async (tagToRemove) => {
     const ids = [...selectedIds];
-    const toast = useToastStore.getState();
     let count = 0;
     for (const id of ids) {
       const note = notes.find((n) => n.id === id);
@@ -217,7 +230,9 @@ export default function HomePage({ onNewNote, onEditNote, onViewAchievement, sel
         count++;
       }
     }
-    if (count > 0) toast.success(`已从 ${count} 条笔记移除标签「${tagToRemove}」`);
+    if (count > 0) {
+      setTagSheet({ visible: true, mode: "removeTag", status: "success", totalCount: count, tags: [], removedTag: tagToRemove, aiMode: "" });
+    }
   };
 
   const batchDelete = async () => {
@@ -480,9 +495,12 @@ export default function HomePage({ onNewNote, onEditNote, onViewAchievement, sel
       {/* Tag result bottom sheet */}
       <TagResultSheet
         isOpen={tagSheet.visible}
+        mode={tagSheet.mode}
         status={tagSheet.status}
         totalCount={tagSheet.totalCount}
         tags={tagSheet.tags}
+        removedTag={tagSheet.removedTag}
+        aiMode={tagSheet.aiMode}
         onClose={() => setTagSheet({ ...tagSheet, visible: false })}
       />
     </motion.div>

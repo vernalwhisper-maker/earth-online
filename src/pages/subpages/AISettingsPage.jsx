@@ -34,6 +34,13 @@ export default function AISettingsPage({ onBack }) {
   const [testingKey, setTestingKey] = useState(false);
   const [keyStatus, setKeyStatus] = useState(null); // null | "ok" | "fail"
 
+  // Ollama 连通性测试
+  const [testingOllama, setTestingOllama] = useState(false);
+  const [ollamaStatus, setOllamaStatus] = useState(null); // null | { ok, msg }
+
+  // WebLLM 引擎测试
+  const [webllmTestStatus, setWebllmTestStatus] = useState(null); // null | "ok" | "fail"
+
   useEffect(() => {
     if (typeof navigator !== "undefined" && "gpu" in navigator) {
       navigator.gpu.requestAdapter().then((adapter) => setWebgpuOk(!!adapter));
@@ -56,6 +63,37 @@ export default function AISettingsPage({ onBack }) {
       setKeyStatus(resp.ok ? "ok" : "fail");
     } catch { setKeyStatus("fail"); }
     setTestingKey(false);
+  };
+
+  const testOllama = async () => {
+    setTestingOllama(true);
+    setOllamaStatus(null);
+    try {
+      const ep = (store.localEndpoint || "http://localhost:11434").replace(/\/+$/, "");
+      const isLocalDev = ep.includes("localhost") || ep.includes("127.0.0.1");
+      const proxyPath = isLocalDev ? "/ollama" : ep;
+      const resp = await fetch(proxyPath + "/api/tags", { signal: AbortSignal.timeout(5000) });
+      if (resp.ok) {
+        const data = await resp.json();
+        const models = data.models?.map((m) => m.name).join(", ") || "无模型";
+        setOllamaStatus({ ok: true, msg: `已连接 · 模型: ${models}` });
+      } else {
+        setOllamaStatus({ ok: false, msg: `服务返回 ${resp.status} ${resp.statusText}` });
+      }
+    } catch (e) {
+      setOllamaStatus({ ok: false, msg: `无法连接: ${e.message}` });
+    }
+    setTestingOllama(false);
+  };
+
+  const testWebLLM = async () => {
+    try {
+      const { getWebLLMStatus } = await import("../../utils/webllm");
+      const status = getWebLLMStatus();
+      setWebllmTestStatus(status.ready ? "ok" : "fail");
+    } catch {
+      setWebllmTestStatus("fail");
+    }
   };
 
   const handleDownloadWebLLM = async () => {
@@ -215,6 +253,21 @@ export default function AISettingsPage({ onBack }) {
                 placeholder="输入服务地址"
                 className="w-full px-3 py-2.5 border border-scribe rounded-input bg-surface text-deep-ink text-sm focus:outline-none focus:ring-2 focus:ring-emerald font-mono" />
             </div>
+
+            {/* 连接测试 */}
+            <div className="flex items-center gap-2">
+              <button onClick={testOllama} disabled={testingOllama}
+                className="px-3 py-2 rounded-input text-sm font-medium border border-scribe hover:bg-canvas-warm transition-colors disabled:opacity-40">
+                {testingOllama ? "测试中..." : "测试连接"}
+              </button>
+              <div className="flex items-center gap-1.5 text-xs">
+                {ollamaStatus && (
+                  ollamaStatus.ok
+                    ? <><CheckCircle size={12} className="text-emerald" /><span className="text-emerald">{ollamaStatus.msg}</span></>
+                    : <><AlertCircle size={12} className="text-rose" /><span className="text-rose max-w-[200px] truncate">{ollamaStatus.msg}</span></>
+                )}
+              </div>
+            </div>
           </div>
         </section>
       )}
@@ -229,6 +282,16 @@ export default function AISettingsPage({ onBack }) {
               <span className="text-warm-steel">
                 {webgpuOk === null ? "检测 WebGPU..." : webgpuOk ? "WebGPU 可用" : "WebGPU 不可用，请使用 Chrome 113+"}
               </span>
+              {/* 引擎测试 */}
+              <button onClick={testWebLLM}
+                className="ml-auto px-2.5 py-1 rounded-full text-xs font-medium border border-scribe hover:bg-canvas-warm transition-colors">
+                检测引擎
+              </button>
+              {webllmTestStatus && (
+                webllmTestStatus === "ok"
+                  ? <CheckCircle size={12} className="text-emerald shrink-0" />
+                  : <AlertCircle size={12} className="text-rose shrink-0" />
+              )}
             </div>
 
             {/* 模型选择 - 玻璃弹窗 */}
