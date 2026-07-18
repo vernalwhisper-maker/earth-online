@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <rect width="200" height="200" fill="#f0efec" rx="16"/>
+  <circle cx="100" cy="90" r="40" fill="#d1d0cd"/>
+  <path d="M100 30 L108 70 L148 72 L116 95 L126 135 L100 112 L74 135 L84 95 L52 72 L92 70 Z" fill="#a8a7a4" transform="translate(0,25) scale(0.8) translate(0,-25)"/>
+  <text x="100" y="165" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#a8a7a4">成就图标</text>
+</svg>

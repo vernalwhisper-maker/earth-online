@@ -46,8 +46,8 @@ const useFolderStore = create((set, get) => ({
     const state = get();
     const folder = state.folders.find((f) => f.id === id);
     if (!folder) return;
-    folder.label = label;
-    const saved = await saveFolder(folder);
+    const updated = { ...folder, label };
+    const saved = await saveFolder(updated);
     set({ folders: state.folders.map((f) => (f.id === id ? saved : f)) });
   },
 

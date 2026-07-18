@@ -12,11 +12,20 @@ self.addEventListener("install", (event) => {
   );
 });
 
-// Serve cached content when offline
+// Serve cached content when offline (stale-while-revalidate)
 self.addEventListener("fetch", (event) => {
+  // 只缓存 GET 静态资源，不缓存 API 请求
+  if (event.request.method !== "GET" || event.request.url.includes("/api/") || event.request.url.includes("localhost")) {
+    return;
+  }
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      return cached || fetch(event.request);
+    caches.open(CACHE_NAME).then(async (cache) => {
+      const cached = await cache.match(event.request);
+      const fetchPromise = fetch(event.request).then((response) => {
+        if (response.ok) cache.put(event.request, response.clone());
+        return response;
+      }).catch(() => cached);
+      return cached || fetchPromise;
     })
   );
 });

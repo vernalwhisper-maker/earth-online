@@ -53,6 +53,7 @@ export default function NoteEditorPage({ noteId, onBack }) {
   const [images, setImages] = useState([]);
   const fileInputRef = useRef(null);
   const latestRef = useRef({});
+  const isUnmountedRef = useRef(false);
 
   // Sync ref with state
   const syncRef = () => {
@@ -125,7 +126,9 @@ export default function NoteEditorPage({ noteId, onBack }) {
 
   // 离开编辑器时保存并清除操作
   useEffect(() => {
+    isUnmountedRef.current = false;
     return () => {
+      isUnmountedRef.current = true;
       const snap = latestRef.current;
       if (snap?.title?.trim() || snap?.body?.trim() || snap?.markdownContent?.trim()) {
         performSave(false, snap).catch(() => {});

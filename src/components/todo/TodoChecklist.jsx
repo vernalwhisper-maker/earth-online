@@ -25,7 +25,7 @@ export default function TodoChecklist({ noteId, onToggle }) {
   const [editText, setEditText] = useState("");
   const [showCompleted, setShowCompleted] = useState(true);
   const inputRef = useRef(null);
-  const versionRef = useRef(0); // forces refresh after mutations
+  const [version, setVersion] = useState(0); // forces refresh after mutations
 
   // Load items when noteId changes, and after any mutation
   useEffect(() => {
@@ -35,13 +35,10 @@ export default function TodoChecklist({ noteId, onToggle }) {
       if (!cancelled) setItems(loaded || []);
     });
     return () => { cancelled = true; };
-  }, [noteId, versionRef.current]);
+  }, [noteId, version]);
 
   const refresh = () => {
-    versionRef.current++;
-    loadByNoteId(noteId).then((loaded) => {
-      setItems(loaded || []);
-    });
+    setVersion((v) => v + 1);
   };
 
   const handleAdd = async () => {

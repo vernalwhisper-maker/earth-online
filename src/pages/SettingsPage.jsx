@@ -53,14 +53,16 @@ export default function SettingsPage({ settingsSubPage, onSubPageChange }) {
     else setRecycleSelectedIds(new Set(deletedNotes.map((n) => n.id)));
   };
   const batchRecycleRestore = async () => {
-    for (const id of recycleSelectedIds) await restoreNote(id);
+    const ids = [...recycleSelectedIds];
+    for (const id of ids) await restoreNote(id);
     setRecycleSelectedIds(new Set());
-    setDeletedNotes(deletedNotes.filter((n) => !recycleSelectedIds.has(n.id)));
+    setDeletedNotes((prev) => prev.filter((n) => !ids.includes(n.id)));
   };
   const batchRecycleDelete = async () => {
-    for (const id of recycleSelectedIds) await permanentDeleteNote(id);
+    const ids = [...recycleSelectedIds];
+    for (const id of ids) await permanentDeleteNote(id);
     setRecycleSelectedIds(new Set());
-    setDeletedNotes(deletedNotes.filter((n) => !recycleSelectedIds.has(n.id)));
+    setDeletedNotes((prev) => prev.filter((n) => !ids.includes(n.id)));
   };
 
   const toggleFolderSelect = (id) => {

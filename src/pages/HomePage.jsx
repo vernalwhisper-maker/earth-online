@@ -15,6 +15,7 @@ import useSettingsStore from "../store/settingsStore";
 import useToastStore from "../store/toastStore";
 import { generateTags, keywordTagMatch } from "../utils/aiChat";
 import { getSearchHistory, saveSearchQuery, clearSearchHistory } from "../db";
+import TagResultSheet from "../components/tags/TagResultSheet";
 
 const TYPE_ICONS = { journal: FTI, todo: CheckSquare, milestone: Award, flashcard: StickyNote };
 const FOLDER_ICONS = { inbox: Inbox, personal: User, work: Briefcase, study: BookOpen, archive: Archive };
@@ -34,6 +35,9 @@ export default function HomePage({ onNewNote, onEditNote, onViewAchievement, sel
   const [selectedIds, setSelectedIds] = useState(new Set());
   const longPressTimer = useRef(null);
   const [showMoveDialog, setShowMoveDialog] = useState(false);
+
+  // Tag result sheet state
+  const [tagSheet, setTagSheet] = useState({ visible: false, status: "processing", totalCount: 0, tags: [] });
 
   // 选择模式变化时通知父组件（用于返回按钮判断）
   useEffect(() => {
@@ -154,10 +158,9 @@ export default function HomePage({ onNewNote, onEditNote, onViewAchievement, sel
   const autoTagSelected = async () => {
     const ids = [...selectedIds];
     if (ids.length === 0) return;
-    const toast = useToastStore.getState();
     const { modelProvider, apiKey } = useSettingsStore.getState();
 
-    toast.info("AI 正在逐条分析笔记...");
+    setTagSheet({ visible: true, status: "processing", totalCount: 0, tags: [] });
     let totalCount = 0;
     let totalTags = new Set();
 
@@ -195,10 +198,10 @@ export default function HomePage({ onNewNote, onEditNote, onViewAchievement, sel
     }
 
     if (totalCount === 0) {
-      toast.error("未能生成标签，请检查笔记内容或配置 AI");
+      setTagSheet({ visible: true, status: "error", totalCount: 0, tags: [] });
       return;
     }
-    toast.success(`已为 ${totalCount} 条笔记添加标签: ${[...totalTags].join(", ")}`);
+    setTagSheet({ visible: true, status: "success", totalCount, tags: [...totalTags] });
   };
 
   const batchRemoveTag = async (tagToRemove) => {
@@ -473,6 +476,15 @@ export default function HomePage({ onNewNote, onEditNote, onViewAchievement, sel
           </motion.div>
         </div>
       )}
+
+      {/* Tag result bottom sheet */}
+      <TagResultSheet
+        isOpen={tagSheet.visible}
+        status={tagSheet.status}
+        totalCount={tagSheet.totalCount}
+        tags={tagSheet.tags}
+        onClose={() => setTagSheet({ ...tagSheet, visible: false })}
+      />
     </motion.div>
   );
 }

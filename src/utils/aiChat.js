@@ -1,13 +1,7 @@
 // AI 对话与摘要 API 工具
 
 import useSettingsStore from "../store/settingsStore";
-
-const API_CONFIG = {
-  deepseek: { endpoint: "https://api.deepseek.com/v1/chat/completions", model: "deepseek-chat" },
-  zhipu: { endpoint: "https://open.bigmodel.cn/api/paas/v4/chat/completions", model: "glm-4v-flash" },
-  qwen: { endpoint: "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions", model: "qwen-vl-plus" },
-  ollama: { endpoint: "http://localhost:11434/v1/chat/completions", model: "llama3" },
-};
+import { API_PROVIDERS, DEFAULT_PROVIDER } from "../config/api";
 
 // 根据 useMode 返回有效的 API 配置
 function getEffectiveConfig() {
@@ -24,7 +18,7 @@ function getEffectiveConfig() {
     if (useMode === "webllm") {
       return { useWebLLM: true, requiresAuth: false };
     }
-    return { ...API_CONFIG[modelProvider || "deepseek"] || API_CONFIG.deepseek, requiresAuth: true };
+    return { ...API_PROVIDERS[modelProvider || DEFAULT_PROVIDER] || API_PROVIDERS[DEFAULT_PROVIDER], requiresAuth: true };
   } catch {
     return API_CONFIG.deepseek;
   }

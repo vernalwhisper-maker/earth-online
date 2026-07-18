@@ -76,7 +76,7 @@ export async function encrypt(plaintext) {
     return bufToBase64(combined);
   } catch (e) {
     console.error("Encryption failed:", e);
-    return plaintext;
+    throw new Error("加密失败，API Key 将不会被存储");
   }
 }
 

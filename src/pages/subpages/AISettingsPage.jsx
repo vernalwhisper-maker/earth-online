@@ -4,17 +4,12 @@ import { ArrowLeft, RotateCcw, Wifi, Cpu, Smartphone, Download, Check, X, CheckC
 import RangeSlider from "../../components/ui/RangeSlider";
 import GlassSwitch from "../../components/ui/GlassSwitch";
 import useSettingsStore from "../../store/settingsStore";
+import { API_PROVIDERS, ONLINE_MODELS } from "../../config/api";
 
 const TABS = [
   { key: "online", label: "在线", icon: Wifi },
   { key: "ollama", label: "Ollama", icon: Cpu },
   { key: "webllm", label: "WebLLM", icon: Smartphone },
-];
-
-const ONLINE_MODELS = [
-  { value: "deepseek", label: "DeepSeek V4 Flash" },
-  { value: "zhipu", label: "智谱 GLM-4V-Flash" },
-  { value: "qwen", label: "通义千问 Qwen-VL-Plus" },
 ];
 
 const WEBLLM_MODELS = [
@@ -51,12 +46,7 @@ export default function AISettingsPage({ onBack }) {
     if (!store.apiKey) return;
     setTestingKey(true);
     setKeyStatus(null);
-    const testConfigs = {
-      deepseek: { endpoint: "https://api.deepseek.com/v1/chat/completions", model: "deepseek-chat" },
-      zhipu: { endpoint: "https://open.bigmodel.cn/api/paas/v4/chat/completions", model: "glm-4v-flash" },
-      qwen: { endpoint: "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions", model: "qwen-vl-plus" },
-    };
-    const cfg = testConfigs[store.modelProvider] || testConfigs.deepseek;
+    const cfg = API_PROVIDERS[store.modelProvider] || API_PROVIDERS.deepseek;
     try {
       const resp = await fetch(cfg.endpoint, {
         method: "POST",

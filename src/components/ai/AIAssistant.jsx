@@ -15,6 +15,36 @@ export default function AIAssistant({ noteId, notes = [], folders = [], noteTitl
   const [loading, setLoading] = useState(false);
   const [summarizing, setSummarizing] = useState(false);
   const chatEndRef = useRef(null);
+  const webllmReadyRef = useRef(false);
+  const [ollamaOk, setOllamaOk] = useState(null); // null=未检查, true/false
+
+  // 检查 WebLLM 引擎是否已就绪
+  useEffect(() => {
+    if (useMode === "webllm") {
+      import("../../utils/webllm").then(mod => {
+        webllmReadyRef.current = mod.getWebLLMStatus().ready;
+      });
+    }
+  }, [useMode]);
+
+  // Ollama 连通性检测
+  useEffect(() => {
+    if (useMode === "ollama" && isOpen && ollamaOk === null) {
+      const s = useSettingsStore.getState();
+      const ep = (s.localEndpoint || "http://localhost:11434").replace(/\/+$/, "");
+      const isLocalDev = ep.includes("localhost") || ep.includes("127.0.0.1");
+      const proxyPath = isLocalDev ? "/ollama" : ep;
+      fetch(proxyPath + "/api/tags", { method: "GET", signal: AbortSignal.timeout(3000) })
+        .then(r => { setOllamaOk(r.ok); if (!r.ok) throw new Error(); })
+        .catch(() => {
+          setOllamaOk(false);
+          setMessages(prev => [...prev, {
+            noteId, role: "assistant",
+            content: "🔔 无法连接到 Ollama 服务，请确保：\n1. Ollama 已启动 (\`ollama serve\`)\n2. 服务地址配置正确\n3. 已拉取所需模型 (\`ollama pull " + (s.localModel || "qwen2.5:1.5b") + "\`)"
+          }]);
+        });
+    }
+  }, [useMode, isOpen, noteId, ollamaOk]);
 
   useEffect(() => {
     if (isOpen) getChatMessages(noteId).then(setMessages);
@@ -25,6 +55,16 @@ export default function AIAssistant({ noteId, notes = [], folders = [], noteTitl
   const handleSend = async () => {
     const text = input.trim();
     if (!text || !canUseAI) return;
+
+    // WebLLM 引擎未就绪时引导用户
+    if (useMode === "webllm" && !webllmReadyRef.current) {
+      setMessages(prev => [...prev, {
+        noteId, role: "assistant",
+        content: "🔔 WebLLM 模型尚未加载，请前往 **设置 → AI 设置 → WebLLM** 下载并加载模型后再使用。"
+      }]);
+      return;
+    }
+
     setInput("");
     const userMsg = { noteId, role: "user", content: text };
     await saveChatMessage(userMsg);

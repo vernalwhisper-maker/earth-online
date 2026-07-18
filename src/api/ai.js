@@ -3,6 +3,7 @@
 
 import achievementsData from "../data/achievements";
 import useSettingsStore from "../store/settingsStore";
+import { API_PROVIDERS, DEFAULT_PROVIDER } from "../config/api";
 
 // 嵌入匹配（动态导入，避免阻塞主流程）
 let embedMatch = null;
@@ -27,16 +28,10 @@ function getMatchConfig() {
       const proxyPath = isLocalDev ? "/ollama" : ep;
       return { endpoint: proxyPath + "/v1/chat/completions", model: localModel || "qwen2.5:1.5b" };
     }
-    if (useMode === "webllm") return null; // WebLLM 暂不支持成就匹配
-    return API_CONFIG[s.modelProvider || "deepseek"];
-  } catch { return API_CONFIG.deepseek; }
+    if (useMode === "webllm") return { useWebLLM: true, model: s.webllmModel || "Qwen2.5-1.5B-Instruct-q4f16_1-MLC" };
+    return API_PROVIDERS[s.modelProvider || DEFAULT_PROVIDER] || API_PROVIDERS[DEFAULT_PROVIDER];
+  } catch { return API_PROVIDERS[DEFAULT_PROVIDER]; }
 }
-
-const API_CONFIG = {
-  deepseek: { endpoint: "https://api.deepseek.com/v1/chat/completions", model: "deepseek-chat", label: "DeepSeek V4 Flash" },
-  zhipu: { endpoint: "https://open.bigmodel.cn/api/paas/v4/chat/completions", model: "glm-4v-flash", label: "智谱 GLM-4V-Flash" },
-  qwen: { endpoint: "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions", model: "qwen-vl-plus", label: "通义千问 Qwen-VL-Plus" },
-};
 // Extra keywords beyond the achievement name itself — kept minimal to stay DRY
 // Achievement names are auto-included as keywords by buildKeywords()
 const KEYWORD_EXTRAS = {
@@ -277,6 +272,24 @@ export async function matchAchievements(noteContent, apiKey, provider, inference
     "",
     "请直接输出JSON数组，例如[43] 或[32, 10] 或[]：",
   ].join("\n");
+
+  // WebLLM 模式：通过浏览器内本地模型匹配
+  if (config.useWebLLM) {
+    try {
+      const { webllmChat } = await import("../utils/webllm");
+      const result = await webllmChat([
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user", content: userPrompt }
+      ], { temperature: 0.1, maxTokens: 200 });
+      if (result) {
+        const aiIds = parseIds(result);
+        return [...new Set([...aiIds, ...embedIds, ...keywordResults])].slice(0, 3);
+      }
+    } catch (err) {
+      console.error("WebLLM achievement match failed:", err);
+    }
+    return [...new Set([...embedIds, ...keywordResults])].slice(0, 3);
+  }
 
   try {
     const response = await fetch(config.endpoint, {

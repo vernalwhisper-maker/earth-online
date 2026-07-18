@@ -137,5 +137,5 @@ export function getIconFilename(id) {
     59: "2026-07-01_21-58-03_577.jpg",
     60: "2026-07-01_21-58-03_559.jpg",
   };
-  return map[id];
+  return map[id] || "default.svg";
 }

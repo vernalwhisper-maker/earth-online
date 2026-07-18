@@ -8,3 +8,21 @@ android/app/build/
 skills-main/
 skills-main.zip
 liquid_glass_widgets/
+
+# IDE
+.idea/
+
+# Environment & secrets
+.env
+.env.*
+
+# Build artifacts
+*.apk
+*.aab
+resources/
+ref_slider.png
+
+# Dev scripts
+*.py
+*.tsbuildinfo
+.gradle/
