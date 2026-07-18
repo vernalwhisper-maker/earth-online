@@ -24,7 +24,7 @@ const useSettingsStore = create((set, get) => ({
 
   // 本地/Ollama 配置
   useMode: "online",       // "online" | "ollama" | "webllm"
-  localEndpoint: "",        // Ollama: http://192.168.x.x:11434
+  localEndpoint: "",        // Ollama 服务地址
   localModel: "qwen2.5:1.5b",
   webllmModel: "Qwen2.5-1.5B-Instruct-q4f16_1-MLC",
   webllmDownloaded: false,
