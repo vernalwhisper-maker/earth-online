@@ -11,6 +11,10 @@ import { getChatStats, clearAllChatHistory, getAllChatMessages } from "../db";
 import GlassSwitch from "../components/ui/GlassSwitch";
 import AISettingsPage from "./subpages/AISettingsPage";
 import MoreSettingsPage from "./subpages/MoreSettingsPage";
+import DebugPage from "./subpages/DebugPage";
+import TagBarDebugPage from "./subpages/TagBarDebugPage";
+import NavBarDebugPage from "./subpages/NavBarDebugPage";
+import FABDebugPage from "./subpages/FABDebugPage";
 
 export default function SettingsPage({ settingsSubPage, onSubPageChange }) {
   const { loaded, darkMode, setDarkMode } = useSettingsStore();
@@ -88,7 +92,11 @@ export default function SettingsPage({ settingsSubPage, onSubPageChange }) {
 
   // Sub-page navigation — 直接用 props 判断，父组件清空 settingsSubPage 立即生效
   if (settingsSubPage === "ai") return <AISettingsPage onBack={() => onSubPageChange?.(null)} />;
-  if (settingsSubPage === "more") return <MoreSettingsPage onBack={() => onSubPageChange?.(null)} />;
+  if (settingsSubPage === "more") return <MoreSettingsPage onBack={(action) => onSubPageChange?.(action === "debug" ? "debug" : action === "debug-tagbar" ? "debug-tagbar" : action === "debug-navbar" ? "debug-navbar" : action === "debug-fab" ? "debug-fab" : null)} />;
+  if (settingsSubPage === "debug") return <DebugPage onBack={(action) => onSubPageChange?.(action === "more" ? "more" : null)} />;
+  if (settingsSubPage === "debug-tagbar") return <TagBarDebugPage onBack={(action) => onSubPageChange?.(action === "more" ? "more" : null)} />;
+  if (settingsSubPage === "debug-navbar") return <NavBarDebugPage onBack={(action) => onSubPageChange?.(action === "more" ? "more" : null)} />;
+  if (settingsSubPage === "debug-fab") return <FABDebugPage onBack={(action) => onSubPageChange?.(action === "more" ? "more" : null)} />;
 
   if (!loaded) {
     return (
@@ -187,7 +195,7 @@ export default function SettingsPage({ settingsSubPage, onSubPageChange }) {
           <FileText size={16} className="text-faded-slate" />
           <h2 className="text-xs font-mono uppercase tracking-wider text-faded-slate">关于</h2>
         </div>
-        <p className="text-sm font-mono text-faded-slate">版本 1.1.0</p>
+        <p className="text-sm font-mono text-faded-slate">版本 1.2.1</p>
         <p className="text-sm text-warm-steel mt-1">成就总数: 60</p>
       </section>
 

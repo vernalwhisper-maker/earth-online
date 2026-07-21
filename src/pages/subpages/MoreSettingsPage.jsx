@@ -1,7 +1,8 @@
-﻿import { useState, useRef } from "react";
+﻿import { useState, useRef, useCallback, useEffect } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, Download, Upload, Trash2, RotateCcw, X, Lock, KeyRound } from "lucide-react";
+import { ArrowLeft, Download, Upload, Trash2, RotateCcw, X, Lock, KeyRound, Bug } from "lucide-react";
 import RangeSlider from "../../components/ui/RangeSlider";
+import GlassSwitch from "../../components/ui/GlassSwitch";
 import useSettingsStore from "../../store/settingsStore";
 import useNoteStore from "../../store/noteStore";
 import { getAllNotes, importAllNotes, clearAllData } from "../../db";
@@ -9,7 +10,17 @@ import { exportToEonBlob, generateFilename, parseEonFile } from "../../utils/not
 import { Filesystem, Directory } from "@capacitor/filesystem";
 
 export default function MoreSettingsPage({ onBack }) {
-  const { tabBarOpacity, setTabBarOpacity } = useSettingsStore();
+  const {
+    tabBarOpacity, setTabBarOpacity,
+    advancedDebug, setAdvancedDebug,
+    debugFABEnabled, setDebugFABEnabled,
+    debugTagBarEnabled, setDebugTagBarEnabled,
+    debugNavBarEnabled, setDebugNavBarEnabled,
+    debugFabGlassEnabled, setDebugFabGlassEnabled,
+    devUnlocked, setDevUnlocked,
+    devCardOpen, setDevCardOpen,
+    closeDevCard,
+  } = useSettingsStore();
   const loadNotes = useNoteStore((s) => s.loadNotes);
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -22,6 +33,37 @@ export default function MoreSettingsPage({ onBack }) {
   const fileInputRef = useRef(null);
   const pendingFileRef = useRef(null);
 
+  // 开发者模式连点触发 — 全部在 useEffect 中驱动，不在 render 阶段调 setState
+  const [devTapCount, setDevTapCount] = useState(0);
+  const devTimerRef = useRef(null);
+
+  const handleTitleTap = useCallback(() => {
+    setDevTapCount((prev) => prev + 1);
+    if (devTimerRef.current) clearTimeout(devTimerRef.current);
+    devTimerRef.current = setTimeout(() => {
+      setDevTapCount(0);
+      devTimerRef.current = null;
+    }, 600);
+  }, []);
+
+  // 7 次连点 → 解锁 + 自动开启卡片（useEffect 驱动，无 render 阶段 setState）
+  useEffect(() => {
+    if (devTapCount >= 7 && !devUnlocked) {
+      setDevTapCount(0);
+      setDevUnlocked(true);
+      setDevCardOpen(true);
+    }
+  }, [devTapCount, devUnlocked, setDevUnlocked, setDevCardOpen]);
+
+  // 标题开关关闭 → 联动关闭 Store 中所有调试状态
+  const handleDevCardToggle = (open) => {
+    if (open) {
+      setDevCardOpen(true);
+    } else {
+      closeDevCard(); // 隐藏卡片 + 重置触发 + 关闭 advancedDebug / debugFABEnabled
+    }
+  };
+
   const doExport = async (password) => {
     setExporting(true); setImportResult(null);
     try {
@@ -29,7 +71,6 @@ export default function MoreSettingsPage({ onBack }) {
       const blob = await exportToEonBlob(notes, password);
       const filename = generateFilename();
 
-      // 读取 Blob 为 base64
       const base64 = await new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(reader.result.split(",")[1]);
@@ -37,14 +78,12 @@ export default function MoreSettingsPage({ onBack }) {
         reader.readAsDataURL(blob);
       });
 
-      // 策略1：写入 Documents 目录（Android 文件管理器可见）
       try {
         await Filesystem.writeFile({ path: filename, data: base64, directory: Directory.Documents });
         const result = await Filesystem.getUri({ path: filename, directory: Directory.Documents });
         setImportResult({ success: true, count: notes.length, message: "已保存到 Documents/\n" + filename });
       } catch (docErr) {
         console.warn("Documents write failed:", docErr);
-        // 策略2：写入缓存（总是可写）
         await Filesystem.writeFile({ path: filename, data: base64, directory: Directory.Cache });
         const result = await Filesystem.getUri({ path: filename, directory: Directory.Cache });
         setImportResult({ success: true, count: notes.length, message: "已保存到缓存:\n" + result.uri });
@@ -73,14 +112,17 @@ export default function MoreSettingsPage({ onBack }) {
       <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-warm-steel mb-4 hover:text-deep-ink transition-colors">
         <ArrowLeft size={16} />返回
       </button>
-      <h1 className="text-[1.5rem] font-bold text-deep-ink mb-6">更多设置</h1>
+      <h1 className="text-[1.5rem] font-bold text-deep-ink mb-6" onClick={handleTitleTap}>更多设置</h1>
 
       <section className="bg-surface rounded-card border border-scribe p-4 mb-4">
         <h2 className="text-xs font-mono uppercase tracking-wider text-faded-slate mb-4">更多设置</h2>
         <div className="space-y-5">
-          <RangeSlider label="导航栏通透度" value={tabBarOpacity}
-            onChange={(v) => setTabBarOpacity(v)} min={10} max={90} step={5}
-            labels={["通透", "半透", "微透", "厚重"]} formatValue={(v) => v + "%"} />
+          <div className={debugNavBarEnabled ? "pointer-events-none opacity-40" : ""}>
+            <RangeSlider label="导航栏通透度" value={tabBarOpacity}
+              onChange={(v) => setTabBarOpacity(v)} min={10} max={90} step={5}
+              labels={["通透", "半透", "微透", "厚重"]} formatValue={(v) => v + "%"} />
+            {debugNavBarEnabled && <p className="text-[10px] text-faded-slate -mt-1">调试模式已接管导航栏外观</p>}
+          </div>
         </div>
       </section>
 
@@ -107,6 +149,72 @@ export default function MoreSettingsPage({ onBack }) {
           </button>
         </div>
       </section>
+
+      {/* 开发者模式 — 高级调试 (状态全部来自 Store，不受页面退出影响) */}
+      {devCardOpen && (
+        <section className="bg-surface rounded-card border border-scribe p-4 mb-4">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-faded-slate">
+              <Bug size={14} />高级调试
+            </h2>
+            <GlassSwitch value={devCardOpen} onChange={(v) => handleDevCardToggle(v)} />
+          </div>
+          <div className="space-y-3">
+            {/* 总开关 */}
+            <div className="flex items-center justify-between px-2 py-2">
+              <div>
+                <span className="text-sm text-deep-ink">启用调试</span>
+                <p className="text-[11px] text-warm-steel mt-0.5">总开关，开启后应用下方已启用的详细功能</p>
+              </div>
+              <GlassSwitch value={advancedDebug} onChange={async (v) => { await setAdvancedDebug(v); }} />
+            </div>
+            {/* 副开关 + 入口 */}
+            <div className="flex items-center justify-between px-3 py-3 rounded-btn hover:bg-canvas-warm transition-colors">
+              <span className="text-sm text-deep-ink">表/类/夹调试</span>
+              <div className="flex items-center gap-2 shrink-0">
+                <GlassSwitch value={debugFABEnabled} onChange={async (v) => { await setDebugFABEnabled(v); }} />
+                <button onClick={() => onBack?.("debug")}
+                  className="px-2.5 py-1 text-xs font-medium bg-emerald/10 text-emerald rounded-full hover:bg-emerald/20 transition-colors">
+                  进入
+                </button>
+              </div>
+            </div>
+            {/* 标签栏调试 */}
+            <div className="flex items-center justify-between px-3 py-3 rounded-btn hover:bg-canvas-warm transition-colors">
+              <span className="text-sm text-deep-ink">标签栏调试</span>
+              <div className="flex items-center gap-2 shrink-0">
+                <GlassSwitch value={debugTagBarEnabled} onChange={async (v) => { await setDebugTagBarEnabled(v); }} />
+                <button onClick={() => onBack?.("debug-tagbar")}
+                  className="px-2.5 py-1 text-xs font-medium bg-emerald/10 text-emerald rounded-full hover:bg-emerald/20 transition-colors">
+                  进入
+                </button>
+              </div>
+            </div>
+            {/* 导航栏调试 */}
+            <div className="flex items-center justify-between px-3 py-3 rounded-btn hover:bg-canvas-warm transition-colors">
+              <span className="text-sm text-deep-ink">导航栏调试</span>
+              <div className="flex items-center gap-2 shrink-0">
+                <GlassSwitch value={debugNavBarEnabled} onChange={async (v) => { await setDebugNavBarEnabled(v); }} />
+                <button onClick={() => onBack?.("debug-navbar")}
+                  className="px-2.5 py-1 text-xs font-medium bg-emerald/10 text-emerald rounded-full hover:bg-emerald/20 transition-colors">
+                  进入
+                </button>
+              </div>
+            </div>
+            {/* 新建/AI按钮调试 */}
+            <div className="flex items-center justify-between px-3 py-3 rounded-btn hover:bg-canvas-warm transition-colors">
+              <span className="text-sm text-deep-ink">新建/AI按钮调试</span>
+              <div className="flex items-center gap-2 shrink-0">
+                <GlassSwitch value={debugFabGlassEnabled} onChange={async (v) => { await setDebugFabGlassEnabled(v); }} />
+                <button onClick={() => onBack?.("debug-fab")}
+                  className="px-2.5 py-1 text-xs font-medium bg-emerald/10 text-emerald rounded-full hover:bg-emerald/20 transition-colors">
+                  进入
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
 
       {showExportPwd && (<div className="fixed inset-0 bg-deep-ink/60 flex items-center justify-center z-50 px-4"><motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-surface rounded-modal p-6 max-w-sm w-full shadow-soft"><h3 className="text-lg font-bold text-deep-ink mb-2">设置导出密码</h3><p className="text-sm text-warm-steel mb-4">输入密码加密笔记文件</p><input type="password" value={pwdInput} onChange={(e) => { setPwdInput(e.target.value); setPwdError(""); }} placeholder="输入导出密码" className="w-full px-3 py-2.5 border border-scribe rounded-input bg-surface text-deep-ink text-sm focus:outline-none focus:ring-2 focus:ring-emerald font-mono mb-2" />{pwdError && <p className="text-xs text-rose mb-3">{pwdError}</p>}<div className="flex gap-3"><button onClick={() => setShowExportPwd(false)} className="flex-1 py-2.5 border border-scribe rounded-btn text-sm text-deep-ink"><X size={16} className="inline mr-1" />取消</button><button onClick={() => { const pw = pwdInput.trim(); if (!pw || pw.length < 4) { setPwdError("密码至少4位"); return; } setShowExportPwd(false); doExport(pw); }} className="flex-1 py-2.5 bg-emerald text-white rounded-btn text-sm"><Lock size={16} className="inline mr-1" />加密导出</button></div></motion.div></div>)}
       {showImportPwd && (<div className="fixed inset-0 bg-deep-ink/60 flex items-center justify-center z-50 px-4"><motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-surface rounded-modal p-6 max-w-sm w-full shadow-soft"><h3 className="text-lg font-bold text-deep-ink mb-2">输入密码</h3><p className="text-sm text-warm-steel mb-4">输入导出时设置的密码</p><input type="password" value={pwdInput} onChange={(e) => { setPwdInput(e.target.value); setPwdError(""); }} placeholder="输入密码" className="w-full px-3 py-2.5 border border-scribe rounded-input bg-surface text-deep-ink text-sm focus:outline-none focus:ring-2 focus:ring-emerald font-mono mb-2" />{pwdError && <p className="text-xs text-rose mb-3">{pwdError}</p>}<div className="flex gap-3"><button onClick={() => setShowImportPwd(false)} className="flex-1 py-2.5 border border-scribe rounded-btn text-sm text-deep-ink"><X size={16} className="inline mr-1" />取消</button><button onClick={() => { const pw = pwdInput.trim(); if (!pw) { setPwdError("请输入密码"); return; } setShowImportPwd(false); doImport(pw); }} className="flex-1 py-2.5 bg-emerald text-white rounded-btn text-sm"><KeyRound size={16} className="inline mr-1" />解密导入</button></div></motion.div></div>)}

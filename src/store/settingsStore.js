@@ -29,6 +29,16 @@ const useSettingsStore = create((set, get) => ({
   webllmModel: "Qwen2.5-1.5B-Instruct-q4f16_1-MLC",
   webllmDownloaded: false,
   webllmLoading: false,
+  advancedDebug: false,
+  debugFABEnabled: false,
+  debugTagBarEnabled: false,
+  debugNavBarEnabled: false,
+  debugFabGlassEnabled: false,
+
+  // 开发者模式 UI 状态（内存态，不持久化。退出页面后若 Store 调试开关仍为 true，
+  // 重新进入 MoreSettingsPage 时由 loadSettings 恢复 devUnlocked/devCardOpen）
+  devUnlocked: false,
+  devCardOpen: false,
 
   loadSettings: async () => {
     const provider = (await getSetting("modelProvider")) || "deepseek";
@@ -48,9 +58,18 @@ const useSettingsStore = create((set, get) => ({
     const localModel = (await getSetting("localModel")) || "qwen2.5:1.5b";
     const webllmModel = (await getSetting("webllmModel")) || "Qwen2.5-1.5B-Instruct-q4f16_1-MLC";
     const webllmDownloaded = (await getSetting("webllmDownloaded")) ?? false;
+    const advancedDebug = (await getSetting("advancedDebug")) ?? false;
+    const debugFABEnabled = (await getSetting("debugFABEnabled")) ?? false;
+    const debugTagBarEnabled = (await getSetting("debugTagBarEnabled")) ?? false;
+    const debugNavBarEnabled = (await getSetting("debugNavBarEnabled")) ?? false;
+    const debugFabGlassEnabled = (await getSetting("debugFabGlassEnabled")) ?? false;
     set({ modelProvider: provider, apiKey, inference, tabBarOpacity, darkMode, showAIAssistant, reduceMotion,
       useMirror,
-      useMode, localEndpoint, localModel, webllmModel, webllmDownloaded, loaded: true });
+      useMode, localEndpoint, localModel, webllmModel, webllmDownloaded,
+      advancedDebug, debugFABEnabled, debugTagBarEnabled, debugNavBarEnabled, debugFabGlassEnabled,
+      // 若调试总开关已开启，恢复卡片入口状态，避免"调试生效但入口消失"
+      devUnlocked: advancedDebug, devCardOpen: advancedDebug,
+      loaded: true });
   },
 
   setModelProvider: async (provider) => {
@@ -124,6 +143,45 @@ const useSettingsStore = create((set, get) => ({
   },
   setWebllmLoading: async (value) => {
     set({ webllmLoading: value });
+  },
+
+  setAdvancedDebug: async (value) => {
+    await setSetting("advancedDebug", value);
+    set({ advancedDebug: value });
+  },
+
+  setDebugFABEnabled: async (value) => {
+    await setSetting("debugFABEnabled", value);
+    set({ debugFABEnabled: value });
+  },
+
+  setDebugTagBarEnabled: async (value) => {
+    await setSetting("debugTagBarEnabled", value);
+    set({ debugTagBarEnabled: value });
+  },
+
+  setDebugNavBarEnabled: async (value) => {
+    await setSetting("debugNavBarEnabled", value);
+    set({ debugNavBarEnabled: value });
+  },
+
+  setDebugFabGlassEnabled: async (value) => {
+    await setSetting("debugFabGlassEnabled", value);
+    set({ debugFabGlassEnabled: value });
+  },
+
+  setDevUnlocked: (value) => set({ devUnlocked: value }),
+  setDevCardOpen: (value) => set({ devCardOpen: value }),
+
+  // 标题开关关闭 → 卡片隐藏 + 重置触发 + 关闭所有调试功能
+  closeDevCard: async () => {
+    const s = get();
+    if (s.advancedDebug) await setSetting("advancedDebug", false);
+    if (s.debugFABEnabled) await setSetting("debugFABEnabled", false);
+    if (s.debugTagBarEnabled) await setSetting("debugTagBarEnabled", false);
+    if (s.debugNavBarEnabled) await setSetting("debugNavBarEnabled", false);
+    if (s.debugFabGlassEnabled) await setSetting("debugFabGlassEnabled", false);
+    set({ devCardOpen: false, devUnlocked: false, advancedDebug: false, debugFABEnabled: false, debugTagBarEnabled: false, debugNavBarEnabled: false, debugFabGlassEnabled: false });
   },
 
   setWebllmBusy: (value) => set({ webllmBusy: value }),

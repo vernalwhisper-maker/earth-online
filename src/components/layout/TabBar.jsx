@@ -1,4 +1,4 @@
-﻿import { useState, useRef } from "react";
+﻿import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FileText, Trophy, Settings, Pin, Save, Sparkles, Trash2, Palette, Folder, X, Check, Hash, Plus } from "lucide-react";
 import useAchievementStore from "../../store/achievementStore";
@@ -37,12 +37,172 @@ const springTap = { type: "spring", stiffness: 500, damping: 11, mass: 0.55 };
 const springIcon = { type: "spring", stiffness: 360, damping: 15, mass: 0.7 };
 const springBadge = { type: "spring", stiffness: 400, damping: 11 };
 
+// ====== 调试版导航栏（纯毛玻璃）======
+function NavGlass({ isDark, currentPage, onNavigate, editor, isSelectMode,
+  tabs, activeTodoCount, unlockedCount, handleActionClick, deleteBtnRef }) {
+  const [dp, setDp] = useState(() => {
+    try { const r = localStorage.getItem("earth-online-debug-navbar"); return r ? JSON.parse(r) : {}; } catch { return {}; }
+  });
+  useEffect(() => {
+    const h = (e) => setDp(e.detail);
+    window.addEventListener("earth-debug-navbar-changed", h);
+    return () => window.removeEventListener("earth-debug-navbar-changed", h);
+  }, []);
+  const p = (k, d) => typeof dp[k] === "number" ? dp[k] : d;
+  const glassStyle = {
+    background: `rgba(255,255,255,${p("bgOpacity", 0.06)})`,
+    backdropFilter: `blur(${p("blurPx", 18)}px) saturate(${p("saturation", 1.4)})`,
+    WebkitBackdropFilter: `blur(${p("blurPx", 18)}px) saturate(${p("saturation", 1.4)})`,
+    border: `1px solid rgba(255,255,255,${p("borderOpacity", 0.10)})`,
+    boxShadow: `0 8px 32px rgba(0,0,0,${p("shadowOpacity", 0.5)}), inset 0 1px 0 rgba(255,255,255,0.12)`,
+    borderRadius: p("borderRadius", 32),
+  };
+  return (
+    <nav className="safe-area-bottom fixed bottom-6 left-1/2 -translate-x-1/2 z-20 w-[calc(100%-2.5rem)] max-w-sm">
+      <div className="px-2 py-1.5" style={glassStyle}>
+        <TabContent isDark={isDark} currentPage={currentPage} onNavigate={onNavigate}
+          editor={editor} isSelectMode={isSelectMode} tabs={tabs}
+          activeTodoCount={activeTodoCount} unlockedCount={unlockedCount}
+          handleActionClick={handleActionClick} deleteBtnRef={deleteBtnRef} />
+      </div>
+    </nav>
+  );
+}
+
+// ====== 原始导航栏 ======
+function NavOriginal({ isDark, glassBase, specularTop, currentPage, onNavigate,
+  editor, isSelectMode, tabs, activeTodoCount, unlockedCount, handleActionClick, deleteBtnRef }) {
+  return (
+    <nav className="safe-area-bottom fixed bottom-6 left-1/2 -translate-x-1/2 z-20 w-[calc(100%-2.5rem)] max-w-sm">
+      <div className="relative rounded-[2rem] px-2 py-1.5 shadow-[0_8px_40px_rgba(0,0,0,0.15)] overflow-hidden"
+        style={{ willChange: 'transform' }}>
+        <div className="absolute inset-0"
+          style={{ background: glassBase, backdropFilter: "blur(35px) saturate(200%)", WebkitBackdropFilter: "blur(35px) saturate(200%)" }} />
+        <div className="absolute top-0 left-4 right-4 h-[1.5px]" style={{ background: specularTop }} />
+        <div className="absolute bottom-0 left-6 right-6 h-[2px] rounded-full"
+          style={{ background: `linear-gradient(to right, transparent, rgba(16,185,129,${isDark ? 0.25 : 0.15}) 30%, rgba(16,185,129,${isDark ? 0.12 : 0.08}) 50%, rgba(16,185,129,${isDark ? 0.25 : 0.15}) 70%, transparent)` }} />
+        <div className="absolute top-3 bottom-3 left-0 w-[1px] rounded-full"
+          style={{ background: "linear-gradient(to bottom, transparent, rgba(255,255,255,0.3) 30%, rgba(255,255,255,0.1) 70%, transparent)" }} />
+        <div className="absolute top-3 bottom-3 right-0 w-[1px] rounded-full"
+          style={{ background: "linear-gradient(to bottom, transparent, rgba(255,255,255,0.3) 30%, rgba(255,255,255,0.1) 70%, transparent)" }} />
+        <div className="absolute inset-0 rounded-[2rem] border border-white/25" />
+        <div className="absolute inset-[1px] rounded-[2rem] border border-white/70" />
+        <div className="absolute inset-x-4 bottom-0 h-4 rounded-full"
+          style={{ background: `linear-gradient(to top, rgba(0,0,0,${isDark ? 0.12 : 0.05}), transparent)` }} />
+        <TabContent isDark={isDark} currentPage={currentPage} onNavigate={onNavigate}
+          editor={editor} isSelectMode={isSelectMode} tabs={tabs}
+          activeTodoCount={activeTodoCount} unlockedCount={unlockedCount}
+          handleActionClick={handleActionClick} deleteBtnRef={deleteBtnRef} />
+      </div>
+    </nav>
+  );
+}
+
+// ====== 共享内容 ======
+function TabContent({ isDark, currentPage, onNavigate, editor, isSelectMode,
+  tabs, activeTodoCount, unlockedCount, handleActionClick, deleteBtnRef }) {
+  return (
+    <div className="relative z-10 flex items-center w-full">
+      {currentPage === "editor" ? (
+        <div className="flex items-center justify-center gap-1 w-full py-1">
+          {editorActions.map((act) => {
+            if (act.conditional && !editor[act.conditional]) return null;
+            const Icon = act.icon;
+            const disabled = act.disabled && editor[act.disabled];
+            const label = act.getLabel ? act.getLabel(editor.isPinned, editor.isAIAnalyzing) : act.label;
+            const iconClass = act.getIconClass ? act.getIconClass(editor.isPinned) : act.iconClass;
+            const isDanger = act.key === "delete";
+            return (
+              <motion.button key={act.key} ref={act.key === "delete" ? deleteBtnRef : null}
+                aria-label={label} onClick={() => handleActionClick(act)}
+                whileTap={{ scale: 0.88 }} transition={springTap} disabled={disabled}
+                className="relative flex flex-col items-center gap-0.5 py-1.5 px-2.5 min-w-[56px] rounded-xl hover:bg-white/10 transition-colors disabled:opacity-40">
+                <Icon size={20} className={disabled ? "text-faded-slate/50" : iconClass} />
+                <span className="text-[9px] font-semibold tracking-wide"
+                  style={{ color: disabled ? "rgba(163,162,158,0.4)" : (isDanger ? "#f43f5e" : (isDark ? "rgba(163,162,158,0.8)" : "rgba(107,106,103,0.7)")) }}>{label}</span>
+              </motion.button>
+            );
+          })}
+        </div>
+      ) : isSelectMode ? (
+        <div className="flex items-center justify-center gap-0 w-full py-1">
+          <motion.button onClick={() => editor.onSelectAll?.()} whileTap={{ scale: 0.88 }} transition={springTap}
+            className="flex flex-col items-center gap-0.5 py-1.5 px-2 min-w-[48px] rounded-xl hover:bg-white/10 transition-colors" aria-label="全选">
+            <span className="text-[9px] font-semibold tracking-wide"
+              style={{ color: isDark ? "rgba(163,162,158,0.8)" : "rgba(107,106,103,0.7)" }}>全选</span>
+          </motion.button>
+          <motion.div className="relative w-[46px] h-[42px] flex items-center justify-center mr-1">
+            <motion.div layoutId="liquid-pill" className="absolute inset-1 rounded-full"
+              style={{ background: isDark ? "linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0.04))" : "linear-gradient(135deg, rgba(255,255,255,0.5), rgba(255,255,255,0.15))", boxShadow: isDark ? "inset 0 1px 2px rgba(255,255,255,0.15), 0 2px 12px rgba(16,185,129,0.2)" : "inset 0 1px 2px rgba(255,255,255,0.7), 0 2px 12px rgba(16,185,129,0.15)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)" }}
+              initial={false} transition={springPill} />
+            <span className="relative z-10 text-sm font-mono font-bold text-emerald">{editor.selectCount}</span>
+          </motion.div>
+          {selectActions.map((act) => {
+            if (act.conditional && !editor[act.conditional]) return null;
+            const Icon = act.icon;
+            const label = act.getLabel ? act.getLabel(editor.selectPinState) : act.label;
+            return (
+              <motion.button key={act.key} aria-label={label} onClick={() => handleActionClick(act)}
+                whileTap={{ scale: 0.88 }} transition={springTap}
+                className="relative flex flex-col items-center gap-0.5 py-1.5 px-2.5 min-w-[56px] rounded-xl hover:bg-white/10 transition-colors">
+                <Icon size={20} className={act.key === "delete" ? "text-rose" : "text-warm-steel/70"} />
+                <span className="text-[9px] font-semibold tracking-wide"
+                  style={{ color: isDark ? "rgba(163,162,158,0.8)" : "rgba(107,106,103,0.7)" }}>{label}</span>
+              </motion.button>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="flex items-center justify-around w-full">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = currentPage === tab.key;
+            const showTodoBadge = tab.key === "home" && activeTodoCount > 0;
+            return (
+              <motion.button key={tab.key} aria-label={tab.label} aria-current={isActive ? "page" : undefined}
+                onClick={() => onNavigate(tab.key)} whileTap={{ scale: 0.92 }} transition={springTap}
+                className="relative flex items-center justify-center py-2 flex-1 min-h-[46px]">
+                {isActive && (
+                  <motion.div layoutId="liquid-pill" className="absolute inset-1 rounded-full"
+                    style={{ background: isDark ? "linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0.04))" : "linear-gradient(135deg, rgba(255,255,255,0.5), rgba(255,255,255,0.15))", boxShadow: isDark ? "inset 0 1px 2px rgba(255,255,255,0.15), 0 2px 12px rgba(16,185,129,0.2)" : "inset 0 1px 2px rgba(255,255,255,0.7), 0 2px 12px rgba(16,185,129,0.15)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)" }}
+                    initial={false} transition={springPill} />
+                )}
+                <div className="relative flex flex-col items-center gap-0.5 z-10">
+                  <motion.div animate={isActive ? { scale: 1.12, y: -1 } : { scale: 1, y: 0 }} transition={springIcon} className="relative">
+                    <Icon size={20} className={isActive ? "text-emerald drop-shadow-[0_1px_3px_rgba(16,185,129,0.3)]" : "text-warm-steel/70"} />
+                    {showTodoBadge && (
+                      <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} transition={springBadge}
+                        className="absolute -top-2 -right-2.5 bg-blue-500 text-white text-[9px] font-mono font-bold rounded-full min-w-[15px] h-[15px] flex items-center justify-center px-0.5"
+                        style={{ boxShadow: "0 1px 4px rgba(59,130,246,0.4)" }}>{activeTodoCount}</motion.span>
+                    )}
+                    {tab.key === "gallery" && unlockedCount > 0 && (
+                      <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} transition={springBadge}
+                        className="absolute -top-2 -right-2.5 bg-emerald text-white text-[9px] font-mono font-bold rounded-full min-w-[15px] h-[15px] flex items-center justify-center px-0.5"
+                        style={{ boxShadow: "0 1px 4px rgba(16,185,129,0.4)" }}>{unlockedCount}</motion.span>
+                    )}
+                  </motion.div>
+                  <motion.span animate={isActive ? { scale: 1.05, y: 0 } : { scale: 1, y: 0 }} transition={springIcon}
+                    className="text-[10px] font-semibold tracking-wide"
+                    style={{ color: isActive ? (isDark ? "#34d399" : "#059669") : (isDark ? "rgba(163,162,158,0.8)" : "rgba(107,106,103,0.7)") }}>{tab.label}</motion.span>
+                </div>
+              </motion.button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function TabBar({ currentPage, onNavigate }) {
   const unlockedCount = useAchievementStore((s) => s.getUnlockedCount());
   const activeTodoCount = useTodoStore((s) => s.activeCount);
   const tabBarOpacity = useSettingsStore((s) => s.tabBarOpacity);
   const isDark = useSettingsStore((s) => s.darkMode);
   const editor = useEditorActionsStore();
+
+  // 导航栏调试 — 从 localStorage 读取 LiquidGlass 参数
+  const debugNavBar = useSettingsStore((s) => s.debugNavBarEnabled);
 
   const isSelectMode = currentPage === "home" && editor.selectCount > 0;
 
@@ -425,197 +585,19 @@ export default function TabBar({ currentPage, onNavigate }) {
       </AnimatePresence>
 
       {/* 主 TabBar */}
-      <nav className="safe-area-bottom fixed bottom-6 left-1/2 -translate-x-1/2 z-20 w-[calc(100%-2.5rem)] max-w-sm">
-        <div className="relative rounded-[2rem] px-2 py-1.5 shadow-[0_8px_40px_rgba(0,0,0,0.15)] overflow-hidden"
-          style={{ willChange: 'transform' }}>
-
-          {/* 玻璃效果层 */}
-          <div className="absolute inset-0"
-            style={{ background: glassBase, backdropFilter: "blur(35px) saturate(200%)", WebkitBackdropFilter: "blur(35px) saturate(200%)" }} />
-          <div className="absolute top-0 left-4 right-4 h-[1.5px]" style={{ background: specularTop }} />
-          <div className="absolute bottom-0 left-6 right-6 h-[2px] rounded-full"
-            style={{ background: `linear-gradient(to right, transparent, rgba(16,185,129,${isDark ? 0.25 : 0.15}) 30%, rgba(16,185,129,${isDark ? 0.12 : 0.08}) 50%, rgba(16,185,129,${isDark ? 0.25 : 0.15}) 70%, transparent)` }} />
-          <div className="absolute top-3 bottom-3 left-0 w-[1px] rounded-full"
-            style={{ background: "linear-gradient(to bottom, transparent, rgba(255,255,255,0.3) 30%, rgba(255,255,255,0.1) 70%, transparent)" }} />
-          <div className="absolute top-3 bottom-3 right-0 w-[1px] rounded-full"
-            style={{ background: "linear-gradient(to bottom, transparent, rgba(255,255,255,0.3) 30%, rgba(255,255,255,0.1) 70%, transparent)" }} />
-          <div className="absolute inset-0 rounded-[2rem] border border-white/25" />
-          <div className="absolute inset-[1px] rounded-[2rem] border border-white/70" />
-          <div className="absolute inset-x-4 bottom-0 h-4 rounded-full"
-            style={{ background: `linear-gradient(to top, rgba(0,0,0,${isDark ? 0.12 : 0.05}), transparent)` }} />
-
-          {/* 按钮区域 — 三模式切换 */}
-          <div className="relative z-10 flex items-center w-full">
-            {currentPage === "editor" ? (
-              /* ========== 编辑器操作模式 ========== */
-              <div className="flex items-center justify-center gap-1 w-full py-1">
-                {editorActions.map((act) => {
-                  if (act.conditional && !editor[act.conditional]) return null;
-                  const Icon = act.icon;
-                  const disabled = act.disabled && editor[act.disabled];
-                  const label = act.getLabel ? act.getLabel(editor.isPinned, editor.isAIAnalyzing) : act.label;
-                  const iconClass = act.getIconClass ? act.getIconClass(editor.isPinned) : act.iconClass;
-                  const isDanger = act.key === "delete";
-
-                  return (
-                    <motion.button
-                      key={act.key}
-                      ref={act.key === "delete" ? deleteBtnRef : null}
-                      aria-label={label}
-                      onClick={() => handleActionClick(act)}
-                      whileTap={{ scale: 0.88 }}
-                      transition={springTap}
-                      disabled={disabled}
-                      className="relative flex flex-col items-center gap-0.5 py-1.5 px-2.5 min-w-[56px] rounded-xl hover:bg-white/10 transition-colors disabled:opacity-40"
-                    >
-                      <Icon size={20} className={disabled ? "text-faded-slate/50" : iconClass} />
-                      <span className="text-[9px] font-semibold tracking-wide"
-                        style={{ color: disabled ? "rgba(163,162,158,0.4)" : (isDanger ? "#f43f5e" : (isDark ? "rgba(163,162,158,0.8)" : "rgba(107,106,103,0.7)")) }}>
-                        {label}
-                      </span>
-                    </motion.button>
-                  );
-                })}
-              </div>
-
-            ) : isSelectMode ? (
-              /* ========== 选择模式 ========== */
-              <div className="flex items-center justify-center gap-0 w-full py-1">
-                <motion.button
-                  onClick={() => editor.onSelectAll?.()}
-                  whileTap={{ scale: 0.88 }}
-                  transition={springTap}
-                  className="flex flex-col items-center gap-0.5 py-1.5 px-2 min-w-[48px] rounded-xl hover:bg-white/10 transition-colors"
-                  aria-label="全选"
-                >
-                  <span className="text-[9px] font-semibold tracking-wide"
-                    style={{ color: isDark ? "rgba(163,162,158,0.8)" : "rgba(107,106,103,0.7)" }}>
-                    全选
-                  </span>
-                </motion.button>
-                <motion.div className="relative w-[46px] h-[42px] flex items-center justify-center mr-1">
-                  <motion.div
-                    layoutId="liquid-pill"
-                    className="absolute inset-1 rounded-full"
-                    style={{
-                      background: isDark
-                        ? "linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0.04))"
-                        : "linear-gradient(135deg, rgba(255,255,255,0.5), rgba(255,255,255,0.15))",
-                      boxShadow: isDark
-                        ? "inset 0 1px 2px rgba(255,255,255,0.15), 0 2px 12px rgba(16,185,129,0.2)"
-                        : "inset 0 1px 2px rgba(255,255,255,0.7), 0 2px 12px rgba(16,185,129,0.15)",
-                      backdropFilter: "blur(8px)",
-                      WebkitBackdropFilter: "blur(8px)",
-                    }}
-                    initial={false}
-                    transition={springPill}
-                  />
-                  <span className="relative z-10 text-sm font-mono font-bold text-emerald drop-shadow-[0_1px_3px_rgba(16,185,129,0.3)]">{editor.selectCount}</span>
-                </motion.div>
-                {selectActions.map((act) => {
-                  if (act.conditional && !editor[act.conditional]) return null;
-                  const Icon = act.icon;
-                  const label = act.getLabel ? act.getLabel(editor.selectPinState) : act.label;
-
-                  return (
-                    <motion.button
-                      key={act.key}
-                      aria-label={label}
-                      onClick={() => handleActionClick(act)}
-                      whileTap={{ scale: 0.88 }}
-                      transition={springTap}
-                      className="relative flex flex-col items-center gap-0.5 py-1.5 px-2.5 min-w-[56px] rounded-xl hover:bg-white/10 transition-colors"
-                    >
-                      <Icon size={20} className={act.key === "delete" ? "text-rose" : "text-warm-steel/70"} />
-                      <span className="text-[9px] font-semibold tracking-wide"
-                        style={{ color: isDark ? "rgba(163,162,158,0.8)" : "rgba(107,106,103,0.7)" }}>
-                        {label}
-                      </span>
-                    </motion.button>
-                  );
-                })}
-              </div>
-
-            ) : (
-              /* ========== 导航模式 ========== */
-              <div className="flex items-center justify-around w-full">
-                {tabs.map((tab) => {
-                  const Icon = tab.icon;
-                  const isActive = currentPage === tab.key;
-                  const showTodoBadge = tab.key === "home" && activeTodoCount > 0;
-
-                  return (
-                    <motion.button
-                      key={tab.key}
-                      aria-label={tab.label}
-                      aria-current={isActive ? "page" : undefined}
-                      onClick={() => onNavigate(tab.key)}
-                      whileTap={{ scale: 0.92 }}
-                      transition={springTap}
-                      className="relative flex items-center justify-center py-2 flex-1 min-h-[46px]"
-                    >
-                      {isActive && (
-                        <motion.div
-                          layoutId="liquid-pill"
-                          className="absolute inset-1 rounded-full"
-                          style={{
-                            background: isDark
-                              ? "linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0.04))"
-                              : "linear-gradient(135deg, rgba(255,255,255,0.5), rgba(255,255,255,0.15))",
-                            boxShadow: isDark
-                              ? "inset 0 1px 2px rgba(255,255,255,0.15), 0 2px 12px rgba(16,185,129,0.2)"
-                              : "inset 0 1px 2px rgba(255,255,255,0.7), 0 2px 12px rgba(16,185,129,0.15)",
-                            backdropFilter: "blur(8px)",
-                            WebkitBackdropFilter: "blur(8px)",
-                          }}
-                          initial={false}
-                          transition={springPill}
-                        />
-                      )}
-
-                      <div className="relative flex flex-col items-center gap-0.5 z-10">
-                        <motion.div
-                          animate={isActive ? { scale: 1.12, y: -1 } : { scale: 1, y: 0 }}
-                          transition={springIcon}
-                          className="relative"
-                        >
-                          <Icon size={20} className={isActive ? "text-emerald drop-shadow-[0_1px_3px_rgba(16,185,129,0.3)]" : "text-warm-steel/70"} />
-
-                          {showTodoBadge && (
-                            <motion.span
-                              initial={{ scale: 0 }} animate={{ scale: 1 }} transition={springBadge}
-                              className="absolute -top-2 -right-2.5 bg-blue-500 text-white text-[9px] font-mono font-bold rounded-full min-w-[15px] h-[15px] flex items-center justify-center px-0.5"
-                              style={{ boxShadow: "0 1px 4px rgba(59,130,246,0.4)" }}>
-                              {activeTodoCount}
-                            </motion.span>
-                          )}
-
-                          {tab.key === "gallery" && unlockedCount > 0 && (
-                            <motion.span
-                              initial={{ scale: 0 }} animate={{ scale: 1 }} transition={springBadge}
-                              className="absolute -top-2 -right-2.5 bg-emerald text-white text-[9px] font-mono font-bold rounded-full min-w-[15px] h-[15px] flex items-center justify-center px-0.5"
-                              style={{ boxShadow: "0 1px 4px rgba(16,185,129,0.4)" }}>
-                              {unlockedCount}
-                            </motion.span>
-                          )}
-                        </motion.div>
-
-                        <motion.span
-                          animate={isActive ? { scale: 1.05, y: 0 } : { scale: 1, y: 0 }}
-                          transition={springIcon}
-                          className="text-[10px] font-semibold tracking-wide"
-                          style={{ color: isActive ? (isDark ? "#34d399" : "#059669") : (isDark ? "rgba(163,162,158,0.8)" : "rgba(107,106,103,0.7)") }}>
-                          {tab.label}
-                        </motion.span>
-                      </div>
-                    </motion.button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-      </nav>
+      {debugNavBar ? (
+        <NavGlass isDark={isDark} glassBase={glassBase} specularTop={specularTop}
+          currentPage={currentPage} onNavigate={onNavigate}
+          editor={editor} isSelectMode={isSelectMode}
+          tabs={tabs} activeTodoCount={activeTodoCount} unlockedCount={unlockedCount}
+          handleActionClick={handleActionClick} deleteBtnRef={deleteBtnRef} />
+      ) : (
+        <NavOriginal isDark={isDark} glassBase={glassBase} specularTop={specularTop}
+          currentPage={currentPage} onNavigate={onNavigate}
+          editor={editor} isSelectMode={isSelectMode}
+          tabs={tabs} activeTodoCount={activeTodoCount} unlockedCount={unlockedCount}
+          handleActionClick={handleActionClick} deleteBtnRef={deleteBtnRef} />
+      )}
     </>
   );
 }

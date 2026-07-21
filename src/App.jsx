@@ -15,6 +15,7 @@ import TabBar from "./components/layout/TabBar";
 import UnlockModal from "./components/achievements/UnlockModal";
 import ToastContainer from "./components/ui/Toast";
 import AIAssistant from "./components/ai/AIAssistant";
+import { FAB_DEFAULTS, STORAGE_KEY_FAB } from "./config/debugDefaults";
 
 const PAGE_ORDER = ["home", "settings", "gallery", "achievement-detail"];
 
@@ -52,6 +53,18 @@ export default function App() {
   const loadSettings = useSettingsStore((s) => s.loadSettings);
   const showAIAssistant = useSettingsStore((s) => s.showAIAssistant);
   const setShowAIAssistant = useSettingsStore((s) => s.setShowAIAssistant);
+
+  // 新建/AI按钮调试
+  const debugFabGlass = useSettingsStore((s) => s.debugFabGlassEnabled);
+  const [fabParams, setFabParams] = useState(() => {
+    try { const r = localStorage.getItem(STORAGE_KEY_FAB); return r ? JSON.parse(r) : FAB_DEFAULTS; } catch { return FAB_DEFAULTS; }
+  });
+  useEffect(() => {
+    const h = (e) => setFabParams(e.detail);
+    window.addEventListener("earth-debug-fab-changed", h);
+    return () => window.removeEventListener("earth-debug-fab-changed", h);
+  }, []);
+
   const loadTodos = useTodoStore((s) => s.loadAll);
   const lastUnlocked = useAchievementStore((s) => s.lastUnlocked);
   const dismissLastUnlocked = useAchievementStore((s) => s.dismissLastUnlocked);
@@ -223,17 +236,40 @@ export default function App() {
       {/* 浮动按钮 — 放在 <main> 外，不受页面过渡动画影响 */}
       {currentPage === "home" && !editingNoteId && (
         <>
-          {showAIAssistant && <AIAssistant noteId={null} notes={notes} />}
-          <motion.button
-            aria-label="新建笔记"
-            onClick={() => { prevPageRef.current = currentPage; setEditingNoteId("new"); setCurrentPage("editor"); }}
-            whileTap={{ scale: 0.85 }}
-            transition={{ type: "spring", stiffness: 400, damping: 15 }}
-            className="fixed bottom-32 right-5 w-14 h-14 bg-emerald rounded-full shadow-fab flex items-center justify-center z-20"
-            style={{ willChange: 'transform' }}
-          >
-            <Plus size={24} className="text-white" />
-          </motion.button>
+          {showAIAssistant && (
+            debugFabGlass ? (
+              <AIAssistant noteId={null} notes={notes} fabDebug fabDebugParams={fabParams} />
+            ) : (
+              <AIAssistant noteId={null} notes={notes} />
+            )
+          )}
+          {debugFabGlass ? (
+            <button
+              onClick={() => { prevPageRef.current = currentPage; setEditingNoteId("new"); setCurrentPage("editor"); }}
+              className="fixed bottom-32 right-5 w-14 h-14 rounded-full flex items-center justify-center"
+              aria-label="新建笔记"
+              style={{
+                background: `rgba(255,255,255,${fabParams.bgOpacity ?? FAB_DEFAULTS.bgOpacity})`,
+                backdropFilter: `blur(${fabParams.blurPx ?? FAB_DEFAULTS.blurPx}px) saturate(${fabParams.saturation ?? FAB_DEFAULTS.saturation})`,
+                WebkitBackdropFilter: `blur(${fabParams.blurPx ?? FAB_DEFAULTS.blurPx}px) saturate(${fabParams.saturation ?? FAB_DEFAULTS.saturation})`,
+                border: `1px solid rgba(255,255,255,${fabParams.borderOpacity ?? FAB_DEFAULTS.borderOpacity})`,
+                boxShadow: `0 8px 32px rgba(0,0,0,${fabParams.shadowOpacity ?? FAB_DEFAULTS.shadowOpacity}), inset 0 1px 0 rgba(255,255,255,0.12)`,
+              }}
+            >
+              <Plus size={22} className="text-warm-steel" />
+            </button>
+          ) : (
+            <motion.button
+              aria-label="新建笔记"
+              onClick={() => { prevPageRef.current = currentPage; setEditingNoteId("new"); setCurrentPage("editor"); }}
+              whileTap={{ scale: 0.85 }}
+              transition={{ type: "spring", stiffness: 400, damping: 15 }}
+              className="fixed bottom-32 right-5 w-14 h-14 bg-emerald rounded-full shadow-fab flex items-center justify-center z-20"
+              style={{ willChange: 'transform' }}
+            >
+              <Plus size={24} className="text-white" />
+            </motion.button>
+          )}
         </>
       )}
 

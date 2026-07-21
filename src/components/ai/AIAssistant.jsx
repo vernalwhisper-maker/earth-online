@@ -6,9 +6,10 @@ import { chatWithAI, generateSummary } from "../../utils/aiChat";
 import { getChatMessages, saveChatMessage } from "../../db";
 import { parseActions, stripActions, executeAction } from "../../utils/aiTools";
 import useSettingsStore from "../../store/settingsStore";
+import { FAB_DEFAULTS } from "../../config/debugDefaults";
 
-export default function AIAssistant({ noteId, notes = [], folders = [], noteTitle, noteBody, noteMarkdown, onSummaryGenerated }) {
-  const { modelProvider, apiKey, inference, loaded: settingsLoaded, useMode } = useSettingsStore();
+export default function AIAssistant({ noteId, notes = [], folders = [], noteTitle, noteBody, noteMarkdown, onSummaryGenerated, fabDebug, fabDebugParams }) {
+  const { modelProvider, apiKey, inference, loaded: settingsLoaded, useMode, darkMode } = useSettingsStore();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
@@ -146,16 +147,33 @@ export default function AIAssistant({ noteId, notes = [], folders = [], noteTitl
 
   return (
     <>
-      <motion.button
-        onClick={() => setIsOpen(!isOpen)}
-        whileTap={{ scale: 0.85 }}
-        transition={{ type: "spring", stiffness: 400, damping: 15 }}
-        className="fixed bottom-48 right-5 w-14 h-14 bg-violet-500 rounded-full shadow-fab flex items-center justify-center z-20"
-        title="AI 助手"
-        style={{ willChange: 'transform' }}
-      >
-        <Sparkles size={20} className="text-white" />
-      </motion.button>
+      {fabDebug ? (
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className="fixed bottom-48 right-5 w-14 h-14 rounded-full flex items-center justify-center"
+          aria-label="AI 助手"
+          style={{
+            background: `rgba(255,255,255,${fabDebugParams.bgOpacity ?? FAB_DEFAULTS.bgOpacity})`,
+            backdropFilter: `blur(${fabDebugParams.blurPx ?? FAB_DEFAULTS.blurPx}px) saturate(${fabDebugParams.saturation ?? FAB_DEFAULTS.saturation})`,
+            WebkitBackdropFilter: `blur(${fabDebugParams.blurPx ?? FAB_DEFAULTS.blurPx}px) saturate(${fabDebugParams.saturation ?? FAB_DEFAULTS.saturation})`,
+            border: `1px solid rgba(255,255,255,${fabDebugParams.borderOpacity ?? FAB_DEFAULTS.borderOpacity})`,
+            boxShadow: `0 8px 32px rgba(0,0,0,${fabDebugParams.shadowOpacity ?? FAB_DEFAULTS.shadowOpacity}), inset 0 1px 0 rgba(255,255,255,0.12)`,
+          }}
+        >
+          <Sparkles size={20} className="text-warm-steel" />
+        </button>
+      ) : (
+        <motion.button
+          onClick={() => setIsOpen(!isOpen)}
+          whileTap={{ scale: 0.85 }}
+          transition={{ type: "spring", stiffness: 400, damping: 15 }}
+          className="fixed bottom-48 right-5 w-14 h-14 bg-violet-500 rounded-full shadow-fab flex items-center justify-center z-20"
+          title="AI 助手"
+          style={{ willChange: 'transform' }}
+        >
+          <Sparkles size={20} className="text-white" />
+        </motion.button>
+      )}
 
       <AnimatePresence>
         {isOpen && (

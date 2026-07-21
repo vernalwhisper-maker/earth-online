@@ -13,6 +13,8 @@ import useFolderStore from "../store/folderStore";
 import useEditorActionsStore from "../store/editorActionsStore";
 import useSettingsStore from "../store/settingsStore";
 import useToastStore from "../store/toastStore";
+import LiquidGlass from "../components/ui/LiquidGlass/index";
+import { DEBUG_DEFAULTS, STORAGE_KEY_SEGMENTED, STORAGE_KEY_TAGBAR, MODE_OPTIONS } from "../config/debugDefaults";
 import { generateTags, keywordTagMatch } from "../utils/aiChat";
 import { getSearchHistory, saveSearchQuery, clearSearchHistory } from "../db";
 import TagResultSheet from "../components/tags/TagResultSheet";
@@ -29,6 +31,47 @@ export default function HomePage({ onNewNote, onEditNote, onViewAchievement, sel
   const [viewMode, setViewMode] = useState("list");
   const searchRef = useRef(null);
   const { loadFolders } = useFolderStore();
+
+  // 调试模式 — 实验区参数
+  const advancedDebug = useSettingsStore((s) => s.advancedDebug);
+  const debugFABEnabled = useSettingsStore((s) => s.debugFABEnabled);
+  const debugTagBarEnabled = useSettingsStore((s) => s.debugTagBarEnabled);
+
+  // 调试参数读取辅助
+  const readDebugParams = (key) => {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) return DEBUG_DEFAULTS;
+      const p = JSON.parse(raw);
+      return {
+        elasticity: typeof p.elasticity === "number" ? p.elasticity : DEBUG_DEFAULTS.elasticity,
+        blurAmount: typeof p.blurAmount === "number" ? p.blurAmount : DEBUG_DEFAULTS.blurAmount,
+        saturation: typeof p.saturation === "number" ? p.saturation : DEBUG_DEFAULTS.saturation,
+        displacementScale: typeof p.displacementScale === "number" ? p.displacementScale : DEBUG_DEFAULTS.displacementScale,
+        aberrationIntensity: typeof p.aberrationIntensity === "number" ? p.aberrationIntensity : DEBUG_DEFAULTS.aberrationIntensity,
+        cornerRadius: typeof p.cornerRadius === "number" ? p.cornerRadius : DEBUG_DEFAULTS.cornerRadius,
+        modeIdx: typeof p.modeIdx === "number" ? p.modeIdx : DEBUG_DEFAULTS.modeIdx,
+        overLight: typeof p.overLight === "boolean" ? p.overLight : DEBUG_DEFAULTS.overLight,
+        shadowOpacity: typeof p.shadowOpacity === "number" ? p.shadowOpacity : DEBUG_DEFAULTS.shadowOpacity,
+      };
+    } catch { return DEBUG_DEFAULTS; }
+  };
+
+  // 分段控件调试参数（表/类/夹）
+  const [segmentedParams, setSegmentedParams] = useState(() => readDebugParams(STORAGE_KEY_SEGMENTED));
+  useEffect(() => {
+    const handler = (e) => setSegmentedParams(e.detail);
+    window.addEventListener("earth-debug-segmented-changed", handler);
+    return () => window.removeEventListener("earth-debug-segmented-changed", handler);
+  }, []);
+
+  // 标签栏调试参数
+  const [tagBarParams, setTagBarParams] = useState(() => readDebugParams(STORAGE_KEY_TAGBAR));
+  useEffect(() => {
+    const handler = (e) => setTagBarParams(e.detail);
+    window.addEventListener("earth-debug-tagbar-changed", handler);
+    return () => window.removeEventListener("earth-debug-tagbar-changed", handler);
+  }, []);
 
   // Selection mode
   const [selectMode, setSelectMode] = useState(false);
@@ -349,13 +392,38 @@ export default function HomePage({ onNewNote, onEditNote, onViewAchievement, sel
         ) : (
           <>
             <h1 className="text-[1.5rem] font-bold text-deep-ink">地球Online</h1>
-            <div className="flex gap-1 bg-scribe/30 rounded-full p-0.5">
-              {["list", "type", "folder"].map((mode) => (
-                <button key={mode} onClick={() => setViewMode(mode)}
-                  className={"px-2.5 py-1 text-xs rounded-full transition-colors " + (viewMode === mode ? "bg-white text-deep-ink shadow-sm" : "text-faded-slate")}>
-                  {mode === "list" ? "列表" : mode === "type" ? "分类" : "文件夹"}
-                </button>
-              ))}
+            <div className={"flex gap-1 rounded-full p-0.5 " + (advancedDebug && debugFABEnabled ? "" : "bg-scribe/30")}>
+              {advancedDebug && debugFABEnabled ? (
+                <LiquidGlass
+                  cornerRadius={segmentedParams.cornerRadius}
+                  padding="4px"
+                  elasticity={segmentedParams.elasticity}
+                  blurAmount={segmentedParams.blurAmount}
+                  saturation={segmentedParams.saturation}
+                  displacementScale={segmentedParams.displacementScale}
+                  aberrationIntensity={segmentedParams.aberrationIntensity}
+                  mode={MODE_OPTIONS[segmentedParams.modeIdx] || "standard"}
+                  overLight={segmentedParams.overLight}
+                  shadowOpacity={segmentedParams.shadowOpacity}
+                  wrapperStyle={{}}
+                >
+                  <div className="flex gap-1 rounded-full p-0.5" style={{ borderRadius: segmentedParams.cornerRadius === 999 ? 9999 : segmentedParams.cornerRadius }}>
+                    {["list", "type", "folder"].map((mode) => (
+                      <button key={mode} onClick={() => setViewMode(mode)}
+                        className={"px-2.5 py-1 text-xs rounded-full transition-colors " + (viewMode === mode ? "bg-white text-deep-ink shadow-sm" : "text-faded-slate")}>
+                        {mode === "list" ? "列表" : mode === "type" ? "分类" : "文件夹"}
+                      </button>
+                    ))}
+                  </div>
+                </LiquidGlass>
+              ) : (
+                ["list", "type", "folder"].map((mode) => (
+                  <button key={mode} onClick={() => setViewMode(mode)}
+                    className={"px-2.5 py-1 text-xs rounded-full transition-colors " + (viewMode === mode ? "bg-white text-deep-ink shadow-sm" : "text-faded-slate")}>
+                    {mode === "list" ? "列表" : mode === "type" ? "分类" : "文件夹"}
+                  </button>
+                ))
+              )}
             </div>
           </>
         )}
@@ -395,38 +463,122 @@ export default function HomePage({ onNewNote, onEditNote, onViewAchievement, sel
 
       {/* Filter chips */}
       {!selectMode && viewMode === "list" && (
-        <div className="flex gap-2 mb-4 overflow-x-auto scrollbar-none">
-          {filterOptions.map((tag) => (
-            <button key={tag} onClick={() => setSelectedTag(tag)}
-              className={"relative whitespace-nowrap px-3 py-1.5 text-sm font-medium rounded-full transition-colors " + (selectedTag === tag ? "text-emerald" : "text-warm-steel hover:text-deep-ink")}>
-              {selectedTag === tag && <motion.div layoutId="filter-chip" className="absolute inset-0 bg-emerald/10 rounded-full" transition={{ type: "spring", stiffness: 300, damping: 30 }} />}
-              <span className="relative z-10">{tag}</span>
-            </button>
-          ))}
+        <div className="flex gap-2 mb-4 overflow-x-auto scrollbar-none" style={advancedDebug && debugTagBarEnabled ? { overflow: "visible" } : undefined}>
+          {advancedDebug && debugTagBarEnabled ? (
+            <LiquidGlass
+              cornerRadius={tagBarParams.cornerRadius}
+              padding="4px 8px"
+              elasticity={tagBarParams.elasticity}
+              blurAmount={tagBarParams.blurAmount}
+              saturation={tagBarParams.saturation}
+              displacementScale={tagBarParams.displacementScale}
+              aberrationIntensity={tagBarParams.aberrationIntensity}
+              mode={MODE_OPTIONS[tagBarParams.modeIdx] || "standard"}
+              overLight={tagBarParams.overLight}
+              shadowOpacity={tagBarParams.shadowOpacity}
+              wrapperStyle={{}}
+            >
+              <div className="flex gap-2">
+                {filterOptions.map((tag) => (
+                  <button key={tag} onClick={() => setSelectedTag(tag)}
+                    className={"relative whitespace-nowrap px-3 py-1.5 text-sm font-medium rounded-full transition-colors " + (selectedTag === tag ? "text-emerald" : "text-faded-slate")}>
+                    {selectedTag === tag && <motion.div layoutId="filter-chip" className="absolute inset-0 bg-emerald/10 rounded-full" transition={{ type: "spring", stiffness: 300, damping: 30 }} />}
+                    <span className="relative z-10">{tag}</span>
+                  </button>
+                ))}
+              </div>
+            </LiquidGlass>
+          ) : (
+            filterOptions.map((tag) => (
+              <button key={tag} onClick={() => setSelectedTag(tag)}
+                className={"relative whitespace-nowrap px-3 py-1.5 text-sm font-medium rounded-full transition-colors " + (selectedTag === tag ? "text-emerald" : "text-warm-steel hover:text-deep-ink")}>
+                {selectedTag === tag && <motion.div layoutId="filter-chip" className="absolute inset-0 bg-emerald/10 rounded-full" transition={{ type: "spring", stiffness: 300, damping: 30 }} />}
+                <span className="relative z-10">{tag}</span>
+              </button>
+            ))
+          )}
         </div>
       )}
       {!selectMode && viewMode === "type" && (
-        <div className="flex gap-2 mb-4 overflow-x-auto scrollbar-none">
-          <button onClick={() => setSelectedType(null)}
-            className={"relative whitespace-nowrap px-3 py-1.5 text-sm font-medium rounded-full " + (!selectedType ? "text-emerald bg-emerald/10" : "text-warm-steel hover:text-deep-ink")}>全部</button>
-          {NOTE_TYPE_KEYS.map((key) => {
-            const t = NOTE_TYPES[key]; const Icon = TYPE_ICONS[key]; const isActive = selectedType === key;
-            return (<button key={key} onClick={() => setSelectedType(isActive ? null : key)}
-              className={"inline-flex items-center gap-1 whitespace-nowrap px-3 py-1.5 text-sm font-medium rounded-full transition-colors " + (isActive ? t.color + " text-white" : "text-warm-steel hover:text-deep-ink")}>
-              <Icon size={12} />{t.label}</button>);
-          })}
+        <div className="flex gap-2 mb-4 overflow-x-auto scrollbar-none" style={advancedDebug && debugTagBarEnabled ? { overflow: "visible" } : undefined}>
+          {advancedDebug && debugTagBarEnabled ? (
+            <LiquidGlass
+              cornerRadius={tagBarParams.cornerRadius}
+              padding="4px 8px"
+              elasticity={tagBarParams.elasticity}
+              blurAmount={tagBarParams.blurAmount}
+              saturation={tagBarParams.saturation}
+              displacementScale={tagBarParams.displacementScale}
+              aberrationIntensity={tagBarParams.aberrationIntensity}
+              mode={MODE_OPTIONS[tagBarParams.modeIdx] || "standard"}
+              overLight={tagBarParams.overLight}
+              shadowOpacity={tagBarParams.shadowOpacity}
+              wrapperStyle={{}}
+            >
+              <div className="flex gap-2">
+                <button onClick={() => setSelectedType(null)}
+                  className={"whitespace-nowrap px-3 py-1.5 text-sm font-medium rounded-full " + (!selectedType ? "text-emerald bg-emerald/10" : "text-faded-slate")}>全部</button>
+                {NOTE_TYPE_KEYS.map((key) => {
+                  const t = NOTE_TYPES[key]; const Icon = TYPE_ICONS[key]; const isActive = selectedType === key;
+                  return (<button key={key} onClick={() => setSelectedType(isActive ? null : key)}
+                    className={"inline-flex items-center gap-1 whitespace-nowrap px-3 py-1.5 text-sm font-medium rounded-full " + (isActive ? t.color + " text-white" : "text-faded-slate")}>
+                    <Icon size={12} />{t.label}</button>);
+                })}
+              </div>
+            </LiquidGlass>
+          ) : (
+            <>
+              <button onClick={() => setSelectedType(null)}
+                className={"relative whitespace-nowrap px-3 py-1.5 text-sm font-medium rounded-full " + (!selectedType ? "text-emerald bg-emerald/10" : "text-warm-steel hover:text-deep-ink")}>全部</button>
+              {NOTE_TYPE_KEYS.map((key) => {
+                const t = NOTE_TYPES[key]; const Icon = TYPE_ICONS[key]; const isActive = selectedType === key;
+                return (<button key={key} onClick={() => setSelectedType(isActive ? null : key)}
+                  className={"inline-flex items-center gap-1 whitespace-nowrap px-3 py-1.5 text-sm font-medium rounded-full transition-colors " + (isActive ? t.color + " text-white" : "text-warm-steel hover:text-deep-ink")}>
+                  <Icon size={12} />{t.label}</button>);
+              })}
+            </>
+          )}
         </div>
       )}
       {!selectMode && viewMode === "folder" && (
-        <div className="flex gap-2 mb-4 overflow-x-auto scrollbar-none">
-          <button onClick={() => setSelectedFolder(null)}
-            className={"relative whitespace-nowrap px-3 py-1.5 text-sm font-medium rounded-full " + (!selectedFolder ? "text-emerald bg-emerald/10" : "text-warm-steel hover:text-deep-ink")}>全部</button>
-          {DEFAULT_FOLDERS.map((f) => {
-            const Icon = FOLDER_ICONS[f.id] || Inbox; const isActive = selectedFolder === f.id;
-            return (<button key={f.id} onClick={() => setSelectedFolder(isActive ? null : f.id)}
-              className={"inline-flex items-center gap-1 whitespace-nowrap px-3 py-1.5 text-sm font-medium rounded-full transition-colors " + (isActive ? "bg-deep-ink text-white" : "text-warm-steel hover:text-deep-ink")}>
-              <Icon size={12} />{f.label}</button>);
-          })}
+        <div className="flex gap-2 mb-4 overflow-x-auto scrollbar-none" style={advancedDebug && debugTagBarEnabled ? { overflow: "visible" } : undefined}>
+          {advancedDebug && debugTagBarEnabled ? (
+            <LiquidGlass
+              cornerRadius={tagBarParams.cornerRadius}
+              padding="4px 8px"
+              elasticity={tagBarParams.elasticity}
+              blurAmount={tagBarParams.blurAmount}
+              saturation={tagBarParams.saturation}
+              displacementScale={tagBarParams.displacementScale}
+              aberrationIntensity={tagBarParams.aberrationIntensity}
+              mode={MODE_OPTIONS[tagBarParams.modeIdx] || "standard"}
+              overLight={tagBarParams.overLight}
+              shadowOpacity={tagBarParams.shadowOpacity}
+              wrapperStyle={{}}
+            >
+              <div className="flex gap-2">
+                <button onClick={() => setSelectedFolder(null)}
+                  className={"whitespace-nowrap px-3 py-1.5 text-sm font-medium rounded-full " + (!selectedFolder ? "text-emerald bg-emerald/10" : "text-faded-slate")}>全部</button>
+                {DEFAULT_FOLDERS.map((f) => {
+                  const Icon = FOLDER_ICONS[f.id] || Inbox; const isActive = selectedFolder === f.id;
+                  return (<button key={f.id} onClick={() => setSelectedFolder(isActive ? null : f.id)}
+                    className={"inline-flex items-center gap-1 whitespace-nowrap px-3 py-1.5 text-sm font-medium rounded-full " + (isActive ? "bg-white text-deep-ink shadow-sm" : "text-faded-slate")}>
+                    <Icon size={12} />{f.label}</button>);
+                })}
+              </div>
+            </LiquidGlass>
+          ) : (
+            <>
+              <button onClick={() => setSelectedFolder(null)}
+                className={"relative whitespace-nowrap px-3 py-1.5 text-sm font-medium rounded-full " + (!selectedFolder ? "text-emerald bg-emerald/10" : "text-warm-steel hover:text-deep-ink")}>全部</button>
+              {DEFAULT_FOLDERS.map((f) => {
+                const Icon = FOLDER_ICONS[f.id] || Inbox; const isActive = selectedFolder === f.id;
+                return (<button key={f.id} onClick={() => setSelectedFolder(isActive ? null : f.id)}
+                  className={"inline-flex items-center gap-1 whitespace-nowrap px-3 py-1.5 text-sm font-medium rounded-full transition-colors " + (isActive ? "bg-deep-ink text-white" : "text-warm-steel hover:text-deep-ink")}>
+                  <Icon size={12} />{f.label}</button>);
+              })}
+            </>
+          )}
         </div>
       )}
 
