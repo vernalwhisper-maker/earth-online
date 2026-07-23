@@ -201,8 +201,10 @@ export default function TabBar({ currentPage, onNavigate }) {
   const isDark = useSettingsStore((s) => s.darkMode);
   const editor = useEditorActionsStore();
 
-  // 导航栏调试 — 从 localStorage 读取 LiquidGlass 参数
-  const debugNavBar = useSettingsStore((s) => s.debugNavBarEnabled);
+  // 导航栏调试
+  const advDebug = useSettingsStore((s) => s.advancedDebug);
+  const dbgNavBar = useSettingsStore((s) => s.debugNavBarEnabled);
+  const navDebug = advDebug && dbgNavBar;
 
   const isSelectMode = currentPage === "home" && editor.selectCount > 0;
 
@@ -585,7 +587,7 @@ export default function TabBar({ currentPage, onNavigate }) {
       </AnimatePresence>
 
       {/* 主 TabBar */}
-      {debugNavBar ? (
+      {navDebug ? (
         <NavGlass isDark={isDark} glassBase={glassBase} specularTop={specularTop}
           currentPage={currentPage} onNavigate={onNavigate}
           editor={editor} isSelectMode={isSelectMode}

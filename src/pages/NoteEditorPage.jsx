@@ -2,8 +2,11 @@ import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import {
   ArrowLeft, Plus, X, Save, Sparkles, Trash2,
-  Pin, Folder, CheckSquare, Award, StickyNote, FileText,
+  Pin, Folder, CheckSquare, Award, StickyNote, FileText, Download, Lock,
 } from "lucide-react";
+import { Filesystem, Directory } from "@capacitor/filesystem";
+import { exportToEonBlob, generateMarkdownFilename, exportNoteToMarkdown } from "../utils/notesFile";
+import useToastStore from "../store/toastStore";
 import useNoteStore from "../store/noteStore";
 import useAchievementStore from "../store/achievementStore";
 import useSettingsStore from "../store/settingsStore";
@@ -48,6 +51,12 @@ export default function NoteEditorPage({ noteId, onBack }) {
   const [saveStatus, setSaveStatus] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  // 导出相关状态
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [showExportPwd, setShowExportPwd] = useState(false);
+  const [exportPwd, setExportPwd] = useState("");
+  const [pwdError, setPwdError] = useState("");
+  const [exporting, setExporting] = useState(false);
 
   const noteIdRef = useRef(null);
   const [images, setImages] = useState([]);
@@ -179,6 +188,112 @@ export default function NoteEditorPage({ noteId, onBack }) {
 
   const handleManualSave = () => performSave(true, latestRef.current);
 
+  const addToast = useToastStore((s) => s.addToast);
+
+  // 单篇笔记导出
+  const doSingleExport = async (format) => {
+    const note = latestRef.current;
+    if (!note.title?.trim() && !note.body?.trim() && !note.markdownContent?.trim()) {
+      addToast?.("笔记内容为空，无法导出", "error");
+      return;
+    }
+    setShowExportMenu(false);
+
+    if (format === "md") {
+      setExporting(true);
+      try {
+        const fullNote = {
+          title: note.title,
+          body: note.body,
+          contentMarkdown: note.markdownContent || null,
+        };
+        const md = exportNoteToMarkdown(fullNote);
+        const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
+        const filename = generateMarkdownFilename(fullNote);
+        await saveBlobToFile(blob, filename);
+        addToast?.("已导出 M 格式笔记", "success");
+      } catch (err) {
+        addToast?.(err.message || "导出失败", "error");
+      }
+      setExporting(false);
+    } else if (format === "eon") {
+      setExportPwd("");
+      setPwdError("");
+      setShowExportPwd(true);
+    }
+  };
+
+  // 通用文件保存（Capacitor Filesystem 优先，兜底浏览器下载）
+  const saveBlobToFile = async (blob, filename) => {
+    try {
+      if (typeof Filesystem !== "undefined") {
+        const base64 = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result.split(",")[1]);
+          reader.onerror = () => reject(new Error("文件读取失败"));
+          reader.readAsDataURL(blob);
+        });
+        try {
+          await Filesystem.writeFile({ path: filename, data: base64, directory: Directory.Documents });
+        } catch {
+          await Filesystem.writeFile({ path: filename, data: base64, directory: Directory.Cache });
+        }
+      } else {
+        throw new Error("No Filesystem");
+      }
+    } catch {
+      // 浏览器降级
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+  };
+
+  // eon 格式加密导出
+  const doEonExport = async () => {
+    const pw = exportPwd.trim();
+    if (!pw || pw.length < 4) { setPwdError("密码至少4位"); return; }
+    setShowExportPwd(false);
+    setExporting(true);
+    try {
+      const note = latestRef.current;
+      const noteObj = {
+        id: noteIdRef.current || undefined,
+        title: note.title,
+        body: note.useMarkdown ? "" : note.body,
+        contentMarkdown: note.useMarkdown ? note.markdownContent : null,
+        tags: [...note.tags],
+        noteType: note.noteType,
+        isPinned: note.isPinned,
+        bgColorId: note.bgColorId,
+        bgPattern: note.bgPattern || "solid",
+        animTheme: note.animTheme || "none",
+        folderId: note.folderId,
+        snippet: (note.body || "").slice(0, 120),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      const blob = await exportToEonBlob([noteObj], pw);
+      const now = new Date();
+      const y = now.getFullYear();
+      const M = String(now.getMonth() + 1).padStart(2, "0");
+      const d = String(now.getDate()).padStart(2, "0");
+      const h = String(now.getHours()).padStart(2, "0");
+      const m = String(now.getMinutes()).padStart(2, "0");
+      const filename = `${y}${M}${d}_${h}${m}_单篇笔记.eon`;
+      await saveBlobToFile(blob, filename);
+      addToast?.("已导出 eon 格式笔记", "success");
+    } catch (err) {
+      addToast?.(err.message || "导出失败", "error");
+    }
+    setExporting(false);
+  };
+
   const handleDelete = async () => {
     const id = noteIdRef.current;
     if (!id) return;
@@ -226,6 +341,11 @@ export default function NoteEditorPage({ noteId, onBack }) {
         </button>
         <span className="text-xs font-mono text-faded-slate text-center">{today}</span>
         <div className="flex items-center gap-2 justify-self-end">
+          <button onClick={() => setShowExportMenu(true)} disabled={exporting}
+            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-black/5 transition-colors"
+            title="导出笔记">
+            <Download size={16} className="text-warm-steel" />
+          </button>
           {saveStatus === "saving" && <span className="text-xs text-faded-slate">自动保存</span>}
           {saveStatus === "ai-analyzing" && (
             <span className="flex items-center gap-1.5 text-xs text-emerald">
@@ -305,6 +425,64 @@ export default function NoteEditorPage({ noteId, onBack }) {
 
       {/* 环境动效 */}
       <AmbientAnimation theme={animTheme} />
+
+      {/* 导出格式选择弹窗 */}
+      {showExportMenu && (
+        <div className="fixed inset-0 bg-deep-ink/60 flex items-center justify-center z-50 px-4">
+          <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+            className="bg-surface rounded-modal p-6 max-w-sm w-full shadow-soft">
+            <h3 className="text-lg font-bold text-deep-ink mb-2">导出笔记</h3>
+            <p className="text-sm text-warm-steel mb-4">选择导出格式</p>
+            <div className="space-y-2">
+              <button onClick={() => doSingleExport("md")}
+                className="w-full flex items-center justify-between px-4 py-3 rounded-btn hover:bg-canvas-warm transition-colors border border-scribe">
+                <div className="text-left">
+                  <span className="text-sm font-medium text-deep-ink">M 格式（.md）</span>
+                  <p className="text-[11px] text-warm-steel mt-0.5">纯文本 Markdown 格式，无需密码</p>
+                </div>
+                <span className="text-xs text-faded-slate font-mono">Markdown</span>
+              </button>
+              <button onClick={() => doSingleExport("eon")}
+                className="w-full flex items-center justify-between px-4 py-3 rounded-btn hover:bg-canvas-warm transition-colors border border-scribe">
+                <div className="text-left">
+                  <span className="text-sm font-medium text-deep-ink">eon 格式（.eon）</span>
+                  <p className="text-[11px] text-warm-steel mt-0.5">加密格式，需要设置密码</p>
+                </div>
+                <span className="text-xs text-faded-slate font-mono">加密</span>
+              </button>
+            </div>
+            <button onClick={() => setShowExportMenu(false)}
+              className="w-full mt-4 py-2.5 border border-scribe rounded-btn text-sm text-deep-ink hover:bg-canvas-warm transition-colors">
+              <X size={16} className="inline mr-1" />取消
+            </button>
+          </motion.div>
+        </div>
+      )}
+
+      {/* eon 导出密码输入弹窗 */}
+      {showExportPwd && (
+        <div className="fixed inset-0 bg-deep-ink/60 flex items-center justify-center z-50 px-4">
+          <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+            className="bg-surface rounded-modal p-6 max-w-sm w-full shadow-soft">
+            <h3 className="text-lg font-bold text-deep-ink mb-2">设置导出密码</h3>
+            <p className="text-sm text-warm-steel mb-4">输入密码加密笔记文件（eon 格式）</p>
+            <input type="password" value={exportPwd} onChange={(e) => { setExportPwd(e.target.value); setPwdError(""); }}
+              placeholder="输入导出密码（至少4位）" autoFocus
+              className="w-full px-3 py-2.5 border border-scribe rounded-input bg-surface text-deep-ink text-sm focus:outline-none focus:ring-2 focus:ring-emerald font-mono mb-2" />
+            {pwdError && <p className="text-xs text-rose mb-3">{pwdError}</p>}
+            <div className="flex gap-3">
+              <button onClick={() => setShowExportPwd(false)}
+                className="flex-1 py-2.5 border border-scribe rounded-btn text-sm text-deep-ink">
+                <X size={16} className="inline mr-1" />取消
+              </button>
+              <button onClick={doEonExport}
+                className="flex-1 py-2.5 bg-emerald text-white rounded-btn text-sm">
+                <Lock size={16} className="inline mr-1" />加密导出
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
 
       {/* Delete confirmation */}
       {showDeleteConfirm && (

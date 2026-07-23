@@ -6,7 +6,7 @@ import GlassSwitch from "../../components/ui/GlassSwitch";
 import useSettingsStore from "../../store/settingsStore";
 import useNoteStore from "../../store/noteStore";
 import { getAllNotes, importAllNotes, clearAllData } from "../../db";
-import { exportToEonBlob, generateFilename, parseEonFile } from "../../utils/notesFile";
+import { exportToEonBlob, generateFilename, parseEonFile, exportToMarkdownBlob, generateBatchMarkdownFilename, parseMarkdownFile } from "../../utils/notesFile";
 import { Filesystem, Directory } from "@capacitor/filesystem";
 
 export default function MoreSettingsPage({ onBack }) {
@@ -27,6 +27,7 @@ export default function MoreSettingsPage({ onBack }) {
   const [importResult, setImportResult] = useState(null);
   const [showExportPwd, setShowExportPwd] = useState(false);
   const [showImportPwd, setShowImportPwd] = useState(false);
+  const [showExportFormat, setShowExportFormat] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [pwdInput, setPwdInput] = useState("");
   const [pwdError, setPwdError] = useState("");
@@ -64,6 +65,39 @@ export default function MoreSettingsPage({ onBack }) {
     }
   };
 
+  const saveBlob = async (blob, filename) => {
+    const base64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result.split(",")[1]);
+      reader.onerror = () => reject(new Error("文件读取失败"));
+      reader.readAsDataURL(blob);
+    });
+    try {
+      await Filesystem.writeFile({ path: filename, data: base64, directory: Directory.Documents });
+      setImportResult({ success: true, count: 0, message: "已保存到 Documents/\n" + filename });
+    } catch (docErr) {
+      console.warn("Documents write failed:", docErr);
+      await Filesystem.writeFile({ path: filename, data: base64, directory: Directory.Cache });
+      const result = await Filesystem.getUri({ path: filename, directory: Directory.Cache });
+      setImportResult({ success: true, count: 0, message: "已保存到缓存:\n" + result.uri });
+    }
+  };
+
+  const doExportMarkdown = async () => {
+    setShowExportFormat(false);
+    setExporting(true); setImportResult(null);
+    try {
+      const notes = await getAllNotes();
+      const blob = exportToMarkdownBlob(notes);
+      const filename = generateBatchMarkdownFilename();
+      await saveBlob(blob, filename);
+      setImportResult((prev) => prev.success ? { ...prev, count: notes.length, message: prev.message + `（共 ${notes.length} 条笔记）` } : prev);
+    } catch (err) {
+      setImportResult({ success: false, message: err.message || "导出失败" });
+    }
+    setExporting(false);
+  };
+
   const doExport = async (password) => {
     setExporting(true); setImportResult(null);
     try {
@@ -71,23 +105,8 @@ export default function MoreSettingsPage({ onBack }) {
       const blob = await exportToEonBlob(notes, password);
       const filename = generateFilename();
 
-      const base64 = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result.split(",")[1]);
-        reader.onerror = () => reject(new Error("文件读取失败"));
-        reader.readAsDataURL(blob);
-      });
-
-      try {
-        await Filesystem.writeFile({ path: filename, data: base64, directory: Directory.Documents });
-        const result = await Filesystem.getUri({ path: filename, directory: Directory.Documents });
-        setImportResult({ success: true, count: notes.length, message: "已保存到 Documents/\n" + filename });
-      } catch (docErr) {
-        console.warn("Documents write failed:", docErr);
-        await Filesystem.writeFile({ path: filename, data: base64, directory: Directory.Cache });
-        const result = await Filesystem.getUri({ path: filename, directory: Directory.Cache });
-        setImportResult({ success: true, count: notes.length, message: "已保存到缓存:\n" + result.uri });
-      }
+      await saveBlob(blob, filename);
+      setImportResult((prev) => prev.success ? { ...prev, count: notes.length } : prev);
     } catch (err) {
       setImportResult({ success: false, message: err.message || "导出失败" });
     }
@@ -104,6 +123,40 @@ export default function MoreSettingsPage({ onBack }) {
       setImportResult({ success: true, count });
     } catch (err) { setImportResult({ success: false, message: err.message }); }
     setImporting(false);
+  };
+
+  const doImportMarkdown = async () => {
+    const file = pendingFileRef.current; if (!file) return;
+    setImporting(true); setImportResult(null);
+    try {
+      const text = await file.text();
+      const notes = parseMarkdownFile(text);
+      if (notes.length === 0) {
+        setImportResult({ success: false, message: "未找到有效笔记内容" });
+        setImporting(false);
+        return;
+      }
+      const count = await importAllNotes(notes);
+      await loadNotes();
+      setImportResult({ success: true, count });
+    } catch (err) { setImportResult({ success: false, message: err.message || "导入失败" }); }
+    setImporting(false);
+  };
+
+  const handleFileSelect = (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    pendingFileRef.current = f;
+    e.target.value = "";
+    // 根据文件扩展名自动选择解析方式
+    const isMd = f.name.endsWith(".md") || f.name.endsWith(".MD");
+    if (isMd) {
+      doImportMarkdown();
+    } else {
+      setPwdInput("");
+      setPwdError("");
+      setShowImportPwd(true);
+    }
   };
 
   return (
@@ -129,20 +182,54 @@ export default function MoreSettingsPage({ onBack }) {
       <section className="bg-surface rounded-card border border-scribe p-4 mb-4">
         <h2 className="text-xs font-mono uppercase tracking-wider text-faded-slate mb-4">数据管理</h2>
         <div className="space-y-3">
-          <button onClick={() => { setPwdInput(""); setPwdError(""); setShowExportPwd(true); }} disabled={exporting}
+          <button onClick={() => setShowExportFormat(true)} disabled={exporting}
             className="w-full flex items-center justify-between px-3 py-3 rounded-btn hover:bg-canvas-warm transition-colors">
-            <span className="text-sm text-deep-ink">{exporting ? "正在导出..." : "导出笔记 (.eon)"}</span><Download size={18} className="text-warm-steel" />
+            <span className="text-sm text-deep-ink">{exporting ? "正在导出..." : "导出笔记"}</span><Download size={18} className="text-warm-steel" />
           </button>
           <button onClick={() => fileInputRef.current?.click()} disabled={importing}
             className="w-full flex items-center justify-between px-3 py-3 rounded-btn hover:bg-canvas-warm transition-colors">
-            <span className="text-sm text-deep-ink">{importing ? "正在导入..." : "导入笔记 (.eon)"}</span><Upload size={18} className="text-warm-steel" />
+            <span className="text-sm text-deep-ink">{importing ? "正在导入..." : "导入笔记"}</span><Upload size={18} className="text-warm-steel" />
           </button>
-          <input ref={fileInputRef} type="file" accept=".eon" onChange={(e) => { const f = e.target.files?.[0]; if (!f) return; pendingFileRef.current = f; setPwdInput(""); setPwdError(""); setShowImportPwd(true); e.target.value = ""; }} className="hidden" />
+          <input ref={fileInputRef} type="file" accept=".eon,.md" onChange={handleFileSelect} className="hidden" />
           {importResult && (
             <div className={"text-sm px-3 py-2 rounded-btn " + (importResult.success ? "bg-emerald/10 text-emerald border border-emerald/20" : "bg-rose/10 text-rose border border-rose/20")}>
               {importResult.success ? (importResult.message || "成功导入 " + importResult.count + " 条笔记") : "导入失败：" + importResult.message}
             </div>
           )}
+
+          {/* 导出格式选择 */}
+          {showExportFormat && (
+            <div className="fixed inset-0 bg-deep-ink/60 flex items-center justify-center z-50 px-4">
+              <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+                className="bg-surface rounded-modal p-6 max-w-sm w-full shadow-soft">
+                <h3 className="text-lg font-bold text-deep-ink mb-2">导出笔记</h3>
+                <p className="text-sm text-warm-steel mb-4">选择导出格式</p>
+                <div className="space-y-2">
+                  <button onClick={() => { setShowExportFormat(false); setPwdInput(""); setPwdError(""); setShowExportPwd(true); }}
+                    className="w-full flex items-center justify-between px-4 py-3 rounded-btn hover:bg-canvas-warm transition-colors border border-scribe">
+                    <div className="text-left">
+                      <span className="text-sm font-medium text-deep-ink">eon 格式（.eon）</span>
+                      <p className="text-[11px] text-warm-steel mt-0.5">加密导出全部笔记，需设置密码</p>
+                    </div>
+                    <Lock size={16} className="text-faded-slate" />
+                  </button>
+                  <button onClick={doExportMarkdown}
+                    className="w-full flex items-center justify-between px-4 py-3 rounded-btn hover:bg-canvas-warm transition-colors border border-scribe">
+                    <div className="text-left">
+                      <span className="text-sm font-medium text-deep-ink">M 格式（.md）</span>
+                      <p className="text-[11px] text-warm-steel mt-0.5">导出全部笔记为 Markdown 合集，无需密码</p>
+                    </div>
+                    <span className="text-xs text-faded-slate font-mono">Markdown</span>
+                  </button>
+                </div>
+                <button onClick={() => setShowExportFormat(false)}
+                  className="w-full mt-4 py-2.5 border border-scribe rounded-btn text-sm text-deep-ink hover:bg-canvas-warm transition-colors">
+                  <X size={16} className="inline mr-1" />取消
+                </button>
+              </motion.div>
+            </div>
+          )}
+
           <button onClick={() => setShowConfirm(true)}
             className="w-full flex items-center justify-between px-3 py-3 rounded-btn hover:bg-red-50 transition-colors">
             <span className="text-sm text-rose">清空数据</span><Trash2 size={18} className="text-rose" />

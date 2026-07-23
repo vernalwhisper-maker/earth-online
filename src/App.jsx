@@ -55,7 +55,8 @@ export default function App() {
   const setShowAIAssistant = useSettingsStore((s) => s.setShowAIAssistant);
 
   // 新建/AI按钮调试
-  const debugFabGlass = useSettingsStore((s) => s.debugFabGlassEnabled);
+  const advancedDebug = useSettingsStore((s) => s.advancedDebug);
+  const debugFabGlass = useSettingsStore((s) => s.debugFabGlassEnabled) && advancedDebug;
   const [fabParams, setFabParams] = useState(() => {
     try { const r = localStorage.getItem(STORAGE_KEY_FAB); return r ? JSON.parse(r) : FAB_DEFAULTS; } catch { return FAB_DEFAULTS; }
   });
@@ -105,8 +106,13 @@ export default function App() {
           setCurrentPage("gallery");
           currentPageRef.current = "gallery";
         } else if (page === "settings" && settingsSubPageRef.current) {
-          // 在设置子页面中 → 返回设置主页面
-          setSettingsSubPage(null);
+          // 调试三级页面 → 返回更多设置二级页面
+          if (settingsSubPageRef.current.startsWith("debug")) {
+            setSettingsSubPage("more");
+          } else {
+            // 其他设置子页面 → 返回设置主页面
+            setSettingsSubPage(null);
+          }
         } else if (page === "home" && homeSelectModeRef.current) {
           // 主页选择模式中 → 退出选择模式
           setHomeSelectMode(false);

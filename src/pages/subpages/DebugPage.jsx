@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, Bug, Sliders, RotateCcw } from "lucide-react";
+import { ArrowLeft, Bug, Sliders, RotateCcw, Move } from "lucide-react";
 import RangeSlider from "../../components/ui/RangeSlider";
 import LiquidGlass from "../../components/ui/LiquidGlass/index";
+import DragSegmentPreview from "../../components/ui/DragSegmentPreview";
 import useSettingsStore from "../../store/settingsStore";
 import { DEBUG_DEFAULTS, MODE_OPTIONS, STORAGE_KEY_SEGMENTED } from "../../config/debugDefaults";
 
@@ -110,6 +111,24 @@ export default function DebugPage({ onBack }) {
               ))}
             </div>
           </LiquidGlass>
+        </div>
+      </section>
+
+      {/* 拖拽实验预览 */}
+      <section className="bg-surface rounded-card border border-scribe p-4 mb-4">
+        <h2 className="flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-faded-slate mb-4">
+          <Move size={14} />拖拽实验
+        </h2>
+        <p className="text-[11px] text-warm-steel mb-3">长按并拖拽胶囊切换选项，松手自动吸附选择</p>
+        <div className="py-3 px-2 rounded-xl"
+          style={{ background: `url("/测试专用.png") center/cover no-repeat, ${isDarkPreview ? "#1c1b1a" : "#f0efec"}` }}>
+          <div className="rounded-full" style={{ background: "rgba(0,0,0,0.15)", backdropFilter: "blur(10px)" }}>
+            <DragSegmentPreview params={{
+              cornerRadius, elasticity, blurAmount, saturation,
+              displacementScale, aberrationIntensity, mode,
+              overLight: !isDarkPreview, shadowOpacity,
+            }} />
+          </div>
         </div>
       </section>
 
