@@ -1,6 +1,6 @@
 {
   "version": "1.4.0",
-  "minVersion": "1.0.0",
+  "minVersion": "0.0.0",
   "forceUpdate": false,
   "downloadUrl": "",
   "notice": {
@@ -19,5 +19,5 @@
   },
   "experiments": {},
   "grayscale": {},
-  "_signature": "JsB83HnUEEeQX3rZf7RK7lF6mLn8RjGsl0LRhpsNxMy95mXF/07enlUu8nT53csyC7BJdpt4PXK2pNmpWKHy7nwDjXovxSpPvcFZwUmOqlXcbsdQ4OuFurLqE+sCn9D7fJtPhd9k3Nth3oDXLJtOppGYrvynozWsqO1mZGTEx0AOpkPZuFaimkE2uDycw0uMSE9SaOIcG+dfq/7dvzJlIX6hMWV/U1Ms1e0Q8Sbp5hJ+/aYHqUbWV3GCQIoUaTgyRRuwL+vxNSFhTekgAF96d6wpVFo9ooy5iLb5GDGDwmJ7E+xLV4YafM8PWQ8/+W8lPz3B586BuvqyXNVJh8rwfg=="
+  "_signature": "Ytk7IMVq7X25etQshQjKJWGkEsD05sFayl0tbpG5QJv6yDPuF7pCERcyRSDatTaElsc2XiSWcBeLAnZliSD1wbpAjg7faZQrzWieD4RDaQquwBT3Cu9AYFXbbOwx+zY57+hJxb9fEJPEy7qbSonBBAblkmfPCijeAA1iM57i9Ku+723t+a9auFjOUB6pR9WkH1LuGvB87Ru6EOL+PRuVlRna017w7mj4ylYqrvjm+wZuzhBw2vLVjhuLSkK4J8hzWliZrJw6tCRZxgZnaWBSLl8KH9vnQrO79xy4hDuRuRA8XMNA9xD80uQli5fmS6ZKGwNI/sGAZtPBUW5CWE7OgA=="
 }
