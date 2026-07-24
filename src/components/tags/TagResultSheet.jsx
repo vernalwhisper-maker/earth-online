@@ -1,16 +1,14 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { X, CheckCircle, AlertCircle, Loader, Sparkles, Hash, Trash2, Cpu, Wifi, Smartphone, FileText } from "lucide-react";
 import useSettingsStore from "../../store/settingsStore";
+import { useWindowParams } from "../ui/GlassModal";
 
 const springPanel = { type: "spring", stiffness: 450, damping: 32, mass: 0.85 };
 
 export default function TagResultSheet({ isOpen, mode, status, totalCount, tags, removedTag, aiMode, onClose }) {
-  const isDark = useSettingsStore((s) => s.darkMode);
-  const tabBarOpacity = useSettingsStore((s) => s.tabBarOpacity);
-
-  const glassBg = isDark
-    ? `linear-gradient(135deg, rgba(30,30,30,${tabBarOpacity / 85}) 0%, rgba(16,185,129,${tabBarOpacity / 500}) 40%, rgba(30,30,30,${tabBarOpacity / 75}) 100%)`
-    : `linear-gradient(135deg, rgba(255,255,255,${tabBarOpacity / 90}) 0%, rgba(16,185,129,${tabBarOpacity / 600}) 40%, rgba(255,255,255,${tabBarOpacity / 130}) 100%)`;
+  const darkMode = useSettingsStore((s) => s.darkMode);
+  const isDark = darkMode === "dark" || (darkMode === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+  const wp = useWindowParams();
 
   const isAutoTag = mode === "autoTag";
   const title = isAutoTag ? "量建标签" : "删标签";
@@ -44,10 +42,10 @@ export default function TagResultSheet({ isOpen, mode, status, totalCount, tags,
           >
             {/* 玻璃效果层 */}
             <div className="absolute inset-0"
-              style={{ background: glassBg, backdropFilter: "blur(35px) saturate(200%)", WebkitBackdropFilter: "blur(35px) saturate(200%)" }} />
+              style={{ background: isDark ? "linear-gradient(135deg, rgba(30,30,30,0.98), rgba(20,20,20,0.95))" : "linear-gradient(135deg, rgba(255,255,255,0.98), rgba(248,247,244,0.95))", backdropFilter: `blur(${wp.blurPx}px) saturate(${wp.saturation})`, WebkitBackdropFilter: `blur(${wp.blurPx}px) saturate(${wp.saturation})` }} />
             <div className="absolute top-0 left-4 right-4 h-[1.5px]" style={{ background: isDark ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.4)" }} />
-            <div className="absolute inset-0 rounded-2xl border border-white/25" />
-            <div className="absolute inset-[1px] rounded-2xl border border-white/70" />
+            <div className="absolute inset-0 rounded-2xl border" style={{ borderColor: `rgba(255,255,255,${wp.borderOpacity})` }} />
+            <div className="absolute inset-[1px] rounded-2xl border" style={{ borderColor: `rgba(255,255,255,${Math.min(wp.borderOpacity + 0.3, 0.9)})` }} />
 
             {/* 内容 */}
             <div className="relative z-10 px-5 py-4">

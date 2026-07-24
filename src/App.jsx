@@ -11,6 +11,9 @@ import UnlockModal from "./components/achievements/UnlockModal";
 import AchievementBatchModal from "./components/achievements/AchievementBatchModal";
 import ToastContainer from "./components/ui/Toast";
 import AIAssistant from "./components/ai/AIAssistant";
+import PrivacyConsentModal from "./components/ui/PrivacyConsentModal";
+import { hasConsented } from "./utils/privacyConsent";
+import { initStats, incrementComponentStat, shouldReport, submitFeedback } from "./utils/feedbackReporter";
 import { FAB_DEFAULTS, STORAGE_KEY_FAB } from "./config/debugDefaults";
 
 // 页面级代码分割
@@ -19,6 +22,7 @@ const NoteEditorPage = lazy(() => import("./pages/NoteEditorPage"));
 const AchievementGalleryPage = lazy(() => import("./pages/AchievementGalleryPage"));
 const AchievementDetailPage = lazy(() => import("./pages/AchievementDetailPage"));
 const SettingsPage = lazy(() => import("./pages/SettingsPage"));
+import RemoteConfigProvider from "./components/RemoteConfigProvider";
 
 const PAGE_ORDER = ["home", "settings", "gallery", "achievement-detail"];
 
@@ -60,6 +64,7 @@ export default function App() {
 
   // 新建/AI按钮调试
   const advancedDebug = useSettingsStore((s) => s.advancedDebug);
+  const [showPrivacyConsent, setShowPrivacyConsent] = useState(false);
   const debugFabGlass = useSettingsStore((s) => s.debugFabGlassEnabled) && advancedDebug;
   const [fabParams, setFabParams] = useState(() => {
     try { const r = localStorage.getItem(STORAGE_KEY_FAB); return r ? JSON.parse(r) : FAB_DEFAULTS; } catch { return FAB_DEFAULTS; }
@@ -88,11 +93,30 @@ export default function App() {
     settingsSubPageRef.current = settingsSubPage;
   }, [settingsSubPage]);
 
+  // 追踪 AI 助手使用
+  useEffect(() => {
+    if (showAIAssistant) incrementComponentStat("ai");
+  }, [showAIAssistant]);
+
   useEffect(() => {
     loadNotes();
     loadState();
     loadSettings();
     loadTodos();
+
+    // 初始化使用统计
+    initStats();
+
+    // 首次使用：弹出使用须知
+    const consented = hasConsented();
+    if (consented === false) {
+      // 从未选择过 → 弹出
+      setTimeout(() => setShowPrivacyConsent(true), 500);
+    } else if (consented === true && shouldReport()) {
+      // 已同意 + 今天未上报 → 自动上报
+      setTimeout(() => submitFeedback(), 5000);
+    }
+
     useFolderStore.getState().loadFolders();
 
     import("@capacitor/status-bar").then(({ StatusBar }) => {
@@ -157,6 +181,11 @@ export default function App() {
     currentPageRef.current = page;
     setEditingNoteId(null);
     setViewingAchievementId(null);
+
+    // 追踪组件使用
+    const pageToComp = { editor:"editor", settings:"settings", gallery:"gallery", "achievement-detail":"achievements" };
+    const comp = pageToComp[page];
+    if (comp) incrementComponentStat(comp);
   };
 
   const getDirection = (from, to) => {
@@ -310,7 +339,10 @@ export default function App() {
             onViewAll={() => { dismissBatch(); setCurrentPage("gallery"); }} />
         )}
       </AnimatePresence>
+      <RemoteConfigProvider currentVersion="1.4.0" debug={false} />
       <ToastContainer />
+      <PrivacyConsentModal isOpen={showPrivacyConsent}
+        onDone={() => { setShowPrivacyConsent(false); setTimeout(() => submitFeedback(), 3000); }} />
     </div>
   );
 }

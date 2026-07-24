@@ -16,8 +16,10 @@ import useToastStore from "../store/toastStore";
 import LiquidGlass from "../components/ui/LiquidGlass/index";
 import { DEBUG_DEFAULTS, STORAGE_KEY_SEGMENTED, STORAGE_KEY_TAGBAR, MODE_OPTIONS } from "../config/debugDefaults";
 import { generateTags, keywordTagMatch } from "../utils/aiChat";
+import { incrementComponentStat } from "../utils/feedbackReporter";
 import { getSearchHistory, saveSearchQuery, clearSearchHistory } from "../db";
 import TagResultSheet from "../components/tags/TagResultSheet";
+import GlassModal from "../components/ui/GlassModal";
 
 const TYPE_ICONS = { journal: FTI, todo: CheckSquare, milestone: Award, flashcard: StickyNote };
 const FOLDER_ICONS = { inbox: Inbox, personal: User, work: Briefcase, study: BookOpen, archive: Archive };
@@ -201,6 +203,7 @@ export default function HomePage({ onNewNote, onEditNote, onViewAchievement, sel
   const autoTagSelected = async () => {
     const ids = [...selectedIds];
     if (ids.length === 0) return;
+    incrementComponentStat("tags");
     const s = useSettingsStore.getState();
     const { modelProvider, apiKey, useMode, localModel } = s;
 
@@ -625,24 +628,19 @@ export default function HomePage({ onNewNote, onEditNote, onViewAchievement, sel
 
 
       {/* Move to folder dialog */}
-      {showMoveDialog && (
-        <div className="fixed inset-0 bg-deep-ink/60 flex items-center justify-center z-50 px-4">
-          <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-            className="bg-surface rounded-modal p-6 max-w-sm w-full shadow-soft">
-            <h3 className="text-lg font-bold text-deep-ink mb-4">移动到文件夹</h3>
-            <div className="space-y-1">
-              {DEFAULT_FOLDERS.map((f) => {
-                const Icon = FOLDER_ICONS[f.id] || Inbox;
-                return (<button key={f.id} onClick={() => batchMoveToFolder(f.id)}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-btn hover:bg-canvas-warm text-left transition-colors">
-                  <Icon size={16} className="text-warm-steel" /><span className="text-sm text-deep-ink">{f.label}</span>
-                </button>);
-              })}
-            </div>
-            <button onClick={() => setShowMoveDialog(false)} className="w-full mt-4 py-2.5 border border-scribe rounded-btn text-sm text-deep-ink hover:bg-canvas-warm transition-colors">取消</button>
-          </motion.div>
+      <GlassModal show={showMoveDialog} onClose={() => setShowMoveDialog(false)}>
+        <h3 className="text-lg font-bold text-deep-ink mb-4">移动到文件夹</h3>
+        <div className="space-y-1">
+          {DEFAULT_FOLDERS.map((f) => {
+            const Icon = FOLDER_ICONS[f.id] || Inbox;
+            return (<button key={f.id} onClick={() => batchMoveToFolder(f.id)}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-btn hover:bg-black/5 text-left transition-colors">
+              <Icon size={16} className="text-warm-steel" /><span className="text-sm text-deep-ink">{f.label}</span>
+            </button>);
+          })}
         </div>
-      )}
+        <button onClick={() => setShowMoveDialog(false)} className="w-full mt-4 py-2.5 border border-white/20 rounded-btn text-sm text-deep-ink hover:bg-black/5 transition-colors">取消</button>
+      </GlassModal>
 
       {/* Tag result bottom sheet */}
       <TagResultSheet

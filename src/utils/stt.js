@@ -1,5 +1,24 @@
 // 语音转文字工具
 
+import { Converter } from "opencc-js";
+
+let _converter = null;
+function getConverter() {
+  if (!_converter) _converter = Converter({ from: "tw", to: "cn" });
+  return _converter;
+}
+
+/**
+ * 识别文字自动转为简体中文（处理浏览器语音引擎可能返回繁体的问题）
+ */
+function toSimplified(text) {
+  try {
+    return getConverter()(text);
+  } catch {
+    return text;
+  }
+}
+
 /**
  * 使用浏览器 Web Speech API 进行实时语音识别。
  * 返回一个控制对象 { start, stop, isSupported }。
@@ -30,7 +49,7 @@ export function createSpeechRecognizer({ onResult, onError, language = "zh-CN" }
         interim += transcript;
       }
     }
-    onResult?.({ final, interim });
+    onResult?.({ final: toSimplified(final), interim: toSimplified(interim) });
   };
 
   recognition.onerror = (event) => {
@@ -91,7 +110,7 @@ export async function transcribeAudio(audioBase64, apiKey, endpoint) {
   }
 
   const data = await response.json();
-  return data.text || "";
+  return toSimplified(data.text || "");
 }
 
 /**
@@ -107,7 +126,7 @@ export async function summarizeText(text, apiKey, endpoint, model) {
     body: JSON.stringify({
       model: model || "gpt-3.5-turbo",
       messages: [
-        { role: "system", content: "你是一个笔记总结助手。请用简洁的语言总结以下笔记的核心内容，不超过100字。" },
+        { role: "system", content: "你是一个笔记总结助手。请用简洁的语言总结以下笔记的核心内容，不超过100字。注意：必须使用简体中文（中国大陆用语），不要使用繁体中文。" },
         { role: "user", content: text },
       ],
       temperature: 0.3,

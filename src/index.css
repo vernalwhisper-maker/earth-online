@@ -162,7 +162,7 @@
 /* 暗黑模式 — 增强对比度 */
 .dark {
   --color-canvas-warm: #121212;
-  --color-surface: #1e1e1e;
+  --color-surface: #2a2a2a;
   --color-deep-ink: #f0efe8;
   --color-warm-steel: #b8b7b0;
   --color-faded-slate: #8a8984;
@@ -186,11 +186,14 @@
 .dark textarea {
   color: #f0efe8;
 }
-.dark .bg-surface {
-  border-color: rgba(80, 80, 80, 0.4);
+/* 暗黑模式下弹窗卡片按钮保持可读 */
+.dark [class*="rounded-modal"] button:not([class*="bg-emerald"]):not([class*="bg-rose"]),
+.dark [class*="rounded-card"] button:not([class*="bg-emerald"]):not([class*="bg-rose"]) {
+  color: #e0dfd8;
 }
-.dark button:not([class*="bg-emerald"]):not([class*="bg-rose"]) {
-  color: #d0cfc8;
+.dark [class*="rounded-modal"] button:hover:not([class*="bg-emerald"]):not([class*="bg-rose"]),
+.dark [class*="rounded-card"] button:hover:not([class*="bg-emerald"]):not([class*="bg-rose"]) {
+  background: rgba(255,255,255,0.05);
 }
 
 /* Apple 无障碍：减少动效 — 覆盖所有动画/过渡 */

@@ -36,6 +36,7 @@ const useSettingsStore = create((set, get) => ({
   debugTagBarEnabled: false,
   debugNavBarEnabled: false,
   debugFabGlassEnabled: false,
+  windowDebugEnabled: false,
 
   // 开发者模式 UI 状态（内存态，不持久化。退出页面后若 Store 调试开关仍为 true，
   // 重新进入 MoreSettingsPage 时由 loadSettings 恢复 devUnlocked/devCardOpen）
@@ -70,10 +71,11 @@ const useSettingsStore = create((set, get) => ({
     const debugTagBarEnabled = (await getSetting("debugTagBarEnabled")) ?? false;
     const debugNavBarEnabled = (await getSetting("debugNavBarEnabled")) ?? false;
     const debugFabGlassEnabled = (await getSetting("debugFabGlassEnabled")) ?? false;
+    const windowDebugEnabled = (await getSetting("windowDebugEnabled")) ?? false;
     set({ modelProvider: provider, apiKey, inference, tabBarOpacity, darkMode: darkMode, showAIAssistant, reduceMotion, cardExpandAnim,
       useMirror,
       useMode, localEndpoint, localModel, webllmModel, webllmDownloaded,
-      advancedDebug, debugFABEnabled, debugTagBarEnabled, debugNavBarEnabled, debugFabGlassEnabled,
+      advancedDebug, debugFABEnabled, debugTagBarEnabled, debugNavBarEnabled, debugFabGlassEnabled, windowDebugEnabled,
       // 若调试总开关已开启，恢复卡片入口状态，避免"调试生效但入口消失"
       devUnlocked: advancedDebug, devCardOpen: advancedDebug,
       loaded: true });
@@ -107,6 +109,15 @@ const useSettingsStore = create((set, get) => ({
   setDarkMode: async (value) => {
     await setSetting("darkMode", value);
     set({ darkMode: value });
+  },
+
+  /** 获取当前是否为深色模式（处理 light/dark/system 三态） */
+  getIsDark: () => {
+    const s = get();
+    if (s.darkMode === "dark") return true;
+    if (s.darkMode === "light") return false;
+    // "system" — 跟随系统
+    return window.matchMedia("(prefers-color-scheme: dark)").matches;
   },
 
   setTabBarOpacity: async (value) => {
@@ -181,6 +192,11 @@ const useSettingsStore = create((set, get) => ({
   setDebugFabGlassEnabled: async (value) => {
     await setSetting("debugFabGlassEnabled", value);
     set({ debugFabGlassEnabled: value });
+  },
+
+  setWindowDebugEnabled: async (value) => {
+    await setSetting("windowDebugEnabled", value);
+    set({ windowDebugEnabled: value });
   },
 
   setDevUnlocked: (value) => set({ devUnlocked: value }),

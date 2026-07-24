@@ -21,6 +21,17 @@ export const STORAGE_KEY_TAGBAR   = "earth-online-debug-tagbar";
 export const STORAGE_KEY_NAVBAR   = "earth-online-debug-navbar";
 export const STORAGE_KEY_FAB      = "earth-online-debug-fab";
 
+// 窗口（TabBar弹窗）毛玻璃默认参数
+export const WINDOW_DEFAULTS = {
+  blurPx: 35,
+  saturation: 2.0,
+  bgOpacity: 0.15,
+  borderOpacity: 0.25,
+  shadowOpacity: 0.2,
+};
+
+export const STORAGE_KEY_WINDOW = "earth-online-debug-window";
+
 // 毛玻璃按钮默认参数（参照 glass-blur-button.html）
 export const FAB_DEFAULTS = {
   blurPx: 18,

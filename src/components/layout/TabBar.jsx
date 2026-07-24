@@ -6,6 +6,7 @@ import useTodoStore from "../../store/todoStore";
 import useSettingsStore from "../../store/settingsStore";
 import useEditorActionsStore from "../../store/editorActionsStore";
 import { BG_COLORS, DEFAULT_FOLDERS } from "../../data/noteTypes";
+import { useWindowParams } from "../ui/GlassModal";
 
 const tabs = [
   { key: "home", label: "笔记", icon: FileText },
@@ -198,8 +199,10 @@ export default function TabBar({ currentPage, onNavigate }) {
   const unlockedCount = useAchievementStore((s) => s.getUnlockedCount());
   const activeTodoCount = useTodoStore((s) => s.activeCount);
   const tabBarOpacity = useSettingsStore((s) => s.tabBarOpacity);
-  const isDark = useSettingsStore((s) => s.darkMode);
+  const darkMode = useSettingsStore((s) => s.darkMode);
+  const isDark = darkMode === "dark" || (darkMode === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
   const editor = useEditorActionsStore();
+  const wp = useWindowParams();
 
   // 导航栏调试
   const advDebug = useSettingsStore((s) => s.advancedDebug);
@@ -287,20 +290,20 @@ export default function TabBar({ currentPage, onNavigate }) {
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.6, opacity: 0, y: 40 }}
               transition={{ type: "spring", stiffness: 400, damping: 28, mass: 0.8 }}
-              className="fixed left-1/2 -translate-x-1/2 z-40 w-[200px] rounded-[1.5rem] overflow-hidden shadow-[0_8px_40px_rgba(0,0,0,0.2)]"
-              style={{ bottom: "calc(100px)" }}
+              className="fixed left-1/2 -translate-x-1/2 z-40 w-[200px] rounded-[1.5rem] overflow-hidden"
+              style={{ bottom: "calc(100px)", boxShadow: `0 8px 40px rgba(0,0,0,${wp.shadowOpacity})` }}
             >
               {/* 玻璃背景 */}
               <div className="absolute inset-0"
                 style={{
                   background: glassConfirm,
-                  backdropFilter: "blur(35px) saturate(200%)",
-                  WebkitBackdropFilter: "blur(35px) saturate(200%)",
+                  backdropFilter: `blur(${wp.blurPx}px) saturate(${wp.saturation})`,
+                  WebkitBackdropFilter: `blur(${wp.blurPx}px) saturate(${wp.saturation})`,
                 }} />
               {/* 高光 */}
               <div className="absolute top-0 left-4 right-4 h-[1.5px]" style={{ background: specularTop }} />
-              <div className="absolute inset-0 rounded-[1.5rem] border border-white/25" />
-              <div className="absolute inset-[1px] rounded-[1.5rem] border border-white/70" />
+              <div className="absolute inset-0 rounded-[1.5rem] border" style={{ borderColor: `rgba(255,255,255,${wp.borderOpacity})` }} />
+              <div className="absolute inset-[1px] rounded-[1.5rem] border" style={{ borderColor: `rgba(255,255,255,${Math.min(wp.borderOpacity + 0.3, 0.9)})` }} />
 
               <div className="relative z-10 px-5 py-4 text-center">
                 <p className="text-sm font-semibold mb-3" style={{ color: isDark ? "#fca5a5" : "#dc2626" }}>
@@ -342,8 +345,8 @@ export default function TabBar({ currentPage, onNavigate }) {
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.6, opacity: 0, y: 40 }}
               transition={{ type: "spring", stiffness: 400, damping: 28, mass: 0.8 }}
-              className="fixed left-1/2 -translate-x-1/2 z-40 w-[260px] rounded-[1.5rem] overflow-hidden shadow-[0_8px_40px_rgba(0,0,0,0.2)]"
-              style={{ bottom: "calc(100px)" }}
+              className="fixed left-1/2 -translate-x-1/2 z-40 w-[260px] rounded-[1.5rem] overflow-hidden "
+              style={{ bottom: "calc(100px)", boxShadow: `0 8px 40px rgba(0,0,0,${wp.shadowOpacity})` }}
             >
               <div className="absolute inset-0"
                 style={{
@@ -354,8 +357,8 @@ export default function TabBar({ currentPage, onNavigate }) {
                   WebkitBackdropFilter: "blur(35px) saturate(200%)",
                 }} />
               <div className="absolute top-0 left-4 right-4 h-[1.5px]" style={{ background: specularTop }} />
-              <div className="absolute inset-0 rounded-[1.5rem] border border-white/25" />
-              <div className="absolute inset-[1px] rounded-[1.5rem] border border-white/70" />
+              <div className="absolute inset-0 rounded-[1.5rem] border" style={{ borderColor: `rgba(255,255,255,${wp.borderOpacity})` }} />
+              <div className="absolute inset-[1px] rounded-[1.5rem] border" style={{ borderColor: `rgba(255,255,255,${Math.min(wp.borderOpacity + 0.3, 0.9)})` }} />
 
               <div className="relative z-10 px-4 py-4">
                 <p className="text-sm font-semibold text-center mb-3" style={{ color: isDark ? "rgba(255,255,255,0.9)" : "#1c1b1a" }}>
@@ -420,8 +423,8 @@ export default function TabBar({ currentPage, onNavigate }) {
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.6, opacity: 0, y: 40 }}
               transition={{ type: "spring", stiffness: 400, damping: 28, mass: 0.8 }}
-              className="fixed left-1/2 -translate-x-1/2 z-40 w-[280px] rounded-[1.5rem] overflow-hidden shadow-[0_8px_40px_rgba(0,0,0,0.2)]"
-              style={{ bottom: "calc(100px)" }}
+              className="fixed left-1/2 -translate-x-1/2 z-40 w-[280px] rounded-[1.5rem] overflow-hidden "
+              style={{ bottom: "calc(100px)", boxShadow: `0 8px 40px rgba(0,0,0,${wp.shadowOpacity})` }}
             >
               <div className="absolute inset-0"
                 style={{
@@ -432,8 +435,8 @@ export default function TabBar({ currentPage, onNavigate }) {
                   WebkitBackdropFilter: "blur(35px) saturate(200%)",
                 }} />
               <div className="absolute top-0 left-4 right-4 h-[1.5px]" style={{ background: specularTop }} />
-              <div className="absolute inset-0 rounded-[1.5rem] border border-white/25" />
-              <div className="absolute inset-[1px] rounded-[1.5rem] border border-white/70" />
+              <div className="absolute inset-0 rounded-[1.5rem] border" style={{ borderColor: `rgba(255,255,255,${wp.borderOpacity})` }} />
+              <div className="absolute inset-[1px] rounded-[1.5rem] border" style={{ borderColor: `rgba(255,255,255,${Math.min(wp.borderOpacity + 0.3, 0.9)})` }} />
 
               <div className="relative z-10 px-5 py-4 space-y-4">
                 <p className="text-sm font-semibold text-center mb-1" style={{ color: isDark ? "rgba(255,255,255,0.9)" : "#1c1b1a" }}>
@@ -537,8 +540,8 @@ export default function TabBar({ currentPage, onNavigate }) {
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.6, opacity: 0, y: 40 }}
               transition={{ type: "spring", stiffness: 400, damping: 28, mass: 0.8 }}
-              className="fixed left-1/2 -translate-x-1/2 z-40 w-[260px] rounded-[1.5rem] overflow-hidden shadow-[0_8px_40px_rgba(0,0,0,0.2)]"
-              style={{ bottom: "calc(100px)" }}
+              className="fixed left-1/2 -translate-x-1/2 z-40 w-[260px] rounded-[1.5rem] overflow-hidden "
+              style={{ bottom: "calc(100px)", boxShadow: `0 8px 40px rgba(0,0,0,${wp.shadowOpacity})` }}
             >
               <div className="absolute inset-0"
                 style={{
@@ -549,8 +552,8 @@ export default function TabBar({ currentPage, onNavigate }) {
                   WebkitBackdropFilter: "blur(35px) saturate(200%)",
                 }} />
               <div className="absolute top-0 left-4 right-4 h-[1.5px]" style={{ background: specularTop }} />
-              <div className="absolute inset-0 rounded-[1.5rem] border border-white/25" />
-              <div className="absolute inset-[1px] rounded-[1.5rem] border border-white/70" />
+              <div className="absolute inset-0 rounded-[1.5rem] border" style={{ borderColor: `rgba(255,255,255,${wp.borderOpacity})` }} />
+              <div className="absolute inset-[1px] rounded-[1.5rem] border" style={{ borderColor: `rgba(255,255,255,${Math.min(wp.borderOpacity + 0.3, 0.9)})` }} />
 
               <div className="relative z-10 px-4 py-4">
                 <p className="text-sm font-semibold text-center mb-3" style={{ color: isDark ? "rgba(255,255,255,0.9)" : "#1c1b1a" }}>
@@ -603,3 +606,5 @@ export default function TabBar({ currentPage, onNavigate }) {
     </>
   );
 }
+
+

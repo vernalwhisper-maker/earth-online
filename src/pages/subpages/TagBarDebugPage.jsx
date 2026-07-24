@@ -30,7 +30,7 @@ function saveParams(params) {
 }
 
 export default function TagBarDebugPage({ onBack }) {
-  const { darkMode } = useSettingsStore();
+  const { darkMode } = useSettingsStore(); const _isDark = darkMode === "dark" || (darkMode === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
   const saved = loadParams();
 
   const [elasticity, setElasticity] = useState(saved?.elasticity ?? DEBUG_DEFAULTS.elasticity);
@@ -64,7 +64,7 @@ export default function TagBarDebugPage({ onBack }) {
     setShadowOpacity(DEBUG_DEFAULTS.shadowOpacity);
   };
 
-  const isDarkPreview = darkMode || !overLight;
+  const isDarkPreview = _isDark || !overLight;
 
   return (
     <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}

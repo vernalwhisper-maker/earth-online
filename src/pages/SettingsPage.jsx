@@ -16,6 +16,7 @@ import TagBarDebugPage from "./subpages/TagBarDebugPage";
 import NavBarDebugPage from "./subpages/NavBarDebugPage";
 import FABDebugPage from "./subpages/FABDebugPage";
 import DebugAchievementsPage from "./subpages/DebugAchievementsPage";
+import WindowDebugPage from "./subpages/WindowDebugPage";
 
 export default function SettingsPage({ settingsSubPage, onSubPageChange }) {
   const { loaded, darkMode, setDarkMode, cardExpandAnim, setCardExpandAnim } = useSettingsStore();
@@ -93,12 +94,13 @@ export default function SettingsPage({ settingsSubPage, onSubPageChange }) {
 
   // Sub-page navigation — 直接用 props 判断，父组件清空 settingsSubPage 立即生效
   if (settingsSubPage === "ai") return <AISettingsPage onBack={() => onSubPageChange?.(null)} />;
-  if (settingsSubPage === "more") return <MoreSettingsPage onBack={(action) => onSubPageChange?.(action === "debug" ? "debug" : action === "debug-tagbar" ? "debug-tagbar" : action === "debug-navbar" ? "debug-navbar" : action === "debug-fab" ? "debug-fab" : null)} />;
+  if (settingsSubPage === "more") return <MoreSettingsPage onBack={(action) => onSubPageChange?.(action === "debug" ? "debug" : action === "debug-tagbar" ? "debug-tagbar" : action === "debug-navbar" ? "debug-navbar" : action === "debug-fab" ? "debug-fab" : action === "debug-window" ? "debug-window" : action === "debug-achievements" ? "debug-achievements" : null)} />;
   if (settingsSubPage === "debug") return <DebugPage onBack={(action) => onSubPageChange?.(action === "more" ? "more" : null)} />;
   if (settingsSubPage === "debug-tagbar") return <TagBarDebugPage onBack={(action) => onSubPageChange?.(action === "more" ? "more" : null)} />;
   if (settingsSubPage === "debug-navbar") return <NavBarDebugPage onBack={(action) => onSubPageChange?.(action === "more" ? "more" : null)} />;
   if (settingsSubPage === "debug-fab") return <FABDebugPage onBack={(action) => onSubPageChange?.(action === "more" ? "more" : null)} />;
   if (settingsSubPage === "debug-achievements") return <DebugAchievementsPage onBack={() => onSubPageChange?.("debug")} />;
+  if (settingsSubPage === "debug-window") return <WindowDebugPage onBack={() => onSubPageChange?.("more")} />;
 
   if (!loaded) {
     return (

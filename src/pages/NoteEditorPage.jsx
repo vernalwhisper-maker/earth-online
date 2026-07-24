@@ -12,14 +12,17 @@ import useNoteStore from "../store/noteStore";
 import useAchievementStore from "../store/achievementStore";
 import useSettingsStore from "../store/settingsStore";
 import { matchAchievements } from "../api/ai";
+import { storeMediaFile } from "../utils/mediaStorage";
 import { NOTE_TYPES, NOTE_TYPE_KEYS, BG_COLORS, DEFAULT_FOLDERS } from "../data/noteTypes";
 import TodoChecklist from "../components/todo/TodoChecklist";
 import MarkdownEditor from "../components/editor/MarkdownEditor";
 import BackgroundSelector from "../components/editor/BackgroundSelector";
 import AmbientAnimation from "../components/editor/AmbientAnimation";
 import useFolderStore from "../store/folderStore";
+import ImageViewer from "../components/ui/ImageViewer";
 import NoteLinks from "../components/notes/NoteLinks";
 import useEditorActionsStore from "../store/editorActionsStore";
+import GlassModal from "../components/ui/GlassModal";
 
 const TYPE_ICONS = {
   journal: FileText,
@@ -62,6 +65,7 @@ export default function NoteEditorPage({ noteId, onBack }) {
 
   const noteIdRef = useRef(null);
   const [images, setImages] = useState([]);
+  const [viewerIdx, setViewerIdx] = useState(-1);
   const fileInputRef = useRef(null);
   const imageInputRef = useRef(null);
   const audioInputRef = useRef(null);
@@ -70,7 +74,7 @@ export default function NoteEditorPage({ noteId, onBack }) {
 
   // Sync ref with state
   const syncRef = () => {
-    latestRef.current = { title, body, tags, noteType, isPinned, bgColorId, bgPattern, animTheme, folderId, useMarkdown, markdownContent, contentMarkdown: useMarkdown ? markdownContent : null };
+    latestRef.current = { title, body, tags, noteType, isPinned, bgColorId, bgPattern, animTheme, folderId, useMarkdown, markdownContent, contentMarkdown: useMarkdown ? markdownContent : null, images };
   };
   syncRef();
 
@@ -92,6 +96,7 @@ export default function NoteEditorPage({ noteId, onBack }) {
           setMarkdownContent(note.contentMarkdown || "");
           setBgPattern(note.bgPattern || "solid");
           setAnimTheme(note.animTheme || "none");
+          setImages(note.images || []);
           noteIdRef.current = note.id;
         }
         setLoaded(true);
@@ -166,7 +171,7 @@ export default function NoteEditorPage({ noteId, onBack }) {
         bgPattern: s.bgPattern || "solid",
         animTheme: s.animTheme || "none",
         folderId: s.folderId,
-        images: [],
+        images: s.images || [],
         snippet: (s.body || "").slice(0, 120),
       };
       const saved = await saveNoteToStore(note);
@@ -309,59 +314,40 @@ export default function NoteEditorPage({ noteId, onBack }) {
     }
   };
 
-  // 图片导入
+  // 图片导入 — 三环境适配
   const handleImageImport = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = "";
-    // 限制文件大小 5MB
-    if (file.size > 5 * 1024 * 1024) {
-      addToast?.("图片过大，请选择 5MB 以内的图片", "error");
-      return;
-    }
+    if (!file.type.startsWith("image/")) { addToast?.("请选择图片文件", "error"); return; }
+    if (file.size > 20 * 1024 * 1024) { addToast?.("图片过大，请选择 20MB 以内的文件", "error"); return; }
     try {
-      const base64 = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = () => reject(new Error("图片读取失败"));
-        reader.readAsDataURL(file);
-      });
-      const markdownImg = `![${file.name}](${base64})`;
+      const { uri, markdown, isImage } = await storeMediaFile(file);
+      // 两种模式都加入图片预览区
+      setImages((prev) => [...prev, { uri, name: file.name }]);
       if (useMarkdown) {
-        setMarkdownContent((prev) => prev + "\n" + markdownImg + "\n");
+        setMarkdownContent((prev) => prev + "\n" + markdown + "\n");
       } else {
-        setBody((prev) => prev + "\n" + markdownImg + "\n");
+        setBody((prev) => prev + `\n[图片: ${file.name}]\n`);
       }
-      addToast?.("图片已插入", "success");
     } catch (err) {
       addToast?.(err.message || "图片导入失败", "error");
     }
   };
 
-  // 音频导入
+  // 音频导入 — 三环境适配
   const handleAudioImport = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = "";
-    // 限制文件大小 20MB
-    if (file.size > 20 * 1024 * 1024) {
-      addToast?.("音频过大，请选择 20MB 以内的文件", "error");
-      return;
-    }
+    if (file.size > 20 * 1024 * 1024) { addToast?.("音频过大，请选择 20MB 以内的文件", "error"); return; }
     try {
-      const base64 = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = () => reject(new Error("音频读取失败"));
-        reader.readAsDataURL(file);
-      });
-      const audioHtml = `<audio controls src="${base64}" style="width:100%;max-width:400px;border-radius:8px;"></audio>`;
+      const { html } = await storeMediaFile(file);
       if (useMarkdown) {
-        setMarkdownContent((prev) => prev + "\n" + audioHtml + "\n");
+        setMarkdownContent((prev) => prev + "\n" + html + "\n");
       } else {
-        setBody((prev) => prev + "\n" + audioHtml + "\n");
+        setBody((prev) => prev + "\n" + html + "\n");
       }
-      addToast?.("音频已插入", "success");
     } catch (err) {
       addToast?.(err.message || "音频导入失败", "error");
     }
@@ -380,6 +366,7 @@ export default function NoteEditorPage({ noteId, onBack }) {
       return;
     }
     const recognizer = createSpeechRecognizer({
+      language: "zh-CN",
       onResult: ({ final }) => {
         if (final) {
           if (useMarkdown) {
@@ -463,22 +450,16 @@ export default function NoteEditorPage({ noteId, onBack }) {
     >
       {/* Header */}
       <div className={"grid grid-cols-3 items-center px-4 pt-4 pb-3 border-b safe-area-top " + currentBgColor.border}>
-        <button onClick={async () => {
-          const snap = latestRef.current;
-          if (snap.title?.trim() || snap.body?.trim() || snap.markdownContent?.trim()) {
-            await performSave(false, snap);
-          }
-          onBack();
-        }}
-          className="justify-self-start w-10 h-10 flex items-center justify-center rounded-full hover:bg-black/5 transition-colors -ml-2">
-          <ArrowLeft size={20} className="text-warm-steel" />
-        </button>
-        <span className="text-xs font-mono text-faded-slate text-center">{today}</span>
-        <div className="flex items-center gap-2 justify-self-end">
-          <button onClick={() => setShowExportMenu(true)} disabled={exporting}
-            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-black/5 transition-colors"
-            title="导出笔记">
-            <Download size={16} className="text-warm-steel" />
+        <div className="flex items-center gap-0.5 justify-self-start -ml-2">
+          <button onClick={async () => {
+            const snap = latestRef.current;
+            if (snap.title?.trim() || snap.body?.trim() || snap.markdownContent?.trim()) {
+              await performSave(false, snap);
+            }
+            onBack();
+          }}
+            className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-black/5 transition-colors">
+            <ArrowLeft size={20} className="text-warm-steel" />
           </button>
           <button onClick={toggleSpeechRecognition}
             className={"w-8 h-8 flex items-center justify-center rounded-full hover:bg-black/5 transition-colors " + (isListening ? "text-emerald" : "")}
@@ -489,6 +470,14 @@ export default function NoteEditorPage({ noteId, onBack }) {
             className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-black/5 transition-colors"
             title={summarizing ? "正在总结..." : "AI 总结"}>
             <FileAudio size={16} className="text-warm-steel" />
+          </button>
+        </div>
+        <span className="text-xs font-mono text-faded-slate text-center">{today}</span>
+        <div className="flex items-center gap-2 justify-self-end">
+          <button onClick={() => setShowExportMenu(true)} disabled={exporting}
+            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-black/5 transition-colors"
+            title="导出笔记">
+            <Download size={16} className="text-warm-steel" />
           </button>
           {saveStatus === "saving" && <span className="text-xs text-faded-slate">自动保存</span>}
           {saveStatus === "ai-analyzing" && (
@@ -556,6 +545,23 @@ export default function NoteEditorPage({ noteId, onBack }) {
         <input ref={imageInputRef} type="file" accept="image/*" onChange={handleImageImport} className="hidden" />
         <input ref={audioInputRef} type="file" accept="audio/*" onChange={handleAudioImport} className="hidden" />
 
+        {/* 图片预览区 — 两种模式共用 */}
+        {images.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-3">
+            {images.map((img, i) => (
+              <div key={i} className="relative group">
+                <img src={img.uri} alt={img.name}
+                  onClick={() => setViewerIdx(i)}
+                  className="max-w-[200px] max-h-[150px] rounded-xl object-cover border border-scribe cursor-pointer hover:ring-2 hover:ring-emerald/50 transition-all" />
+                <button onClick={() => setImages((prev) => prev.filter((_, j) => j !== i))}
+                  className="absolute top-1 right-1 w-5 h-5 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <X size={12} className="text-white" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
         {useMarkdown ? (
           <MarkdownEditor value={markdownContent} onChange={setMarkdownContent}
             minHeight={isTodo ? 60 : 200} onModeChange={immediateSave} />
@@ -564,8 +570,7 @@ export default function NoteEditorPage({ noteId, onBack }) {
             placeholder={isTodo ? "添加备注（可选）..." : "记录这一刹.."}
             className={"w-full text-[0.9375rem] text-warm-steel placeholder-faded-slate bg-transparent border-none outline-none resize-none leading-relaxed " + (isTodo ? "min-h-[60px]" : "min-h-[200px] flex-1")} />
         )}
-
-        {/* Todo checklist — shown when noteType is todo */}
+        {/* Todo checklist */}
         {isTodo && noteIdRef.current && (
           <TodoChecklist noteId={noteIdRef.current} onToggle={immediateSave} />
         )}
@@ -584,82 +589,72 @@ export default function NoteEditorPage({ noteId, onBack }) {
       <AmbientAnimation theme={animTheme} />
 
       {/* 导出格式选择弹窗 */}
-      {showExportMenu && (
-        <div className="fixed inset-0 bg-deep-ink/60 flex items-center justify-center z-50 px-4">
-          <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-            className="bg-surface rounded-modal p-6 max-w-sm w-full shadow-soft">
-            <h3 className="text-lg font-bold text-deep-ink mb-2">导出笔记</h3>
-            <p className="text-sm text-warm-steel mb-4">选择导出格式</p>
-            <div className="space-y-2">
-              <button onClick={() => doSingleExport("md")}
-                className="w-full flex items-center justify-between px-4 py-3 rounded-btn hover:bg-canvas-warm transition-colors border border-scribe">
-                <div className="text-left">
-                  <span className="text-sm font-medium text-deep-ink">M 格式（.md）</span>
-                  <p className="text-[11px] text-warm-steel mt-0.5">纯文本 Markdown 格式，无需密码</p>
-                </div>
-                <span className="text-xs text-faded-slate font-mono">Markdown</span>
-              </button>
-              <button onClick={() => doSingleExport("eon")}
-                className="w-full flex items-center justify-between px-4 py-3 rounded-btn hover:bg-canvas-warm transition-colors border border-scribe">
-                <div className="text-left">
-                  <span className="text-sm font-medium text-deep-ink">eon 格式（.eon）</span>
-                  <p className="text-[11px] text-warm-steel mt-0.5">加密格式，需要设置密码</p>
-                </div>
-                <span className="text-xs text-faded-slate font-mono">加密</span>
-              </button>
+      <GlassModal show={showExportMenu} onClose={() => setShowExportMenu(false)}>
+        <h3 className="text-lg font-bold text-deep-ink mb-2">导出笔记</h3>
+        <p className="text-sm text-warm-steel mb-4">选择导出格式</p>
+        <div className="space-y-2">
+          <button onClick={() => doSingleExport("md")}
+            className="w-full flex items-center justify-between px-4 py-3 rounded-btn hover:bg-black/5 transition-colors border border-white/20">
+            <div className="text-left">
+              <span className="text-sm font-medium text-deep-ink">M 格式（.md）</span>
+              <p className="text-[11px] text-warm-steel mt-0.5">纯文本 Markdown 格式，无需密码</p>
             </div>
-            <button onClick={() => setShowExportMenu(false)}
-              className="w-full mt-4 py-2.5 border border-scribe rounded-btn text-sm text-deep-ink hover:bg-canvas-warm transition-colors">
-              <X size={16} className="inline mr-1" />取消
-            </button>
-          </motion.div>
+            <span className="text-xs text-faded-slate font-mono">Markdown</span>
+          </button>
+          <button onClick={() => doSingleExport("eon")}
+            className="w-full flex items-center justify-between px-4 py-3 rounded-btn hover:bg-black/5 transition-colors border border-white/20">
+            <div className="text-left">
+              <span className="text-sm font-medium text-deep-ink">eon 格式（.eon）</span>
+              <p className="text-[11px] text-warm-steel mt-0.5">加密格式，需要设置密码</p>
+            </div>
+            <span className="text-xs text-faded-slate font-mono">加密</span>
+          </button>
         </div>
-      )}
+        <button onClick={() => setShowExportMenu(false)}
+          className="w-full mt-4 py-2.5 border border-white/20 rounded-btn text-sm text-deep-ink hover:bg-black/5 transition-colors">
+          <X size={16} className="inline mr-1" />取消
+        </button>
+      </GlassModal>
 
       {/* eon 导出密码输入弹窗 */}
-      {showExportPwd && (
-        <div className="fixed inset-0 bg-deep-ink/60 flex items-center justify-center z-50 px-4">
-          <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-            className="bg-surface rounded-modal p-6 max-w-sm w-full shadow-soft">
-            <h3 className="text-lg font-bold text-deep-ink mb-2">设置导出密码</h3>
-            <p className="text-sm text-warm-steel mb-4">输入密码加密笔记文件（eon 格式）</p>
-            <input type="password" value={exportPwd} onChange={(e) => { setExportPwd(e.target.value); setPwdError(""); }}
-              placeholder="输入导出密码（至少4位）" autoFocus
-              className="w-full px-3 py-2.5 border border-scribe rounded-input bg-surface text-deep-ink text-sm focus:outline-none focus:ring-2 focus:ring-emerald font-mono mb-2" />
-            {pwdError && <p className="text-xs text-rose mb-3">{pwdError}</p>}
-            <div className="flex gap-3">
-              <button onClick={() => setShowExportPwd(false)}
-                className="flex-1 py-2.5 border border-scribe rounded-btn text-sm text-deep-ink">
-                <X size={16} className="inline mr-1" />取消
-              </button>
-              <button onClick={doEonExport}
-                className="flex-1 py-2.5 bg-emerald text-white rounded-btn text-sm">
-                <Lock size={16} className="inline mr-1" />加密导出
-              </button>
-            </div>
-          </motion.div>
+      <GlassModal show={showExportPwd} onClose={() => setShowExportPwd(false)}>
+        <h3 className="text-lg font-bold text-deep-ink mb-2">设置导出密码</h3>
+        <p className="text-sm text-warm-steel mb-4">输入密码加密笔记文件（eon 格式）</p>
+        <input type="password" value={exportPwd} onChange={(e) => { setExportPwd(e.target.value); setPwdError(""); }}
+          placeholder="输入导出密码（至少4位）" autoFocus
+          className="w-full px-3 py-2.5 border border-white/20 rounded-input bg-white/10 text-deep-ink text-sm focus:outline-none focus:ring-2 focus:ring-emerald font-mono mb-2" />
+        {pwdError && <p className="text-xs text-rose mb-3">{pwdError}</p>}
+        <div className="flex gap-3">
+          <button onClick={() => setShowExportPwd(false)}
+            className="flex-1 py-2.5 border border-white/20 rounded-btn text-sm text-deep-ink hover:bg-black/5">
+            <X size={16} className="inline mr-1" />取消
+          </button>
+          <button onClick={doEonExport}
+            className="flex-1 py-2.5 bg-emerald text-white rounded-btn text-sm">
+            <Lock size={16} className="inline mr-1" />加密导出
+          </button>
         </div>
-      )}
+      </GlassModal>
 
       {/* Delete confirmation */}
-      {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-deep-ink/60 flex items-center justify-center z-50 px-4">
-          <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-            className="bg-surface rounded-modal p-6 max-w-sm w-full shadow-soft">
-            <h3 className="text-lg font-bold text-deep-ink mb-2">确认删除</h3>
-            <p className="text-sm text-warm-steel mb-6">此笔记将被移至回收站，可在设置中恢复。确定要继续吗？</p>
-            <div className="flex gap-3">
-              <button onClick={() => setShowDeleteConfirm(false)}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 border border-scribe rounded-btn text-sm text-deep-ink hover:bg-canvas-warm">
-                <X size={16} />取消
-              </button>
-              <button onClick={handleDelete}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-rose text-white rounded-btn text-sm hover:bg-red-600">
-                <Trash2 size={16} />确认删除
-              </button>
-            </div>
-          </motion.div>
+      <GlassModal show={showDeleteConfirm} onClose={() => setShowDeleteConfirm(false)}>
+        <h3 className="text-lg font-bold text-deep-ink mb-2">确认删除</h3>
+        <p className="text-sm text-warm-steel mb-6">此笔记将被移至回收站，可在设置中恢复。确定要继续吗？</p>
+        <div className="flex gap-3">
+          <button onClick={() => setShowDeleteConfirm(false)}
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 border border-white/20 rounded-btn text-sm text-deep-ink hover:bg-black/5">
+            <X size={16} />取消
+          </button>
+          <button onClick={handleDelete}
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-rose text-white rounded-btn text-sm hover:bg-red-600">
+            <Trash2 size={16} />确认删除
+          </button>
         </div>
+      </GlassModal>
+
+      {viewerIdx >= 0 && (
+        <ImageViewer images={images} current={viewerIdx}
+          onClose={(next) => setViewerIdx(next >= 0 ? next : -1)} />
       )}
     </motion.div>
   );

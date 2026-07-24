@@ -32,7 +32,7 @@ const tabs = [
 ];
 
 export default function NavBarDebugPage({ onBack }) {
-  const { darkMode } = useSettingsStore();
+  const { darkMode } = useSettingsStore(); const _isDark = darkMode === "dark" || (darkMode === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
   const saved = loadParams();
   const [blurPx, setBlurPx] = useState(saved?.blurPx ?? NAVBAR_DEFAULTS.blurPx);
   const [saturation, setSaturation] = useState(saved?.saturation ?? NAVBAR_DEFAULTS.saturation);
@@ -77,7 +77,7 @@ export default function NavBarDebugPage({ onBack }) {
       <section className="bg-surface rounded-card border border-scribe p-4 mb-4">
         <h2 className="text-xs font-mono uppercase tracking-wider text-faded-slate mb-4">实时预览</h2>
         <div className="flex items-center justify-center py-6 rounded-xl"
-          style={{ background: `url("/测试专用.png") center/cover no-repeat, ${darkMode ? "#1c1b1a" : "#f0efec"}` }}>
+          style={{ background: `url("/测试专用.png") center/cover no-repeat, ${_isDark ? "#1c1b1a" : "#f0efec"}` }}>
           <div className="flex items-center gap-1 px-2 py-1.5" style={glassStyle}>
             {tabs.map((tab, i) => {
               const Icon = tab.icon;

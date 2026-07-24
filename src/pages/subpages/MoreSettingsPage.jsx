@@ -8,6 +8,9 @@ import useNoteStore from "../../store/noteStore";
 import { getAllNotes, importAllNotes, clearAllData } from "../../db";
 import { exportToEonBlob, generateFilename, parseEonFile, exportToMarkdownBlob, generateBatchMarkdownFilename, parseMarkdownFile } from "../../utils/notesFile";
 import { Filesystem, Directory } from "@capacitor/filesystem";
+import GlassModal from "../../components/ui/GlassModal";
+import { getStats, submitFeedback } from "../../utils/feedbackReporter";
+import { setConsent } from "../../utils/privacyConsent";
 
 export default function MoreSettingsPage({ onBack }) {
   const {
@@ -17,6 +20,7 @@ export default function MoreSettingsPage({ onBack }) {
     debugTagBarEnabled, setDebugTagBarEnabled,
     debugNavBarEnabled, setDebugNavBarEnabled,
     debugFabGlassEnabled, setDebugFabGlassEnabled,
+    windowDebugEnabled, setWindowDebugEnabled,
     devUnlocked, setDevUnlocked,
     devCardOpen, setDevCardOpen,
     closeDevCard,
@@ -33,6 +37,9 @@ export default function MoreSettingsPage({ onBack }) {
   const [pwdError, setPwdError] = useState("");
   const fileInputRef = useRef(null);
   const pendingFileRef = useRef(null);
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [feedbackMsg, setFeedbackMsg] = useState("");
+  const [feedbackSending, setFeedbackSending] = useState(false);
 
   // 开发者模式连点触发 — 全部在 useEffect 中驱动，不在 render 阶段调 setState
   const [devTapCount, setDevTapCount] = useState(0);
@@ -198,37 +205,32 @@ export default function MoreSettingsPage({ onBack }) {
           )}
 
           {/* 导出格式选择 */}
-          {showExportFormat && (
-            <div className="fixed inset-0 bg-deep-ink/60 flex items-center justify-center z-50 px-4">
-              <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-                className="bg-surface rounded-modal p-6 max-w-sm w-full shadow-soft">
-                <h3 className="text-lg font-bold text-deep-ink mb-2">导出笔记</h3>
-                <p className="text-sm text-warm-steel mb-4">选择导出格式</p>
-                <div className="space-y-2">
-                  <button onClick={() => { setShowExportFormat(false); setPwdInput(""); setPwdError(""); setShowExportPwd(true); }}
-                    className="w-full flex items-center justify-between px-4 py-3 rounded-btn hover:bg-canvas-warm transition-colors border border-scribe">
-                    <div className="text-left">
-                      <span className="text-sm font-medium text-deep-ink">eon 格式（.eon）</span>
-                      <p className="text-[11px] text-warm-steel mt-0.5">加密导出全部笔记，需设置密码</p>
-                    </div>
-                    <Lock size={16} className="text-faded-slate" />
-                  </button>
-                  <button onClick={doExportMarkdown}
-                    className="w-full flex items-center justify-between px-4 py-3 rounded-btn hover:bg-canvas-warm transition-colors border border-scribe">
-                    <div className="text-left">
-                      <span className="text-sm font-medium text-deep-ink">M 格式（.md）</span>
-                      <p className="text-[11px] text-warm-steel mt-0.5">导出全部笔记为 Markdown 合集，无需密码</p>
-                    </div>
-                    <span className="text-xs text-faded-slate font-mono">Markdown</span>
-                  </button>
+          <GlassModal show={showExportFormat} onClose={() => setShowExportFormat(false)}>
+            <h3 className="text-lg font-bold text-deep-ink mb-2">导出笔记</h3>
+            <p className="text-sm text-warm-steel mb-4">选择导出格式</p>
+            <div className="space-y-2">
+              <button onClick={() => { setShowExportFormat(false); setPwdInput(""); setPwdError(""); setShowExportPwd(true); }}
+                className="w-full flex items-center justify-between px-4 py-3 rounded-btn hover:bg-black/5 transition-colors border border-white/20">
+                <div className="text-left">
+                  <span className="text-sm font-medium text-deep-ink">eon 格式（.eon）</span>
+                  <p className="text-[11px] text-warm-steel mt-0.5">加密导出全部笔记，需设置密码</p>
                 </div>
-                <button onClick={() => setShowExportFormat(false)}
-                  className="w-full mt-4 py-2.5 border border-scribe rounded-btn text-sm text-deep-ink hover:bg-canvas-warm transition-colors">
-                  <X size={16} className="inline mr-1" />取消
-                </button>
-              </motion.div>
+                <Lock size={16} className="text-faded-slate" />
+              </button>
+              <button onClick={doExportMarkdown}
+                className="w-full flex items-center justify-between px-4 py-3 rounded-btn hover:bg-black/5 transition-colors border border-white/20">
+                <div className="text-left">
+                  <span className="text-sm font-medium text-deep-ink">M 格式（.md）</span>
+                  <p className="text-[11px] text-warm-steel mt-0.5">导出全部笔记为 Markdown 合集，无需密码</p>
+                </div>
+                <span className="text-xs text-faded-slate font-mono">Markdown</span>
+              </button>
             </div>
-          )}
+            <button onClick={() => setShowExportFormat(false)}
+              className="w-full mt-4 py-2.5 border border-white/20 rounded-btn text-sm text-deep-ink hover:bg-black/5 transition-colors">
+              <X size={16} className="inline mr-1" />取消
+            </button>
+          </GlassModal>
 
           <button onClick={() => setShowConfirm(true)}
             className="w-full flex items-center justify-between px-3 py-3 rounded-btn hover:bg-red-50 transition-colors">
@@ -299,13 +301,113 @@ export default function MoreSettingsPage({ onBack }) {
                 </button>
               </div>
             </div>
+            {/* 窗口调试 */}
+            <div className="flex items-center justify-between px-3 py-3 rounded-btn hover:bg-canvas-warm transition-colors">
+              <span className="text-sm text-deep-ink">窗口调试</span>
+              <div className="flex items-center gap-2 shrink-0">
+                <GlassSwitch value={windowDebugEnabled} onChange={async (v) => { await setWindowDebugEnabled(v); }} />
+                <button onClick={() => onBack?.("debug-window")}
+                  className="px-2.5 py-1 text-xs font-medium bg-emerald/10 text-emerald rounded-full hover:bg-emerald/20 transition-colors">
+                  进入
+                </button>
+              </div>
+            </div>
+
+            {/* 发送反馈 */}
+            <div className="flex items-center justify-between px-3 py-3 rounded-btn hover:bg-canvas-warm transition-colors">
+              <span className="text-sm text-deep-ink">发送反馈</span>
+              <button onClick={() => { setFeedbackMsg(""); setShowFeedback(true); }}
+                className="px-2.5 py-1 text-xs font-medium bg-emerald/10 text-emerald rounded-full hover:bg-emerald/20 transition-colors">
+                进入
+              </button>
+            </div>
           </div>
         </section>
       )}
 
-      {showExportPwd && (<div className="fixed inset-0 bg-deep-ink/60 flex items-center justify-center z-50 px-4"><motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-surface rounded-modal p-6 max-w-sm w-full shadow-soft"><h3 className="text-lg font-bold text-deep-ink mb-2">设置导出密码</h3><p className="text-sm text-warm-steel mb-4">输入密码加密笔记文件</p><input type="password" value={pwdInput} onChange={(e) => { setPwdInput(e.target.value); setPwdError(""); }} placeholder="输入导出密码" className="w-full px-3 py-2.5 border border-scribe rounded-input bg-surface text-deep-ink text-sm focus:outline-none focus:ring-2 focus:ring-emerald font-mono mb-2" />{pwdError && <p className="text-xs text-rose mb-3">{pwdError}</p>}<div className="flex gap-3"><button onClick={() => setShowExportPwd(false)} className="flex-1 py-2.5 border border-scribe rounded-btn text-sm text-deep-ink"><X size={16} className="inline mr-1" />取消</button><button onClick={() => { const pw = pwdInput.trim(); if (!pw || pw.length < 4) { setPwdError("密码至少4位"); return; } setShowExportPwd(false); doExport(pw); }} className="flex-1 py-2.5 bg-emerald text-white rounded-btn text-sm"><Lock size={16} className="inline mr-1" />加密导出</button></div></motion.div></div>)}
-      {showImportPwd && (<div className="fixed inset-0 bg-deep-ink/60 flex items-center justify-center z-50 px-4"><motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-surface rounded-modal p-6 max-w-sm w-full shadow-soft"><h3 className="text-lg font-bold text-deep-ink mb-2">输入密码</h3><p className="text-sm text-warm-steel mb-4">输入导出时设置的密码</p><input type="password" value={pwdInput} onChange={(e) => { setPwdInput(e.target.value); setPwdError(""); }} placeholder="输入密码" className="w-full px-3 py-2.5 border border-scribe rounded-input bg-surface text-deep-ink text-sm focus:outline-none focus:ring-2 focus:ring-emerald font-mono mb-2" />{pwdError && <p className="text-xs text-rose mb-3">{pwdError}</p>}<div className="flex gap-3"><button onClick={() => setShowImportPwd(false)} className="flex-1 py-2.5 border border-scribe rounded-btn text-sm text-deep-ink"><X size={16} className="inline mr-1" />取消</button><button onClick={() => { const pw = pwdInput.trim(); if (!pw) { setPwdError("请输入密码"); return; } setShowImportPwd(false); doImport(pw); }} className="flex-1 py-2.5 bg-emerald text-white rounded-btn text-sm"><KeyRound size={16} className="inline mr-1" />解密导入</button></div></motion.div></div>)}
-      {showConfirm && (<div className="fixed inset-0 bg-deep-ink/60 flex items-center justify-center z-50 px-4"><motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-surface rounded-modal p-6 max-w-sm w-full shadow-soft"><h3 className="text-lg font-bold text-deep-ink mb-2">确认清空</h3><p className="text-sm text-warm-steel mb-6">将删除所有笔记和设置数据</p><div className="flex gap-3"><button onClick={() => setShowConfirm(false)} className="flex-1 py-2.5 border border-scribe rounded-btn text-sm text-deep-ink"><X size={16} className="inline mr-1" />取消</button><button onClick={async () => { await clearAllData(); localStorage.removeItem("earth-online-achievements"); window.location.reload(); }} className="flex-1 py-2.5 bg-rose text-white rounded-btn text-sm"><Trash2 size={16} className="inline mr-1" />确认清空</button></div></motion.div></div>)}
+      <GlassModal show={showExportPwd} onClose={() => setShowExportPwd(false)}>
+        <h3 className="text-lg font-bold text-deep-ink mb-2">设置导出密码</h3>
+        <p className="text-sm text-warm-steel mb-4">输入密码加密笔记文件</p>
+        <input type="password" value={pwdInput} onChange={(e) => { setPwdInput(e.target.value); setPwdError(""); }} placeholder="输入导出密码" className="w-full px-3 py-2.5 border border-white/20 rounded-input bg-white/10 text-deep-ink text-sm focus:outline-none focus:ring-2 focus:ring-emerald font-mono mb-2" />
+        {pwdError && <p className="text-xs text-rose mb-3">{pwdError}</p>}
+        <div className="flex gap-3">
+          <button onClick={() => setShowExportPwd(false)} className="flex-1 py-2.5 border border-white/20 rounded-btn text-sm text-deep-ink"><X size={16} className="inline mr-1" />取消</button>
+          <button onClick={() => { const pw = pwdInput.trim(); if (!pw || pw.length < 4) { setPwdError("密码至少4位"); return; } setShowExportPwd(false); doExport(pw); }} className="flex-1 py-2.5 bg-emerald text-white rounded-btn text-sm"><Lock size={16} className="inline mr-1" />加密导出</button>
+        </div>
+      </GlassModal>
+      <GlassModal show={showImportPwd} onClose={() => setShowImportPwd(false)}>
+        <h3 className="text-lg font-bold text-deep-ink mb-2">输入密码</h3>
+        <p className="text-sm text-warm-steel mb-4">输入导出时设置的密码</p>
+        <input type="password" value={pwdInput} onChange={(e) => { setPwdInput(e.target.value); setPwdError(""); }} placeholder="输入密码" className="w-full px-3 py-2.5 border border-white/20 rounded-input bg-white/10 text-deep-ink text-sm focus:outline-none focus:ring-2 focus:ring-emerald font-mono mb-2" />
+        {pwdError && <p className="text-xs text-rose mb-3">{pwdError}</p>}
+        <div className="flex gap-3">
+          <button onClick={() => setShowImportPwd(false)} className="flex-1 py-2.5 border border-white/20 rounded-btn text-sm text-deep-ink"><X size={16} className="inline mr-1" />取消</button>
+          <button onClick={() => { const pw = pwdInput.trim(); if (!pw) { setPwdError("请输入密码"); return; } setShowImportPwd(false); doImport(pw); }} className="flex-1 py-2.5 bg-emerald text-white rounded-btn text-sm"><KeyRound size={16} className="inline mr-1" />解密导入</button>
+        </div>
+      </GlassModal>
+      <GlassModal show={showConfirm} onClose={() => setShowConfirm(false)}>
+        <h3 className="text-lg font-bold text-deep-ink mb-2">确认清空</h3>
+        <p className="text-sm text-warm-steel mb-6">将删除所有笔记和设置数据</p>
+        <div className="flex gap-3">
+          <button onClick={() => setShowConfirm(false)} className="flex-1 py-2.5 border border-white/20 rounded-btn text-sm text-deep-ink"><X size={16} className="inline mr-1" />取消</button>
+          <button onClick={async () => { await clearAllData(); localStorage.removeItem("earth-online-achievements"); window.location.reload(); }} className="flex-1 py-2.5 bg-rose text-white rounded-btn text-sm"><Trash2 size={16} className="inline mr-1" />确认清空</button>
+        </div>
+      </GlassModal>
+
+      {/* 反馈中心 */}
+      <GlassModal show={showFeedback} onClose={() => { setShowFeedback(false); setFeedbackMsg(""); }}>
+        {(() => {
+          const stats = getStats();
+          const items = [
+            ["编辑器", stats.componentStats.editor],
+            ["设置", stats.componentStats.settings],
+            ["成就", stats.componentStats.achievements],
+            ["画廊", stats.componentStats.gallery],
+            ["AI", stats.componentStats.ai],
+            ["标签", stats.componentStats.tags],
+          ];
+          return (
+            <div>
+              <h3 className="text-lg font-bold text-deep-ink mb-3">反馈中心</h3>
+              <div className="bg-canvas-warm rounded-xl p-3 mb-4">
+                <p className="text-xs text-warm-steel mb-2">打开次数: <span className="font-semibold text-deep-ink">{stats.openCount}</span></p>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {items.map(([label, count]) => (
+                    <div key={label} className="flex justify-between px-2 py-1 rounded bg-white/60 text-xs">
+                      <span className="text-warm-steel">{label}</span>
+                      <span className="font-semibold text-deep-ink">{count}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {feedbackMsg && <p className={`text-xs mb-3 px-3 py-2 rounded-lg ${feedbackMsg.includes("失败") || feedbackMsg.includes("错误") ? "bg-rose/10 text-rose" : "bg-emerald/10 text-emerald"}`}>{feedbackMsg}</p>}
+              <div className="flex flex-col gap-2">
+                <button onClick={async () => {
+                  setFeedbackSending(true);
+                  setFeedbackMsg("");
+                  const r = await submitFeedback();
+                  setFeedbackMsg(r.ok ? "✅ " + r.message : "❌ " + r.message);
+                  setFeedbackSending(false);
+                }} disabled={feedbackSending}
+                  className="w-full py-2.5 bg-emerald text-white rounded-btn text-sm font-medium hover:bg-emerald-dark disabled:opacity-50 transition-colors">
+                  {feedbackSending ? "发送中..." : "📤 发送反馈给开发者"}
+                </button>
+                <button onClick={() => {
+                  setConsent(false);
+                  setFeedbackMsg("已重置，下次启动将重新弹出使用须知");
+                }}
+                  className="w-full py-2.5 border border-scribe rounded-btn text-sm text-deep-ink hover:bg-black/5 transition-colors">
+                  🔄 重弹使用须知
+                </button>
+                <button onClick={() => { setShowFeedback(false); setFeedbackMsg(""); }}
+                  className="w-full py-2 text-xs text-warm-steel hover:text-deep-ink transition-colors">
+                  关闭
+                </button>
+              </div>
+            </div>
+          );
+        })()}
+      </GlassModal>
     </motion.div>
   );
 }

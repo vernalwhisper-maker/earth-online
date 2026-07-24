@@ -2,8 +2,8 @@
  * Remote Config SDK 部署配置。
  * 将此类集成到 Android 项目的 Application.onCreate() 中。
  *
- * Cloudflare Pages: https://a196e19f.earth-online-6zb.pages.dev/update.json
- * Vercel:          https://earth-online-cx9t5unhi-vernal.vercel.app/update.json
+ * Cloudflare Pages: https://earth-online-config.pages.dev/update.json
+ * Vercel:          https://earth-online-opal.vercel.app/update.json
  * jsDelivr:        https://cdn.jsdelivr.net/gh/vernalwhisper-maker/earth-online@main/public/update.json
  * GitHub Raw:      https://raw.githubusercontent.com/vernalwhisper-maker/earth-online/main/public/update.json
  */
@@ -20,13 +20,13 @@ object RemoteConfigSetup {
             // Source 1: Cloudflare Pages（中国大陆访问最快）
             .addSource(HttpRemoteConfigSource(
                 name = "cloudflare",
-                url = "https://a196e19f.earth-online-6zb.pages.dev/update.json",
+                url = "https://earth-online-config.pages.dev/update.json",
                 priority = 0
             ))
             // Source 2: Vercel
             .addSource(HttpRemoteConfigSource(
                 name = "vercel",
-                url = "https://earth-online-cx9t5unhi-vernal.vercel.app/update.json",
+                url = "https://earth-online-opal.vercel.app/update.json",
                 priority = 1
             ))
             // Source 3: jsDelivr CDN（基于 GitHub）

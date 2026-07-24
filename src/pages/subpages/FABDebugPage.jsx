@@ -25,7 +25,7 @@ function saveParams(params) {
 }
 
 export default function FABDebugPage({ onBack }) {
-  const { darkMode } = useSettingsStore();
+  const { darkMode } = useSettingsStore(); const _isDark = darkMode === "dark" || (darkMode === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
   const saved = loadParams();
   const [blurPx, setBlurPx] = useState(saved?.blurPx ?? FAB_DEFAULTS.blurPx);
   const [saturation, setSaturation] = useState(saved?.saturation ?? FAB_DEFAULTS.saturation);
@@ -68,7 +68,7 @@ export default function FABDebugPage({ onBack }) {
       <section className="bg-surface rounded-card border border-scribe p-4 mb-4">
         <h2 className="text-xs font-mono uppercase tracking-wider text-faded-slate mb-4">实时预览</h2>
         <div className="flex items-center justify-center gap-8 py-8 rounded-xl"
-          style={{ background: `url("/测试专用.png") center/cover no-repeat, ${darkMode ? "#1c1b1a" : "#f0efec"}`, minHeight: 120 }}>
+          style={{ background: `url("/测试专用.png") center/cover no-repeat, ${_isDark ? "#1c1b1a" : "#f0efec"}`, minHeight: 120 }}>
           <button className="w-14 h-14 rounded-full flex items-center justify-center cursor-default" style={glassStyle}>
             <Plus size={22} className="text-warm-steel" />
           </button>

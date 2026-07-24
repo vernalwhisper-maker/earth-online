@@ -1,7 +1,7 @@
 {
     "name": "earth-online",
     "private": true,
-    "version": "1.4.0",
+    "version": "1.4.1",
     "type": "module",
     "scripts": {
         "dev": "vite",
@@ -20,6 +20,7 @@
         "framer-motion": "^12.0.0",
         "idb": "^8.0.0",
         "lucide-react": "^0.500.0",
+        "opencc-js": "^1.4.1",
         "react": "^19.1.0",
         "react-dom": "^19.1.0",
         "react-markdown": "^10.1.0",
