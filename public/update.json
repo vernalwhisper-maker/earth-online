@@ -1,0 +1,23 @@
+{
+  "version": "1.4.0",
+  "minVersion": "1.0.0",
+  "forceUpdate": false,
+  "downloadUrl": "",
+  "notice": {
+    "title": "",
+    "content": "",
+    "link": ""
+  },
+  "debug": {
+    "enabled": false,
+    "logLevel": "ERROR"
+  },
+  "featureFlags": {
+    "AI": true,
+    "NewUI": false,
+    "LogUpload": false
+  },
+  "experiments": {},
+  "grayscale": {},
+  "_signature": "JsB83HnUEEeQX3rZf7RK7lF6mLn8RjGsl0LRhpsNxMy95mXF/07enlUu8nT53csyC7BJdpt4PXK2pNmpWKHy7nwDjXovxSpPvcFZwUmOqlXcbsdQ4OuFurLqE+sCn9D7fJtPhd9k3Nth3oDXLJtOppGYrvynozWsqO1mZGTEx0AOpkPZuFaimkE2uDycw0uMSE9SaOIcG+dfq/7dvzJlIX6hMWV/U1Ms1e0Q8Sbp5hJ+/aYHqUbWV3GCQIoUaTgyRRuwL+vxNSFhTekgAF96d6wpVFo9ooy5iLb5GDGDwmJ7E+xLV4YafM8PWQ8/+W8lPz3B586BuvqyXNVJh8rwfg=="
+}

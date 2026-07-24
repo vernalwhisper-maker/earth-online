@@ -2,10 +2,11 @@ import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import {
   ArrowLeft, Plus, X, Save, Sparkles, Trash2,
-  Pin, Folder, CheckSquare, Award, StickyNote, FileText, Download, Lock,
+  Pin, Folder, CheckSquare, Award, StickyNote, FileText, Download, Lock, Mic, FileAudio,
 } from "lucide-react";
 import { Filesystem, Directory } from "@capacitor/filesystem";
 import { exportToEonBlob, generateMarkdownFilename, exportNoteToMarkdown } from "../utils/notesFile";
+import { createSpeechRecognizer, summarizeText } from "../utils/stt";
 import useToastStore from "../store/toastStore";
 import useNoteStore from "../store/noteStore";
 import useAchievementStore from "../store/achievementStore";
@@ -31,8 +32,9 @@ export default function NoteEditorPage({ noteId, onBack }) {
   const getNoteById = useNoteStore((s) => s.getNoteById);
   const saveNoteToStore = useNoteStore((s) => s.saveNote);
   const deleteNoteFromStore = useNoteStore((s) => s.deleteNote);
-  const unlockAchievement = useAchievementStore((s) => s.unlockAchievement);
+  const batchUnlock = useAchievementStore((s) => s.batchUnlock);
   const { modelProvider, apiKey, inference } = useSettingsStore();
+  const cardExpandAnim = useSettingsStore((s) => s.cardExpandAnim);
 
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -42,7 +44,7 @@ export default function NoteEditorPage({ noteId, onBack }) {
   const [isPinned, setIsPinned] = useState(false);
   const [bgColorId, setBgColorId] = useState(0);
   const [folderId, setFolderId] = useState("inbox");
-  const [useMarkdown, setUseMarkdown] = useState(false);
+  const [useMarkdown, setUseMarkdown] = useState(true);
   const [markdownContent, setMarkdownContent] = useState("");
   const [bgPattern, setBgPattern] = useState("solid");
   const [animTheme, setAnimTheme] = useState("none");
@@ -61,6 +63,8 @@ export default function NoteEditorPage({ noteId, onBack }) {
   const noteIdRef = useRef(null);
   const [images, setImages] = useState([]);
   const fileInputRef = useRef(null);
+  const imageInputRef = useRef(null);
+  const audioInputRef = useRef(null);
   const latestRef = useRef({});
   const isUnmountedRef = useRef(false);
 
@@ -171,8 +175,8 @@ export default function NoteEditorPage({ noteId, onBack }) {
       if (triggerAI && (apiKey || useSettingsStore.getState().useMode !== "online")) {
         const noteContent = s.title + "\n" + (s.useMarkdown ? s.markdownContent : s.body);
         const matchedIds = await matchAchievements(noteContent, apiKey || "", modelProvider, inference);
-        for (const id of matchedIds) {
-          await unlockAchievement(id, saved.id);
+        if (matchedIds.length > 0) {
+          batchUnlock(matchedIds, saved.id);
         }
       }
       setSaveStatus("saved");
@@ -305,6 +309,136 @@ export default function NoteEditorPage({ noteId, onBack }) {
     }
   };
 
+  // 图片导入
+  const handleImageImport = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    // 限制文件大小 5MB
+    if (file.size > 5 * 1024 * 1024) {
+      addToast?.("图片过大，请选择 5MB 以内的图片", "error");
+      return;
+    }
+    try {
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error("图片读取失败"));
+        reader.readAsDataURL(file);
+      });
+      const markdownImg = `![${file.name}](${base64})`;
+      if (useMarkdown) {
+        setMarkdownContent((prev) => prev + "\n" + markdownImg + "\n");
+      } else {
+        setBody((prev) => prev + "\n" + markdownImg + "\n");
+      }
+      addToast?.("图片已插入", "success");
+    } catch (err) {
+      addToast?.(err.message || "图片导入失败", "error");
+    }
+  };
+
+  // 音频导入
+  const handleAudioImport = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    // 限制文件大小 20MB
+    if (file.size > 20 * 1024 * 1024) {
+      addToast?.("音频过大，请选择 20MB 以内的文件", "error");
+      return;
+    }
+    try {
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error("音频读取失败"));
+        reader.readAsDataURL(file);
+      });
+      const audioHtml = `<audio controls src="${base64}" style="width:100%;max-width:400px;border-radius:8px;"></audio>`;
+      if (useMarkdown) {
+        setMarkdownContent((prev) => prev + "\n" + audioHtml + "\n");
+      } else {
+        setBody((prev) => prev + "\n" + audioHtml + "\n");
+      }
+      addToast?.("音频已插入", "success");
+    } catch (err) {
+      addToast?.(err.message || "音频导入失败", "error");
+    }
+  };
+
+  // 语音听写
+  const [isListening, setIsListening] = useState(false);
+  const [summarizing, setSummarizing] = useState(false);
+  const recognizerRef = useRef(null);
+
+  const toggleSpeechRecognition = () => {
+    if (isListening) {
+      recognizerRef.current?.stop?.();
+      setIsListening(false);
+      addToast?.("语音听写已停止", "info");
+      return;
+    }
+    const recognizer = createSpeechRecognizer({
+      onResult: ({ final }) => {
+        if (final) {
+          if (useMarkdown) {
+            setMarkdownContent((prev) => prev + final);
+          } else {
+            setBody((prev) => prev + final);
+          }
+        }
+      },
+      onError: (err) => {
+        addToast?.(err, "error");
+        setIsListening(false);
+      },
+    });
+    if (!recognizer.isSupported) {
+      addToast?.("浏览器不支持语音识别，请使用 Chrome", "error");
+      return;
+    }
+    recognizerRef.current = recognizer;
+    recognizer.start();
+    setIsListening(true);
+    addToast?.("正在听写...", "info");
+  };
+
+  // AI 总结
+  const handleSummarize = async () => {
+    const content = useMarkdown ? markdownContent : body;
+    if (!content?.trim()) {
+      addToast?.("笔记内容为空，无法总结", "error");
+      return;
+    }
+    setSummarizing(true);
+    try {
+      const { apiKey, modelProvider } = useSettingsStore.getState();
+      if (!apiKey) {
+        addToast?.("请先在设置中配置 API Key", "error");
+        setSummarizing(false);
+        return;
+      }
+      const configs = {
+        deepseek: { endpoint: "https://api.deepseek.com/v1/chat/completions", model: "deepseek-chat" },
+        zhipu: { endpoint: "https://open.bigmodel.cn/api/paas/v4/chat/completions", model: "glm-4" },
+        qwen: { endpoint: "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions", model: "qwen-plus" },
+      };
+      const cfg = configs[modelProvider] || configs.deepseek;
+      const summary = await summarizeText(content, apiKey, cfg.endpoint, cfg.model);
+      const summaryText = "\n\n> **AI 总结**：" + summary;
+      if (useMarkdown) {
+        setMarkdownContent((prev) => prev + summaryText);
+      } else {
+        setBody((prev) => prev + summaryText);
+      }
+      addToast?.("总结已插入笔记末尾", "success");
+    } catch (err) {
+      addToast?.(err.message || "总结失败", "error");
+    }
+    setSummarizing(false);
+  };
+
   const addTag = () => {
     const t = tagInput.trim();
     if (t && !tags.includes(t)) { setTags([...tags, t]); setTagInput(""); }
@@ -322,9 +456,9 @@ export default function NoteEditorPage({ noteId, onBack }) {
 
   return (
     <motion.div
-      initial={{ opacity: 0, x: 20 }}
+      initial={{ opacity: 0, x: cardExpandAnim ? 0 : 20 }}
       animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: -20 }}
+      exit={{ opacity: 0, x: cardExpandAnim ? 0 : -20 }}
       className={"min-h-[100dvh] flex flex-col transition-colors duration-300 " + currentBgColor.class + (bgPattern !== "solid" ? " bg-pattern-" + bgPattern + (bgColorId === 6 ? " bg-pattern-dark" : "") : "")}
     >
       {/* Header */}
@@ -345,6 +479,16 @@ export default function NoteEditorPage({ noteId, onBack }) {
             className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-black/5 transition-colors"
             title="导出笔记">
             <Download size={16} className="text-warm-steel" />
+          </button>
+          <button onClick={toggleSpeechRecognition}
+            className={"w-8 h-8 flex items-center justify-center rounded-full hover:bg-black/5 transition-colors " + (isListening ? "text-emerald" : "")}
+            title={isListening ? "停止听写" : "语音听写"}>
+            <Mic size={16} className={isListening ? "text-emerald" : "text-warm-steel"} />
+          </button>
+          <button onClick={handleSummarize} disabled={summarizing}
+            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-black/5 transition-colors"
+            title={summarizing ? "正在总结..." : "AI 总结"}>
+            <FileAudio size={16} className="text-warm-steel" />
           </button>
           {saveStatus === "saving" && <span className="text-xs text-faded-slate">自动保存</span>}
           {saveStatus === "ai-analyzing" && (
@@ -387,17 +531,30 @@ export default function NoteEditorPage({ noteId, onBack }) {
           placeholder={isTodo ? "待办清单标题..." : "给自己的此刻..."}
           className="w-full text-[1.5rem] font-bold text-deep-ink placeholder-faded-slate bg-transparent border-none outline-none mb-3" />
 
-        {/* 编辑模式切换 */}
-        <div className="flex items-center gap-2 mb-2">
+        {/* 编辑模式切换 — 集成工具栏 */}
+        <div className="flex items-center gap-1.5 mb-2">
           <button onClick={() => { setUseMarkdown(false); immediateSave(); }}
-            className={"px-2.5 py-1 text-xs rounded-full transition-colors " + (!useMarkdown ? "bg-emerald text-white shadow-sm" : "bg-white/60 text-faded-slate border border-scribe")}>
+            className={"px-2 py-1 text-[11px] rounded-full transition-colors " + (!useMarkdown ? "bg-emerald/10 text-emerald font-medium" : "text-faded-slate hover:text-warm-steel")}>
             纯文本
           </button>
           <button onClick={() => { setUseMarkdown(true); immediateSave(); }}
-            className={"px-2.5 py-1 text-xs rounded-full transition-colors " + (useMarkdown ? "bg-emerald text-white shadow-sm" : "bg-white/60 text-faded-slate border border-scribe")}>
+            className={"px-2 py-1 text-[11px] rounded-full transition-colors " + (useMarkdown ? "bg-emerald/10 text-emerald font-medium" : "text-faded-slate hover:text-warm-steel")}>
             Markdown
           </button>
+          <span className="w-px h-4 bg-scribe mx-1" />
+          <button onClick={() => imageInputRef.current?.click()}
+            className="px-2 py-1 text-[11px] text-faded-slate hover:text-warm-steel rounded-full hover:bg-white/60 transition-colors"
+            title="插入图片">
+            🖼️
+          </button>
+          <button onClick={() => audioInputRef.current?.click()}
+            className="px-2 py-1 text-[11px] text-faded-slate hover:text-warm-steel rounded-full hover:bg-white/60 transition-colors"
+            title="插入音频">
+            🎵
+          </button>
         </div>
+        <input ref={imageInputRef} type="file" accept="image/*" onChange={handleImageImport} className="hidden" />
+        <input ref={audioInputRef} type="file" accept="audio/*" onChange={handleAudioImport} className="hidden" />
 
         {useMarkdown ? (
           <MarkdownEditor value={markdownContent} onChange={setMarkdownContent}

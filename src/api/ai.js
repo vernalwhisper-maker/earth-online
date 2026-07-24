@@ -257,8 +257,8 @@ export async function matchAchievements(noteContent, apiKey, provider, inference
 
   // 引擎2：AI 语义匹配
   const config = getMatchConfig();
-  if (!config) return [...new Set([...embedIds, ...keywordResults])].slice(0, 3);
-  if (!apiKey && config.requiresAuth !== false && !config.useWebLLM) return [...new Set([...embedIds, ...keywordResults])].slice(0, 3);
+  if (!config) return [...new Set([...embedIds, ...keywordResults])];
+  if (!apiKey && config.requiresAuth !== false && !config.useWebLLM) return [...new Set([...embedIds, ...keywordResults])];
 
   const userPrompt = [
     "以下是成就列表（序号.成就名-简短描述）：",
@@ -283,12 +283,12 @@ export async function matchAchievements(noteContent, apiKey, provider, inference
       ], { temperature: 0.1, maxTokens: 200 });
       if (result) {
         const aiIds = parseIds(result);
-        return [...new Set([...aiIds, ...embedIds, ...keywordResults])].slice(0, 3);
+        return [...new Set([...aiIds, ...embedIds, ...keywordResults])];
       }
     } catch (err) {
       console.error("WebLLM achievement match failed:", err);
     }
-    return [...new Set([...embedIds, ...keywordResults])].slice(0, 3);
+    return [...new Set([...embedIds, ...keywordResults])];
   }
 
   try {
@@ -316,11 +316,11 @@ export async function matchAchievements(noteContent, apiKey, provider, inference
     const data = await response.json();
     const text = data.choices?.[0]?.message?.content || "";
     const aiIds = parseIds(text);
-    const merged = [...new Set([...aiIds, ...embedIds, ...keywordResults])].slice(0, 3);
+    const merged = [...new Set([...aiIds, ...embedIds, ...keywordResults])];
     return merged;
   } catch (err) {
     console.error("AI matching error:", err);
-    return [...new Set([...embedIds, ...keywordResults])].slice(0, 3);
+    return [...new Set([...embedIds, ...keywordResults])];
   }
 }
 

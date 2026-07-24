@@ -1,0 +1,22 @@
+{
+  "version": "1.2.3",
+  "minVersion": "1.2.0",
+  "forceUpdate": false,
+  "downloadUrl": "https://example.com/downloads/app-v1.2.3.apk",
+  "notice": {
+    "title": "版本更新公告",
+    "content": "本次更新内容：\n1. 优化了性能\n2. 修复了已知问题",
+    "link": ""
+  },
+  "debug": {
+    "enabled": false,
+    "logLevel": "ERROR"
+  },
+  "featureFlags": {
+    "AI": true,
+    "NewUI": false,
+    "LogUpload": false
+  },
+  "experiments": {},
+  "grayscale": {}
+}

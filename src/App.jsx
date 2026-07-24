@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef } from "react";
+﻿import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Plus } from "lucide-react";
 import useNoteStore from "./store/noteStore";
@@ -6,16 +6,19 @@ import useAchievementStore from "./store/achievementStore";
 import useSettingsStore from "./store/settingsStore";
 import useTodoStore from "./store/todoStore";
 import useFolderStore from "./store/folderStore";
-import HomePage from "./pages/HomePage";
-import NoteEditorPage from "./pages/NoteEditorPage";
-import AchievementGalleryPage from "./pages/AchievementGalleryPage";
-import AchievementDetailPage from "./pages/AchievementDetailPage";
-import SettingsPage from "./pages/SettingsPage";
 import TabBar from "./components/layout/TabBar";
 import UnlockModal from "./components/achievements/UnlockModal";
+import AchievementBatchModal from "./components/achievements/AchievementBatchModal";
 import ToastContainer from "./components/ui/Toast";
 import AIAssistant from "./components/ai/AIAssistant";
 import { FAB_DEFAULTS, STORAGE_KEY_FAB } from "./config/debugDefaults";
+
+// 页面级代码分割
+const HomePage = lazy(() => import("./pages/HomePage"));
+const NoteEditorPage = lazy(() => import("./pages/NoteEditorPage"));
+const AchievementGalleryPage = lazy(() => import("./pages/AchievementGalleryPage"));
+const AchievementDetailPage = lazy(() => import("./pages/AchievementDetailPage"));
+const SettingsPage = lazy(() => import("./pages/SettingsPage"));
 
 const PAGE_ORDER = ["home", "settings", "gallery", "achievement-detail"];
 
@@ -38,6 +41,7 @@ export default function App() {
   const [currentPage, setCurrentPage] = useState("home");
   const darkMode = useSettingsStore((s) => s.darkMode);
   const reduceMotion = useSettingsStore((s) => s.reduceMotion);
+  const cardExpandAnim = useSettingsStore((s) => s.cardExpandAnim);
   const [editingNoteId, setEditingNoteId] = useState(null);
   const [viewingAchievementId, setViewingAchievementId] = useState(null);
   const [settingsSubPage, setSettingsSubPage] = useState(null);
@@ -68,7 +72,9 @@ export default function App() {
 
   const loadTodos = useTodoStore((s) => s.loadAll);
   const lastUnlocked = useAchievementStore((s) => s.lastUnlocked);
+  const lastUnlockedBatch = useAchievementStore((s) => s.lastUnlockedBatch);
   const dismissLastUnlocked = useAchievementStore((s) => s.dismissLastUnlocked);
+  const dismissBatch = useAchievementStore((s) => s.dismissBatch);
 
   useEffect(() => {
     currentPageRef.current = currentPage;
@@ -127,7 +133,18 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    document.documentElement.classList.toggle("dark", darkMode);
+    const applyDarkMode = (isDark) => {
+      document.documentElement.classList.toggle("dark", isDark);
+    };
+    if (darkMode === "system") {
+      const mq = window.matchMedia("(prefers-color-scheme: dark)");
+      applyDarkMode(mq.matches);
+      const handler = (e) => applyDarkMode(e.matches);
+      mq.addEventListener("change", handler);
+      return () => mq.removeEventListener("change", handler);
+    } else {
+      applyDarkMode(darkMode === "dark");
+    }
   }, [darkMode]);
 
   useEffect(() => {
@@ -176,10 +193,10 @@ export default function App() {
         return (
           <motion.div
             key="editor"
-            initial={{ x: 120, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: 120, opacity: 0 }}
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            initial={cardExpandAnim ? { scale: 0.92, y: 40, opacity: 0 } : { x: 120, opacity: 0 }}
+            animate={cardExpandAnim ? { scale: 1, y: 0, opacity: 1 } : { x: 0, opacity: 1 }}
+            exit={cardExpandAnim ? { scale: 0.92, y: 40, opacity: 0 } : { x: 120, opacity: 0 }}
+            transition={{ type: "spring", stiffness: cardExpandAnim ? 250 : 300, damping: cardExpandAnim ? 26 : 30 }}
           >
             <NoteEditorPage noteId={editingNoteId} onBack={() => { setEditingNoteId(null); setCurrentPage("home"); }} />
           </motion.div>
@@ -236,7 +253,9 @@ export default function App() {
   return (
     <div className="min-h-[100dvh] bg-canvas-warm flex flex-col">
       <main className={"flex-1 overflow-y-auto " + (currentPage === "editor" ? "pt-0 pb-0" : "pt-6 pb-24")}>
-        <AnimatePresence mode="wait">{renderPage()}</AnimatePresence>
+        <Suspense fallback={<div className="flex items-center justify-center py-20"><div className="w-6 h-6 border-2 border-emerald border-t-transparent rounded-full animate-spin" /></div>}>
+          <AnimatePresence mode="wait">{renderPage()}</AnimatePresence>
+        </Suspense>
       </main>
 
       {/* 浮动按钮 — 放在 <main> 外，不受页面过渡动画影响 */}
@@ -285,6 +304,10 @@ export default function App() {
         {lastUnlocked && (
           <UnlockModal achievement={lastUnlocked} onDismiss={dismissLastUnlocked}
             onViewAll={() => { dismissLastUnlocked(); setCurrentPage("gallery"); }} />
+        )}
+        {lastUnlockedBatch && (
+          <AchievementBatchModal achievements={lastUnlockedBatch} onDismiss={dismissBatch}
+            onViewAll={() => { dismissBatch(); setCurrentPage("gallery"); }} />
         )}
       </AnimatePresence>
       <ToastContainer />

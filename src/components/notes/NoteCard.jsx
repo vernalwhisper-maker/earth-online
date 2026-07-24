@@ -2,6 +2,7 @@
 import { Pin, Bell, FileText, CheckSquare, Award, StickyNote } from "lucide-react";
 import { NOTE_TYPES } from "../../data/noteTypes";
 import useTodoStore from "../../store/todoStore";
+import { renderLinks } from "../../utils/linkDetect";
 
 function getRelativeTime(dateStr) {
   if (!dateStr) return "";
@@ -73,7 +74,7 @@ export default function NoteCard({ note, onClick }) {
       </h3>
 
       {note.body && !isTodo && (
-        <p className="text-sm text-warm-steel line-clamp-1 mb-3">{note.body}</p>
+        <p className="text-sm text-warm-steel line-clamp-1 mb-3" dangerouslySetInnerHTML={{ __html: renderLinks(note.body) }} />
       )}
 
       {/* Todo progress bar */}

@@ -35,6 +35,9 @@ const useTodoStore = create((set, get) => ({
   },
 
   loadByNoteId: async (noteId) => {
+    // 内存已有则直接返回
+    const existing = get().byNoteId[noteId];
+    if (existing) return existing;
     const items = await getTodosByNoteId(noteId);
     set((state) => ({
       byNoteId: { ...state.byNoteId, [noteId]: items },

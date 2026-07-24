@@ -15,9 +15,10 @@ import DebugPage from "./subpages/DebugPage";
 import TagBarDebugPage from "./subpages/TagBarDebugPage";
 import NavBarDebugPage from "./subpages/NavBarDebugPage";
 import FABDebugPage from "./subpages/FABDebugPage";
+import DebugAchievementsPage from "./subpages/DebugAchievementsPage";
 
 export default function SettingsPage({ settingsSubPage, onSubPageChange }) {
-  const { loaded, darkMode, setDarkMode } = useSettingsStore();
+  const { loaded, darkMode, setDarkMode, cardExpandAnim, setCardExpandAnim } = useSettingsStore();
   const loadNotes = useNoteStore((s) => s.loadNotes);
 
   // 子页面变化时通知父组件
@@ -97,6 +98,7 @@ export default function SettingsPage({ settingsSubPage, onSubPageChange }) {
   if (settingsSubPage === "debug-tagbar") return <TagBarDebugPage onBack={(action) => onSubPageChange?.(action === "more" ? "more" : null)} />;
   if (settingsSubPage === "debug-navbar") return <NavBarDebugPage onBack={(action) => onSubPageChange?.(action === "more" ? "more" : null)} />;
   if (settingsSubPage === "debug-fab") return <FABDebugPage onBack={(action) => onSubPageChange?.(action === "more" ? "more" : null)} />;
+  if (settingsSubPage === "debug-achievements") return <DebugAchievementsPage onBack={() => onSubPageChange?.("debug")} />;
 
   if (!loaded) {
     return (
@@ -150,12 +152,38 @@ export default function SettingsPage({ settingsSubPage, onSubPageChange }) {
             <h2 className="text-xs font-mono uppercase tracking-wider text-faded-slate">{"显示设置"}</h2>
           </div>
         </div>
+        <div className="mt-3 space-y-2">
+          {/* 三态深色模式选择器 */}
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-deep-ink">深色模式</span>
+          </div>
+          <div className="flex gap-2">
+            {[
+              { value: "light", label: "浅色" },
+              { value: "system", label: "跟随系统" },
+              { value: "dark", label: "深色" },
+            ].map((opt) => (
+              <button key={opt.value} onClick={() => setDarkMode(opt.value)}
+                className={"flex-1 py-2 text-xs font-medium rounded-btn transition-colors " +
+                  (darkMode === opt.value
+                    ? "bg-emerald text-white shadow-sm"
+                    : "bg-scribe/20 text-warm-steel hover:bg-scribe/40")}>
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 试点：卡片展开动画 */}
         <div className="mt-3 flex items-center justify-between">
-          <span className="text-sm text-deep-ink">{"深色模式"}</span>
+          <div>
+            <span className="text-sm text-deep-ink">卡片展开动画</span>
+            <p className="text-[11px] text-warm-steel mt-0.5">打开笔记时从卡片放大的过渡效果（试点）</p>
+          </div>
           <GlassSwitch
-            value={darkMode}
-            onChange={setDarkMode}
-            ariaLabel="深色模式"
+            value={cardExpandAnim}
+            onChange={setCardExpandAnim}
+            ariaLabel="卡片展开动画"
           />
         </div>
       </section>

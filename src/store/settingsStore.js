@@ -9,9 +9,11 @@ const useSettingsStore = create((set, get) => ({
   apiKey: "",
   inference: { ...defaultInference },
   tabBarOpacity: 40,
-  darkMode: false,
+  /** 深色模式: "light" | "dark" | "system" */
+  darkMode: "system",
   showAIAssistant: true,
   reduceMotion: false,
+  cardExpandAnim: false,
   useMirror: false,
   loaded: false,
 
@@ -49,9 +51,14 @@ const useSettingsStore = create((set, get) => ({
       ? Object.assign({}, defaultInference, inferenceRaw)
       : Object.assign({}, defaultInference);
     const tabBarOpacity = (await getSetting("tabBarOpacity")) ?? 40;
-    const darkMode = (await getSetting("darkMode")) ?? false;
+    const rawDark = await getSetting("darkMode");
+    // 兼容旧版 boolean 值
+    let darkMode = rawDark;
+    if (typeof rawDark === "boolean") darkMode = rawDark ? "dark" : "light";
+    else if (!rawDark) darkMode = "system";
     const showAIAssistant = (await getSetting("showAIAssistant")) ?? true;
     const reduceMotion = (await getSetting("reduceMotion")) ?? false;
+    const cardExpandAnim = (await getSetting("cardExpandAnim")) ?? false;
     const useMirror = (await getSetting("useMirror")) ?? false;
     const useMode = (await getSetting("useMode")) || "online";
     const localEndpoint = (await getSetting("localEndpoint")) || "";
@@ -63,7 +70,7 @@ const useSettingsStore = create((set, get) => ({
     const debugTagBarEnabled = (await getSetting("debugTagBarEnabled")) ?? false;
     const debugNavBarEnabled = (await getSetting("debugNavBarEnabled")) ?? false;
     const debugFabGlassEnabled = (await getSetting("debugFabGlassEnabled")) ?? false;
-    set({ modelProvider: provider, apiKey, inference, tabBarOpacity, darkMode, showAIAssistant, reduceMotion,
+    set({ modelProvider: provider, apiKey, inference, tabBarOpacity, darkMode: darkMode, showAIAssistant, reduceMotion, cardExpandAnim,
       useMirror,
       useMode, localEndpoint, localModel, webllmModel, webllmDownloaded,
       advancedDebug, debugFABEnabled, debugTagBarEnabled, debugNavBarEnabled, debugFabGlassEnabled,
@@ -96,6 +103,7 @@ const useSettingsStore = create((set, get) => ({
     await setSetting("inference", def);
     set({ inference: def });
   },
+
   setDarkMode: async (value) => {
     await setSetting("darkMode", value);
     set({ darkMode: value });
@@ -114,6 +122,11 @@ const useSettingsStore = create((set, get) => ({
   setReduceMotion: async (value) => {
     await setSetting("reduceMotion", value);
     set({ reduceMotion: value });
+  },
+
+  setCardExpandAnim: async (value) => {
+    await setSetting("cardExpandAnim", value);
+    set({ cardExpandAnim: value });
   },
 
   setUseMirror: async (value) => {

@@ -80,6 +80,21 @@ export default function DebugPage({ onBack }) {
         <Bug size={22} />表/类/夹调试
       </h1>
 
+      {/* 成就调试入口 */}
+      <button onClick={() => onBack?.("debug-achievements")}
+        className="w-full flex items-center justify-between px-4 py-3 mb-4 rounded-btn bg-surface border border-scribe hover:bg-canvas-warm transition-colors">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center">
+            <span className="text-amber-500 text-lg">🏆</span>
+          </div>
+          <div className="text-left">
+            <span className="text-sm font-medium text-deep-ink">成就调试</span>
+            <p className="text-[11px] text-warm-steel">查看/解锁/测试成就匹配</p>
+          </div>
+        </div>
+        <span className="text-xs text-faded-slate">进入 →</span>
+      </button>
+
       {/* 实时预览 */}
       <section className="bg-surface rounded-card border border-scribe p-4 mb-4 overflow-hidden">
         <h2 className="text-xs font-mono uppercase tracking-wider text-faded-slate mb-4">实时预览</h2>

@@ -25,7 +25,12 @@ const useNoteStore = create((set, get) => ({
     set({ deletedNotes });
   },
 
-  getNoteById: async (id) => {
+  getNoteById: (id) => {
+    const state = get();
+    // 优先从内存查找
+    const cached = state.notes.find((n) => n.id === id);
+    if (cached) return Promise.resolve(cached);
+    // 回退到 IndexedDB
     return getNote(id);
   },
 
@@ -43,6 +48,9 @@ const useNoteStore = create((set, get) => ({
     } else {
       updated = state.notes;
     }
+    // 更新时同步内存
+    const noteMap = {};
+    for (const n of updated) noteMap[n.id] = n;
     updated.sort((a, b) => {
       if (a.isPinned && !b.isPinned) return -1;
       if (!a.isPinned && b.isPinned) return 1;

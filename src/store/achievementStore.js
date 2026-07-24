@@ -26,6 +26,10 @@ const useAchievementStore = create((set, get) => ({
   })),
   unlockedMap: {},
   lastUnlocked: null,
+  /** 批量解锁队列（用于依次弹出） */
+  unlockQueue: [],
+  /** 当前在队列中的索引 */
+  unlockIndex: 0,
 
   loadState() {
     const unlockedMap = loadUnlocked();
@@ -53,7 +57,74 @@ const useAchievementStore = create((set, get) => ({
     return achievement;
   },
 
-  dismissLastUnlocked() { set({ lastUnlocked: null }); },
+  /**
+   * 批量解锁成就。
+   * < 5 个：放入 unlockQueue 逐个弹出；
+   * >= 5 个：直接设置 lastUnlockedBatch 展示批量页面。
+   */
+  batchUnlock(ids, noteId) {
+    const state = get();
+    const now = new Date().toISOString();
+    const newMap = { ...state.unlockedMap };
+    let changed = false;
+    const newlyUnlocked = [];
+
+    for (const id of ids) {
+      if (newMap[id]) continue;
+      newMap[id] = { unlocked_at: now, triggered_by: [noteId] };
+      newlyUnlocked.push(id);
+      changed = true;
+    }
+    if (!changed) return;
+
+    saveUnlocked(newMap);
+    const updated = state.achievements.map((a) => {
+      if (newlyUnlocked.includes(a.id)) {
+        return { ...a, unlocked: true, unlocked_at: now, triggered_by: [noteId] };
+      }
+      return a;
+    });
+
+    const unlockObjs = updated.filter((a) => newlyUnlocked.includes(a.id));
+
+    if (newlyUnlocked.length < 5) {
+      // 逐个弹出
+      set({
+        achievements: updated,
+        unlockedMap: newMap,
+        unlockQueue: unlockObjs,
+        unlockIndex: 0,
+        lastUnlocked: unlockObjs[0] || null,
+        lastUnlockedBatch: null,
+      });
+    } else {
+      // 批量页面展示
+      set({
+        achievements: updated,
+        unlockedMap: newMap,
+        unlockQueue: [],
+        unlockIndex: 0,
+        lastUnlocked: null,
+        lastUnlockedBatch: unlockObjs,
+      });
+    }
+  },
+
+  /** 关闭当前成就弹窗，如果队列中还有下一个则展示下一个 */
+  dismissUnlock() {
+    const state = get();
+    const { unlockQueue, unlockIndex } = state;
+    if (unlockQueue.length > 0 && unlockIndex + 1 < unlockQueue.length) {
+      const nextIdx = unlockIndex + 1;
+      set({ lastUnlocked: unlockQueue[nextIdx], unlockIndex: nextIdx });
+    } else {
+      set({ lastUnlocked: null, unlockQueue: [], unlockIndex: 0, lastUnlockedBatch: null });
+    }
+  },
+
+  dismissLastUnlocked() { this.dismissUnlock(); },
+
+  dismissBatch() { set({ lastUnlockedBatch: null }); },
 
   getUnlockedCount() {
     return Object.keys(get().unlockedMap).length;
