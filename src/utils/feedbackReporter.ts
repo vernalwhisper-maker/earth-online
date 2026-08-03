@@ -57,9 +57,9 @@ function getOSVersion(): string {
 /** 获取 APP 版本 */
 function getAppVersion(): string {
   try {
-    return (window as any).Capacitor?.getPlatform?.() ? "1.2.1" : "web";
+    return (window as any).__APP_VERSION__ || "1.0.0";
   } catch {
-    return "web";
+    return "1.0.0";
   }
 }
 

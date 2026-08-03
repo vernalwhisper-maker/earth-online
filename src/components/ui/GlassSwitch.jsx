@@ -13,7 +13,7 @@ export default function GlassSwitch({ value, onChange, id, ariaLabel }) {
       aria-checked={value}
       aria-label={ariaLabel || "切换"}
       onClick={() => onChange(!value)}
-      className="relative w-11 h-6 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-emerald/50 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-[#2a2a2a] cursor-pointer group shrink-0"
+      className="relative w-11 h-6 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-emerald/50 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-[#232e3c] cursor-pointer group shrink-0"
     >
       {/* ============================================ */}
       {/* Glass Track — 毛玻璃轨道                     */}
@@ -24,10 +24,10 @@ export default function GlassSwitch({ value, onChange, id, ariaLabel }) {
         className="absolute inset-0 rounded-full overflow-hidden transition-all duration-[400ms]"
         style={{
           background: value
-            ? "linear-gradient(135deg, rgba(16,185,129,0.92), rgba(5,150,105,0.82))"
+            ? "linear-gradient(135deg, rgba(51,144,236,0.92), rgba(43,127,212,0.82))"
             : "linear-gradient(135deg, rgba(200,199,194,0.5), rgba(180,179,174,0.3))",
           boxShadow: value
-            ? "inset 0 1px 3px rgba(0,0,0,0.1), 0 0 14px rgba(16,185,129,0.18)"
+            ? "inset 0 1px 3px rgba(0,0,0,0.1), 0 0 14px rgba(51,144,236,0.18)"
             : "inset 0 1px 2px rgba(0,0,0,0.06)",
         }}
       >
@@ -89,7 +89,7 @@ export default function GlassSwitch({ value, onChange, id, ariaLabel }) {
           animate={{ opacity: value ? 1 : 0 }}
           transition={{ duration: 0.3 }}
           style={{
-            background: "radial-gradient(circle at 40% 35%, rgba(16,185,129,0.08), transparent 70%)",
+            background: "radial-gradient(circle at 40% 35%, rgba(51,144,236,0.08), transparent 70%)",
           }}
         />
       </motion.div>
@@ -101,7 +101,7 @@ export default function GlassSwitch({ value, onChange, id, ariaLabel }) {
         className="absolute -inset-1.5 rounded-full transition-all duration-200 opacity-0 group-hover:opacity-100"
         style={{
           background: value
-            ? "radial-gradient(circle, rgba(16,185,129,0.06), transparent 70%)"
+            ? "radial-gradient(circle, rgba(51,144,236,0.06), transparent 70%)"
             : "radial-gradient(circle, rgba(0,0,0,0.03), transparent 70%)",
         }}
       />

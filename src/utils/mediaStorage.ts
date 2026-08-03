@@ -1,6 +1,6 @@
 // 媒体文件存储工具
 // 三环境适配：开发服务器(localhost) / 网页端(部署) / 安卓端(APK)
-// - Capacitor 环境：文件写入原生文件系统（Documents），返回 file:// URI
+// - Capacitor 环境：文件写入原生文件系统，用 convertFileSrc 转换为 WebView 可加载 URL
 // - 浏览器环境：使用 Blob URL 临时引用 + 压缩图片
 
 import { Filesystem, Directory } from "@capacitor/filesystem";
@@ -12,6 +12,17 @@ function isCapacitor() {
   } catch {
     return false;
   }
+}
+
+/** 转换 Capacitor 文件路径为 WebView 可加载 URL */
+function toWebViewUrl(filePath: string): string {
+  try {
+    const cap = (window as any).Capacitor;
+    if (cap?.convertFileSrc) {
+      return cap.convertFileSrc(filePath);
+    }
+  } catch {}
+  return filePath;
 }
 
 /** 压缩图片：限制最大宽高，保持宽高比 */
@@ -64,10 +75,15 @@ export async function storeMediaFile(file: File): Promise<{
     const result = await Filesystem.writeFile({
       path: `earth-online/media/${fileName}`,
       data: base64,
-      directory: Directory.Documents,
+      directory: Directory.Data,
       recursive: true,
     });
-    const uri = result.uri;
+    // getUri 获取 content:// 格式 URI（WebView 可加载）
+    const uriResult = await Filesystem.getUri({
+      path: `earth-online/media/${fileName}`,
+      directory: Directory.Data,
+    });
+    const uri = toWebViewUrl(uriResult.uri);
     if (isImage) {
       return {
         uri,
@@ -86,29 +102,40 @@ export async function storeMediaFile(file: File): Promise<{
     };
   }
 
-  // === 浏览器端：用 Blob URL（临时）+ 压缩图片 ===
+  // === 浏览器端：转 Data URL（base64）持久化，避免 Blob URL 刷新失效 ===
   let blob: Blob = file;
   if (isImage) {
     try { blob = await compressImage(file); } catch { blob = file; }
   }
-  const url = URL.createObjectURL(blob);
+  // Data URL 可写入 IndexedDB / 导出文件，重启后依然有效（Blob URL 会随会话失效）
+  const dataUrl = await blobToDataURL(blob);
 
   if (isImage) {
     return {
-      uri: url,
-      markdown: `![${file.name}](${url})`,
-      html: `<img src="${url}" alt="${file.name}" style="max-width:100%;border-radius:8px;" />`,
+      uri: dataUrl,
+      markdown: `![${file.name}](${dataUrl})`,
+      html: `<img src="${dataUrl}" alt="${file.name}" style="max-width:100%;border-radius:8px;" />`,
       isImage: true,
       fileName,
     };
   }
   return {
-    uri: url,
-    markdown: `[音频: ${file.name}](${url})`,
-    html: `<audio controls src="${url}" style="width:100%;max-width:400px;border-radius:8px;"></audio>`,
+    uri: dataUrl,
+    markdown: `[音频: ${file.name}](${dataUrl})`,
+    html: `<audio controls src="${dataUrl}" style="width:100%;max-width:400px;border-radius:8px;"></audio>`,
     isImage: false,
     fileName,
   };
+}
+
+/** Blob → Data URL（base64，可持久化） */
+async function blobToDataURL(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(new Error("文件读取失败"));
+    reader.readAsDataURL(blob);
+  });
 }
 
 /** File → Base64（不带 data: 前缀） */

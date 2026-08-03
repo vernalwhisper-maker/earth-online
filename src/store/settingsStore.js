@@ -12,6 +12,8 @@ const useSettingsStore = create((set, get) => ({
   /** 深色模式: "light" | "dark" | "system" */
   darkMode: "system",
   showAIAssistant: true,
+  // DeepSeek V4 思考模式开关（默认关闭，保证响应速度；开启后质量更高）
+  deepThinking: false,
   reduceMotion: false,
   cardExpandAnim: false,
   useMirror: false,
@@ -58,6 +60,7 @@ const useSettingsStore = create((set, get) => ({
     if (typeof rawDark === "boolean") darkMode = rawDark ? "dark" : "light";
     else if (!rawDark) darkMode = "system";
     const showAIAssistant = (await getSetting("showAIAssistant")) ?? true;
+    const deepThinking = (await getSetting("deepThinking")) ?? false;
     const reduceMotion = (await getSetting("reduceMotion")) ?? false;
     const cardExpandAnim = (await getSetting("cardExpandAnim")) ?? false;
     const useMirror = (await getSetting("useMirror")) ?? false;
@@ -72,7 +75,7 @@ const useSettingsStore = create((set, get) => ({
     const debugNavBarEnabled = (await getSetting("debugNavBarEnabled")) ?? false;
     const debugFabGlassEnabled = (await getSetting("debugFabGlassEnabled")) ?? false;
     const windowDebugEnabled = (await getSetting("windowDebugEnabled")) ?? false;
-    set({ modelProvider: provider, apiKey, inference, tabBarOpacity, darkMode: darkMode, showAIAssistant, reduceMotion, cardExpandAnim,
+    set({ modelProvider: provider, apiKey, inference, tabBarOpacity, darkMode: darkMode, showAIAssistant, deepThinking, reduceMotion, cardExpandAnim,
       useMirror,
       useMode, localEndpoint, localModel, webllmModel, webllmDownloaded,
       advancedDebug, debugFABEnabled, debugTagBarEnabled, debugNavBarEnabled, debugFabGlassEnabled, windowDebugEnabled,
@@ -128,6 +131,11 @@ const useSettingsStore = create((set, get) => ({
   setShowAIAssistant: async (value) => {
     await setSetting("showAIAssistant", value);
     set({ showAIAssistant: value });
+  },
+
+  setDeepThinking: async (value) => {
+    await setSetting("deepThinking", value);
+    set({ deepThinking: value });
   },
 
   setReduceMotion: async (value) => {

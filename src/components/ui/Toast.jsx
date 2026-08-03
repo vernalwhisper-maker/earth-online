@@ -9,7 +9,7 @@ const ICONS = {
 };
 
 const TYPE_COLORS = {
-  success: "#10b981",
+  success: "#4fae4e",
   error: "#e11d48",
   info: "#787775",
 };

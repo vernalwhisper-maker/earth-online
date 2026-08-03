@@ -28,6 +28,15 @@ const TYPE_ICONS = {
   flashcard: StickyNote,
 };
 
+// Telegram 风格头像渐变（按笔记类型映射，保持稳定配色）
+const AVATAR_GRADIENTS = {
+  journal: "linear-gradient(135deg, #6cb7f4 0%, #3390ec 100%)",
+  todo: "linear-gradient(135deg, #7ed27c 0%, #4fae4e 100%)",
+  milestone: "linear-gradient(135deg, #f7c66b 0%, #f59e0b 100%)",
+  flashcard: "linear-gradient(135deg, #b39af5 0%, #8b5cf6 100%)",
+};
+const DEFAULT_GRADIENT = "linear-gradient(135deg, #6cb7f4 0%, #3390ec 100%)";
+
 export default function NoteCard({ note, onClick }) {
   const typeDef = NOTE_TYPES[note.noteType] || NOTE_TYPES.journal;
   const TypeIcon = TYPE_ICONS[note.noteType] || FileText;
@@ -39,69 +48,76 @@ export default function NoteCard({ note, onClick }) {
   const todoList = byNote || [];
   const todoStats = { total: todoList.length, completed: todoList.filter((i) => i.isCompleted).length };
 
+  const title = note.title || "无标题";
+  // 摘要：markdown 笔记用 contentMarkdown，普通笔记用 body
+  const snippet = note.contentMarkdown
+    ? (note.contentMarkdown || "").replace(/[#>*`\-\[\]()!]/g, "").replace(/\s+/g, " ").slice(0, 60)
+    : (note.body || "").slice(0, 60);
+  const avatarChar = (title.trim()[0] || "记").toUpperCase();
+  const avatarBg = AVATAR_GRADIENTS[note.noteType] || DEFAULT_GRADIENT;
+
   return (
     <motion.button
       layout
       onClick={onClick}
       whileTap={{ scale: 0.97 }}
       transition={{ type: "spring", stiffness: 400, damping: 17 }}
-      className="w-full bg-surface border border-scribe rounded-card p-4 text-left relative overflow-hidden"
+      className="w-full flex items-center gap-3 px-3 py-3 rounded-card text-left relative active:bg-group transition-colors duration-100 select-none"
     >
-      {note.isPinned && (
-        <div className="absolute top-0 right-0 w-12 h-12">
-          <div className="absolute top-2 right-2 text-emerald"><Pin size={14} fill="currentColor" /></div>
-        </div>
-      )}
-
-      <div className="flex items-center gap-1.5 mb-1.5">
-        <span className={"inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[0.6875rem] font-medium " + typeDef.textColor + " bg-white/80"}>
-          <TypeIcon size={10} />{typeDef.label}
-        </span>
-        {note.contentMarkdown && (
-          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[0.6875rem] font-medium bg-emerald/10 text-emerald">
-            MD
-          </span>
-        )}
-        {note.bgPattern && note.bgPattern !== "solid" && (
-          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[0.6875rem] font-medium bg-violet-500/10 text-violet-500">
-            {note.bgPattern === "grid" ? "▦" : note.bgPattern === "dot" ? "‥" : "≡"}
-          </span>
-        )}
+      {/* TG 风格头像：首字圆标 + 类型渐变 */}
+      <div
+        className="w-12 h-12 rounded-full flex items-center justify-center text-white text-lg font-semibold shrink-0 shadow-sm"
+        style={{ background: avatarBg }}
+        aria-hidden
+      >
+        {avatarChar}
       </div>
 
-      <h3 className="text-base font-semibold text-deep-ink line-clamp-2 mb-1 pr-6">
-        {note.title || "无标题"}
-      </h3>
-
-      {note.body && !isTodo && (
-        <p className="text-sm text-warm-steel line-clamp-1 mb-3" dangerouslySetInnerHTML={{ __html: renderLinks(note.body) }} />
-      )}
-
-      {/* Todo progress bar */}
-      {isTodo && todoStats.total > 0 && (
-        <div className="flex items-center gap-2 mb-2">
-          <div className="flex-1 h-1.5 bg-scribe/30 rounded-full overflow-hidden">
-            <motion.div
-              className="h-full bg-emerald rounded-full"
-              initial={{ width: 0 }}
-              animate={{ width: Math.round((todoStats.completed / todoStats.total) * 100) + "%" }}
-              transition={{ type: "spring", stiffness: 100, damping: 20 }}
-            />
-          </div>
-          <span className="text-[0.65rem] font-mono text-faded-slate">{todoStats.completed}/{todoStats.total}</span>
+      {/* 内容区 */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="text-[0.9375rem] font-medium text-deep-ink truncate">
+            {title}
+            {note.isPinned && <Pin size={12} className="inline ml-1.5 text-emerald -mt-0.5" fill="currentColor" />}
+          </h3>
+          <span className="text-xs text-faded-slate shrink-0">{getRelativeTime(note.updated_at)}</span>
         </div>
-      )}
 
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-mono text-faded-slate">{getRelativeTime(note.updated_at)}</span>
-          {hasReminder && <span className="text-faded-slate" title="设有提醒"><Bell size={10} /></span>}
+        <div className="flex items-center gap-2 mt-0.5">
+          {/* 摘要 / 待办进度 */}
+          {isTodo && todoStats.total > 0 ? (
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <div className="flex-1 h-1 bg-scribe/40 rounded-full overflow-hidden">
+                <motion.div
+                  className="h-full bg-emerald rounded-full"
+                  initial={{ width: 0 }}
+                  animate={{ width: Math.round((todoStats.completed / todoStats.total) * 100) + "%" }}
+                  transition={{ type: "spring", stiffness: 100, damping: 20 }}
+                />
+              </div>
+              <span className="text-[0.6875rem] font-mono text-faded-slate shrink-0">{todoStats.completed}/{todoStats.total}</span>
+            </div>
+          ) : (
+            <p className="text-[0.8125rem] text-warm-steel truncate flex-1 min-w-0">
+              {snippet ? renderLinks(snippet) : typeDef.label}
+            </p>
+          )}
+          {/* 类型图标 + 提醒 */}
+          <TypeIcon size={13} className="text-faded-slate shrink-0" />
+          {hasReminder && <Bell size={12} className="text-faded-slate shrink-0" />}
         </div>
+
+        {/* 右下角标签（最多 2 个 + 剩余计数） */}
         {(note.tags || []).length > 0 && (
-          <div className="flex gap-1.5">
+          <div className="flex items-center gap-1.5 mt-1.5 justify-end flex-wrap">
             {note.tags.slice(0, 2).map((tag) => (
-              <span key={tag} className="px-1.5 py-0.5 text-[0.6875rem] font-medium bg-scribe/30 text-warm-steel rounded">{tag}</span>
+              <span key={tag} className="px-1.5 py-0.5 text-[0.625rem] font-medium bg-scribe/40 text-warm-steel rounded-md max-w-[80px] truncate">
+                {tag}
+              </span>
             ))}
+            {note.tags.length > 2 && (
+              <span className="px-1 py-0.5 text-[0.625rem] font-medium text-faded-slate">+{note.tags.length - 2}</span>
+            )}
           </div>
         )}
       </div>

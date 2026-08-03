@@ -1,72 +1,52 @@
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { Sparkles, X } from "lucide-react";
 import { getRarityLevel, getIconFilename } from "../../data/achievements";
 
-const overlay = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { duration: 0.25 } },
-  exit: { opacity: 0, transition: { duration: 0.15 } },
-};
-
-const sheet = {
-  hidden: { y: "100%", opacity: 0 },
-  visible: {
-    y: 0, opacity: 1,
-    transition: { type: "spring", stiffness: 200, damping: 22, mass: 0.8 },
-  },
-  exit: {
-    y: "100%", opacity: 0,
-    transition: { type: "spring", stiffness: 300, damping: 25, mass: 0.8 },
-  },
-};
-
-const stagger = {
-  hidden: {},
-  visible: { transition: { staggerChildren: 0.03, delayChildren: 0.2 } },
-};
-
-const fadeUp = {
-  hidden: { opacity: 0, y: 12 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.2 } },
-};
-
-export default function AchievementBatchModal({ achievements, onDismiss, onViewAll }) {
+/**
+ * 批量成就解锁弹窗。
+ * - 根元素透传 motion props（由外层 motion.create(Component) + AnimatePresence 控制
+ *   整体淡入淡出与退出卸载）
+ * - 内部动画全部显式 initial/animate（不依赖 variants 传播），按钮始终可点
+ */
+export default function AchievementBatchModal({ achievements, onDismiss, onViewAll, ...motionProps }) {
   if (!achievements || achievements.length === 0) return null;
 
   return (
     <motion.div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
-      variants={overlay}
-      initial="hidden"
-      animate="visible"
-      exit="exit"
+      {...motionProps}
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center pointer-events-auto"
     >
       {/* Backdrop */}
-      <motion.div
-        className="absolute inset-0 bg-deep-ink/60"
+      <div
+        className="absolute inset-0 bg-deep-ink/60 pointer-events-auto"
         onClick={onDismiss}
       />
 
-      {/* Sheet */}
+      {/* Sheet — 自下而上滑入 */}
       <motion.div
-        className="relative bg-surface rounded-[1.5rem] w-full max-w-[420px] mx-4 p-6 shadow-soft flex flex-col items-center gap-4 sm:mb-0 max-h-[80vh]"
-        variants={sheet}
-        initial="hidden"
-        animate="visible"
-        exit="exit"
+        className="relative bg-surface rounded-[1.5rem] w-full max-w-[420px] mx-4 p-6 shadow-soft flex flex-col items-center gap-4 sm:mb-0 max-h-[80vh] pointer-events-auto"
+        initial={{ y: "100%", opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        exit={{ y: "100%", opacity: 0 }}
+        transition={{ type: "spring", stiffness: 200, damping: 22, mass: 0.8 }}
       >
         {/* Close button */}
         <motion.button
           onClick={onDismiss}
           whileTap={{ scale: 0.85 }}
           transition={{ type: "spring", stiffness: 400, damping: 15 }}
-          className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full hover:bg-canvas-warm"
+          className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full hover:bg-canvas-warm pointer-events-auto"
         >
           <X size={18} className="text-warm-steel" />
         </motion.button>
 
         {/* Header */}
-        <motion.div variants={fadeUp} initial="hidden" animate="visible" className="flex flex-col items-center gap-2 mt-2">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.2, delay: 0.15 }}
+          className="flex flex-col items-center gap-2 mt-2"
+        >
           <Sparkles size={24} className="text-emerald" />
           <span className="text-[0.75rem] font-bold uppercase tracking-[0.08em] text-emerald">
             成就解锁!
@@ -78,24 +58,26 @@ export default function AchievementBatchModal({ achievements, onDismiss, onViewA
 
         {/* Achievement grid */}
         <motion.div
-          variants={stagger}
-          initial="hidden"
-          animate="visible"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.2, delay: 0.2 }}
           className="w-full flex-1 overflow-y-auto grid grid-cols-3 gap-3 py-2 px-1 scrollbar-none"
         >
-          {achievements.map((a) => {
+          {achievements.map((a, i) => {
             const rarity = getRarityLevel(a.rarity);
             const iconFile = getIconFilename(a.id);
             const isRare = a.rarity < 10;
             return (
               <motion.div
                 key={a.id}
-                variants={fadeUp}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.2, delay: 0.2 + i * 0.05 }}
                 className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-canvas-warm transition-colors"
               >
                 <div
                   className={`w-[52px] h-[52px] rounded-[1rem] overflow-hidden border-2 border-emerald/60 ${
-                    isRare ? "shadow-[0_0_16px_rgba(16,185,129,0.25)]" : ""
+                    isRare ? "shadow-[0_0_16px_rgba(51,144,236,0.25)]" : ""
                   }`}
                 >
                   <img
@@ -116,24 +98,21 @@ export default function AchievementBatchModal({ achievements, onDismiss, onViewA
         </motion.div>
 
         {/* Buttons */}
-        <div className="w-full flex flex-col gap-2 pt-1">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.2, delay: 0.3 }}
+          className="w-full flex flex-col gap-2 pt-1"
+        >
           <motion.button
             onClick={onDismiss}
             whileTap={{ scale: 0.97 }}
             transition={{ type: "spring", stiffness: 400, damping: 17 }}
-            className="w-full py-2.5 bg-emerald text-white rounded-btn text-sm font-medium hover:bg-emerald-dark"
+            className="w-full py-2.5 bg-emerald text-white rounded-btn text-sm font-medium hover:bg-emerald-dark pointer-events-auto"
           >
             继续记录
           </motion.button>
-          <motion.button
-            onClick={onViewAll}
-            whileTap={{ scale: 0.97 }}
-            transition={{ type: "spring", stiffness: 400, damping: 17 }}
-            className="w-full py-2.5 border border-scribe text-warm-steel rounded-btn text-sm font-medium hover:bg-canvas-warm"
-          >
-            查看全部成就
-          </motion.button>
-        </div>
+        </motion.div>
       </motion.div>
 
       {/* Confetti */}
@@ -143,13 +122,13 @@ export default function AchievementBatchModal({ achievements, onDismiss, onViewA
 }
 
 function Confetti() {
-  const colors = ["#10b981", "#f59e0b", "#8b5cf6", "#3b82f6", "#e11d48", "#ec4899", "#14b8a6"];
+  const colors = ["#3390ec", "#f59e0b", "#8b5cf6", "#3b82f6", "#e11d48", "#ec4899", "#14b8a6"];
   return (
-    <div className="absolute inset-0 pointer-events-none overflow-hidden">
+    <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden>
       {Array.from({ length: 40 }).map((_, i) => (
         <motion.div
           key={i}
-          className="absolute w-2 h-2 rounded-full"
+          className="absolute w-2 h-2 rounded-full pointer-events-none"
           style={{
             backgroundColor: colors[i % colors.length],
             left: `${5 + Math.random() * 90}%`,

@@ -48,7 +48,7 @@ function StarryParticles() {
 function FloatGeo() {
   const shapes = useMemo(() => {
     const items = [];
-    const colors = ["#10b981", "#8b5cf6", "#f59e0b", "#3b82f6", "#e11d48"];
+    const colors = ["#3390ec", "#8b5cf6", "#f59e0b", "#3b82f6", "#e11d48"];
     for (let i = 0; i < 12; i++) {
       items.push({
         id: i,

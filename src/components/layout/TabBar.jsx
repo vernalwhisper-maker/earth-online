@@ -81,7 +81,7 @@ function NavOriginal({ isDark, glassBase, specularTop, currentPage, onNavigate,
           style={{ background: glassBase, backdropFilter: "blur(35px) saturate(200%)", WebkitBackdropFilter: "blur(35px) saturate(200%)" }} />
         <div className="absolute top-0 left-4 right-4 h-[1.5px]" style={{ background: specularTop }} />
         <div className="absolute bottom-0 left-6 right-6 h-[2px] rounded-full"
-          style={{ background: `linear-gradient(to right, transparent, rgba(16,185,129,${isDark ? 0.25 : 0.15}) 30%, rgba(16,185,129,${isDark ? 0.12 : 0.08}) 50%, rgba(16,185,129,${isDark ? 0.25 : 0.15}) 70%, transparent)` }} />
+          style={{ background: `linear-gradient(to right, transparent, rgba(51,144,236,${isDark ? 0.25 : 0.15}) 30%, rgba(51,144,236,${isDark ? 0.12 : 0.08}) 50%, rgba(51,144,236,${isDark ? 0.25 : 0.15}) 70%, transparent)` }} />
         <div className="absolute top-3 bottom-3 left-0 w-[1px] rounded-full"
           style={{ background: "linear-gradient(to bottom, transparent, rgba(255,255,255,0.3) 30%, rgba(255,255,255,0.1) 70%, transparent)" }} />
         <div className="absolute top-3 bottom-3 right-0 w-[1px] rounded-full"
@@ -134,7 +134,7 @@ function TabContent({ isDark, currentPage, onNavigate, editor, isSelectMode,
           </motion.button>
           <motion.div className="relative w-[46px] h-[42px] flex items-center justify-center mr-1">
             <motion.div layoutId="liquid-pill" className="absolute inset-1 rounded-full"
-              style={{ background: isDark ? "linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0.04))" : "linear-gradient(135deg, rgba(255,255,255,0.5), rgba(255,255,255,0.15))", boxShadow: isDark ? "inset 0 1px 2px rgba(255,255,255,0.15), 0 2px 12px rgba(16,185,129,0.2)" : "inset 0 1px 2px rgba(255,255,255,0.7), 0 2px 12px rgba(16,185,129,0.15)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)" }}
+              style={{ background: isDark ? "linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0.04))" : "linear-gradient(135deg, rgba(255,255,255,0.5), rgba(255,255,255,0.15))", boxShadow: isDark ? "inset 0 1px 2px rgba(255,255,255,0.15), 0 2px 12px rgba(51,144,236,0.2)" : "inset 0 1px 2px rgba(255,255,255,0.7), 0 2px 12px rgba(51,144,236,0.15)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)" }}
               initial={false} transition={springPill} />
             <span className="relative z-10 text-sm font-mono font-bold text-emerald">{editor.selectCount}</span>
           </motion.div>
@@ -165,12 +165,12 @@ function TabContent({ isDark, currentPage, onNavigate, editor, isSelectMode,
                 className="relative flex items-center justify-center py-2 flex-1 min-h-[46px]">
                 {isActive && (
                   <motion.div layoutId="liquid-pill" className="absolute inset-1 rounded-full"
-                    style={{ background: isDark ? "linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0.04))" : "linear-gradient(135deg, rgba(255,255,255,0.5), rgba(255,255,255,0.15))", boxShadow: isDark ? "inset 0 1px 2px rgba(255,255,255,0.15), 0 2px 12px rgba(16,185,129,0.2)" : "inset 0 1px 2px rgba(255,255,255,0.7), 0 2px 12px rgba(16,185,129,0.15)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)" }}
+                    style={{ background: isDark ? "linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0.04))" : "linear-gradient(135deg, rgba(255,255,255,0.5), rgba(255,255,255,0.15))", boxShadow: isDark ? "inset 0 1px 2px rgba(255,255,255,0.15), 0 2px 12px rgba(51,144,236,0.2)" : "inset 0 1px 2px rgba(255,255,255,0.7), 0 2px 12px rgba(51,144,236,0.15)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)" }}
                     initial={false} transition={springPill} />
                 )}
                 <div className="relative flex flex-col items-center gap-0.5 z-10">
                   <motion.div animate={isActive ? { scale: 1.12, y: -1 } : { scale: 1, y: 0 }} transition={springIcon} className="relative">
-                    <Icon size={20} className={isActive ? "text-emerald drop-shadow-[0_1px_3px_rgba(16,185,129,0.3)]" : "text-warm-steel/70"} />
+                    <Icon size={20} className={isActive ? "text-emerald drop-shadow-[0_1px_3px_rgba(51,144,236,0.3)]" : "text-warm-steel/70"} />
                     {showTodoBadge && (
                       <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} transition={springBadge}
                         className="absolute -top-2 -right-2.5 bg-blue-500 text-white text-[9px] font-mono font-bold rounded-full min-w-[15px] h-[15px] flex items-center justify-center px-0.5"
@@ -179,12 +179,12 @@ function TabContent({ isDark, currentPage, onNavigate, editor, isSelectMode,
                     {tab.key === "gallery" && unlockedCount > 0 && (
                       <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} transition={springBadge}
                         className="absolute -top-2 -right-2.5 bg-emerald text-white text-[9px] font-mono font-bold rounded-full min-w-[15px] h-[15px] flex items-center justify-center px-0.5"
-                        style={{ boxShadow: "0 1px 4px rgba(16,185,129,0.4)" }}>{unlockedCount}</motion.span>
+                        style={{ boxShadow: "0 1px 4px rgba(51,144,236,0.4)" }}>{unlockedCount}</motion.span>
                     )}
                   </motion.div>
                   <motion.span animate={isActive ? { scale: 1.05, y: 0 } : { scale: 1, y: 0 }} transition={springIcon}
                     className="text-[10px] font-semibold tracking-wide"
-                    style={{ color: isActive ? (isDark ? "#34d399" : "#059669") : (isDark ? "rgba(163,162,158,0.8)" : "rgba(107,106,103,0.7)") }}>{tab.label}</motion.span>
+                    style={{ color: isActive ? (isDark ? "#66b5f2" : "#2b7fd4") : (isDark ? "rgba(163,162,158,0.8)" : "rgba(107,106,103,0.7)") }}>{tab.label}</motion.span>
                 </div>
               </motion.button>
             );
@@ -230,8 +230,8 @@ export default function TabBar({ currentPage, onNavigate }) {
   const [showFolderPicker, setShowFolderPicker] = useState(false);
 
   const glassBase = isDark
-    ? `linear-gradient(135deg, rgba(30,30,30,${tabBarOpacity / 90}) 0%, rgba(16,185,129,${tabBarOpacity / 500}) 40%, rgba(30,30,30,${tabBarOpacity / 80}) 100%)`
-    : `linear-gradient(135deg, rgba(255,255,255,${tabBarOpacity / 100}) 0%, rgba(16,185,129,${tabBarOpacity / 600}) 40%, rgba(255,255,255,${tabBarOpacity / 150}) 100%)`;
+    ? `linear-gradient(135deg, rgba(30,30,30,${tabBarOpacity / 90}) 0%, rgba(51,144,236,${tabBarOpacity / 500}) 40%, rgba(30,30,30,${tabBarOpacity / 80}) 100%)`
+    : `linear-gradient(135deg, rgba(255,255,255,${tabBarOpacity / 100}) 0%, rgba(51,144,236,${tabBarOpacity / 600}) 40%, rgba(255,255,255,${tabBarOpacity / 150}) 100%)`;
 
   const glassConfirm = isDark
     ? "linear-gradient(135deg, rgba(40,20,20,0.95), rgba(30,10,10,0.92))"
@@ -240,6 +240,11 @@ export default function TabBar({ currentPage, onNavigate }) {
   const specularTop = isDark
     ? "linear-gradient(to right, transparent, rgba(255,255,255,0.15) 15%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.15) 85%, transparent)"
     : "linear-gradient(to right, transparent, rgba(255,255,255,0.95) 15%, rgba(255,255,255,0.5) 50%, rgba(255,255,255,0.95) 85%, transparent)";
+
+  // 统一磨砂弹窗视觉（与 GlassModal 一致）：深色深蓝灰 / 浅色白，深浅自适应边框
+  const modalBg = isDark ? "rgba(35,46,60,0.94)" : "rgba(255,255,255,0.92)";
+  const modalBorder = isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)";
+  const modalBorderInner = isDark ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.12)";
 
   const handleActionClick = (act) => {
     if (act.key === "tags") {
@@ -296,14 +301,14 @@ export default function TabBar({ currentPage, onNavigate }) {
               {/* 玻璃背景 */}
               <div className="absolute inset-0"
                 style={{
-                  background: glassConfirm,
+                  background: modalBg,
                   backdropFilter: `blur(${wp.blurPx}px) saturate(${wp.saturation})`,
                   WebkitBackdropFilter: `blur(${wp.blurPx}px) saturate(${wp.saturation})`,
                 }} />
               {/* 高光 */}
               <div className="absolute top-0 left-4 right-4 h-[1.5px]" style={{ background: specularTop }} />
-              <div className="absolute inset-0 rounded-[1.5rem] border" style={{ borderColor: `rgba(255,255,255,${wp.borderOpacity})` }} />
-              <div className="absolute inset-[1px] rounded-[1.5rem] border" style={{ borderColor: `rgba(255,255,255,${Math.min(wp.borderOpacity + 0.3, 0.9)})` }} />
+              <div className="absolute inset-0 rounded-[1.5rem] border" style={{ borderColor: modalBorder }} />
+              <div className="absolute inset-[1px] rounded-[1.5rem] border" style={{ borderColor: modalBorderInner }} />
 
               <div className="relative z-10 px-5 py-4 text-center">
                 <p className="text-sm font-semibold mb-3" style={{ color: isDark ? "#fca5a5" : "#dc2626" }}>
@@ -350,15 +355,13 @@ export default function TabBar({ currentPage, onNavigate }) {
             >
               <div className="absolute inset-0"
                 style={{
-                  background: isDark
-                    ? "linear-gradient(135deg, rgba(30,30,30,0.98), rgba(20,20,20,0.95))"
-                    : "linear-gradient(135deg, rgba(255,255,255,0.98), rgba(248,247,244,0.95))",
+                  background: modalBg,
                   backdropFilter: "blur(35px) saturate(200%)",
                   WebkitBackdropFilter: "blur(35px) saturate(200%)",
                 }} />
               <div className="absolute top-0 left-4 right-4 h-[1.5px]" style={{ background: specularTop }} />
-              <div className="absolute inset-0 rounded-[1.5rem] border" style={{ borderColor: `rgba(255,255,255,${wp.borderOpacity})` }} />
-              <div className="absolute inset-[1px] rounded-[1.5rem] border" style={{ borderColor: `rgba(255,255,255,${Math.min(wp.borderOpacity + 0.3, 0.9)})` }} />
+              <div className="absolute inset-0 rounded-[1.5rem] border" style={{ borderColor: modalBorder }} />
+              <div className="absolute inset-[1px] rounded-[1.5rem] border" style={{ borderColor: modalBorderInner }} />
 
               <div className="relative z-10 px-4 py-4">
                 <p className="text-sm font-semibold text-center mb-3" style={{ color: isDark ? "rgba(255,255,255,0.9)" : "#1c1b1a" }}>
@@ -428,15 +431,13 @@ export default function TabBar({ currentPage, onNavigate }) {
             >
               <div className="absolute inset-0"
                 style={{
-                  background: isDark
-                    ? "linear-gradient(135deg, rgba(30,30,30,0.98), rgba(20,20,20,0.95))"
-                    : "linear-gradient(135deg, rgba(255,255,255,0.98), rgba(248,247,244,0.95))",
+                  background: modalBg,
                   backdropFilter: "blur(35px) saturate(200%)",
                   WebkitBackdropFilter: "blur(35px) saturate(200%)",
                 }} />
               <div className="absolute top-0 left-4 right-4 h-[1.5px]" style={{ background: specularTop }} />
-              <div className="absolute inset-0 rounded-[1.5rem] border" style={{ borderColor: `rgba(255,255,255,${wp.borderOpacity})` }} />
-              <div className="absolute inset-[1px] rounded-[1.5rem] border" style={{ borderColor: `rgba(255,255,255,${Math.min(wp.borderOpacity + 0.3, 0.9)})` }} />
+              <div className="absolute inset-0 rounded-[1.5rem] border" style={{ borderColor: modalBorder }} />
+              <div className="absolute inset-[1px] rounded-[1.5rem] border" style={{ borderColor: modalBorderInner }} />
 
               <div className="relative z-10 px-5 py-4 space-y-4">
                 <p className="text-sm font-semibold text-center mb-1" style={{ color: isDark ? "rgba(255,255,255,0.9)" : "#1c1b1a" }}>
@@ -488,7 +489,7 @@ export default function TabBar({ currentPage, onNavigate }) {
                               className="w-full flex items-center gap-3 px-3 py-2.5 text-sm transition-colors"
                               style={{
                                 background: isActive ? (isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.04)") : "transparent",
-                                color: isActive ? (isDark ? "#34d399" : "#059669") : (isDark ? "rgba(255,255,255,0.7)" : "#1c1b1a"),
+                                color: isActive ? (isDark ? "#66b5f2" : "#2b7fd4") : (isDark ? "rgba(255,255,255,0.7)" : "#1c1b1a"),
                               }}
                             >
                               <Folder size={14} style={{ opacity: 0.6 }} />
@@ -545,15 +546,13 @@ export default function TabBar({ currentPage, onNavigate }) {
             >
               <div className="absolute inset-0"
                 style={{
-                  background: isDark
-                    ? "linear-gradient(135deg, rgba(30,30,30,0.98), rgba(20,20,20,0.95))"
-                    : "linear-gradient(135deg, rgba(255,255,255,0.98), rgba(248,247,244,0.95))",
+                  background: modalBg,
                   backdropFilter: "blur(35px) saturate(200%)",
                   WebkitBackdropFilter: "blur(35px) saturate(200%)",
                 }} />
               <div className="absolute top-0 left-4 right-4 h-[1.5px]" style={{ background: specularTop }} />
-              <div className="absolute inset-0 rounded-[1.5rem] border" style={{ borderColor: `rgba(255,255,255,${wp.borderOpacity})` }} />
-              <div className="absolute inset-[1px] rounded-[1.5rem] border" style={{ borderColor: `rgba(255,255,255,${Math.min(wp.borderOpacity + 0.3, 0.9)})` }} />
+              <div className="absolute inset-0 rounded-[1.5rem] border" style={{ borderColor: modalBorder }} />
+              <div className="absolute inset-[1px] rounded-[1.5rem] border" style={{ borderColor: modalBorderInner }} />
 
               <div className="relative z-10 px-4 py-4">
                 <p className="text-sm font-semibold text-center mb-3" style={{ color: isDark ? "rgba(255,255,255,0.9)" : "#1c1b1a" }}>

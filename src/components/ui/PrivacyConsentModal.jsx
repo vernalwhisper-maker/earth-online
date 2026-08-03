@@ -24,7 +24,7 @@ export default function PrivacyConsentModal({ isOpen, onDone }) {
         <motion.div
           initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
           transition={{ type: "spring", stiffness: 400, damping: 30 }}
-          className="bg-surface rounded-modal p-6 max-w-sm w-full shadow-soft max-h-[85vh] overflow-y-auto"
+          className="panel-card p-6 max-w-sm w-full max-h-[85vh] overflow-y-auto"
         >
           {/* 图标 */}
           <div className="flex items-center justify-center mb-4">
@@ -91,7 +91,7 @@ export default function PrivacyConsentModal({ isOpen, onDone }) {
           {/* 按钮 */}
           <div className="flex gap-3">
             <button onClick={handleReject}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 border border-scribe rounded-btn text-sm text-warm-steel hover:bg-black/5 transition-colors">
+              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 border border-scribe rounded-btn text-sm text-warm-steel hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
               <X size={16} />拒绝
             </button>
             <button onClick={handleAgree}

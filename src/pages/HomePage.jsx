@@ -15,7 +15,7 @@ import useSettingsStore from "../store/settingsStore";
 import useToastStore from "../store/toastStore";
 import LiquidGlass from "../components/ui/LiquidGlass/index";
 import { DEBUG_DEFAULTS, STORAGE_KEY_SEGMENTED, STORAGE_KEY_TAGBAR, MODE_OPTIONS } from "../config/debugDefaults";
-import { generateTags, keywordTagMatch } from "../utils/aiChat";
+import { generateTags, keywordTagMatch, stripAISummaryMarkers } from "../utils/aiChat";
 import { incrementComponentStat } from "../utils/feedbackReporter";
 import { getSearchHistory, saveSearchQuery, clearSearchHistory } from "../db";
 import TagResultSheet from "../components/tags/TagResultSheet";
@@ -108,6 +108,8 @@ export default function HomePage({ onNewNote, onEditNote, onViewAchievement, sel
   }, [selectedIds, notes]);
 
   // 选择模式变化时，注册操作到 Store（供 TabBar 消费）
+  // 依赖 selectedIds 引用而非 size：A→B 替换选择时 size 不变，
+  // 若不重跑则闭包停留在旧选择，批量操作会作用到错误笔记
   useEffect(() => {
     if (selectMode) {
       useEditorActionsStore.getState().setSelectActions({
@@ -135,7 +137,7 @@ export default function HomePage({ onNewNote, onEditNote, onViewAchievement, sel
         selectPinState: "none",
       });
     }
-  }, [selectMode, selectedIds.size, pinState]);
+  }, [selectMode, selectedIds, pinState]);
 
 
   const filteredNotes = useMemo(() => getFilteredNotes(), [notes, searchQuery, selectedTag, selectedType, selectedFolder]);
@@ -229,7 +231,7 @@ export default function HomePage({ onNewNote, onEditNote, onViewAchievement, sel
     for (const id of batch) {
       const note = notes.find((n) => n.id === id);
       if (!note) continue;
-      const content = note.body || note.contentMarkdown || "";
+      const content = stripAISummaryMarkers(note.body || note.contentMarkdown || "");
       const snippet = (note.title || "") + ": " + content.slice(0, 200);
       if (!snippet.trim()) continue;
 
@@ -250,8 +252,7 @@ export default function HomePage({ onNewNote, onEditNote, onViewAchievement, sel
       const existingSet = new Set(note.tags || []);
       const newTags = allTags.filter((t) => !existingSet.has(t));
       if (newTags.length > 0) {
-        note.tags = [...(note.tags || []), ...newTags];
-        await saveNote(note);
+        await saveNote({ ...note, tags: [...(note.tags || []), ...newTags] });
         totalCount++;
         newTags.forEach((t) => totalTags.add(t));
       }
@@ -271,8 +272,7 @@ export default function HomePage({ onNewNote, onEditNote, onViewAchievement, sel
       const note = notes.find((n) => n.id === id);
       if (!note || !note.tags) continue;
       if (note.tags.includes(tagToRemove)) {
-        note.tags = note.tags.filter((t) => t !== tagToRemove);
-        await saveNote(note);
+        await saveNote({ ...note, tags: note.tags.filter((t) => t !== tagToRemove) });
         count++;
       }
     }
@@ -289,7 +289,7 @@ export default function HomePage({ onNewNote, onEditNote, onViewAchievement, sel
     const store = useNoteStore.getState();
     for (const id of selectedIds) {
       const note = notes.find((n) => n.id === id);
-      if (note) { note.folderId = folderId; await store.saveNote(note); }
+      if (note) { await store.saveNote({ ...note, folderId }); }
     }
     setShowMoveDialog(false);
     exitSelectMode();
@@ -298,7 +298,7 @@ export default function HomePage({ onNewNote, onEditNote, onViewAchievement, sel
     const store = useNoteStore.getState();
     for (const id of selectedIds) {
       const note = notes.find((n) => n.id === id);
-      if (note) { note.isPinned = !note.isPinned; await store.saveNote(note); }
+      if (note) { await store.saveNote({ ...note, isPinned: !note.isPinned }); }
     }
     exitSelectMode();
   };
@@ -363,7 +363,7 @@ export default function HomePage({ onNewNote, onEditNote, onViewAchievement, sel
   const searchDropdown = searchFocused && !searchQuery && recentSearches.length > 0 && searchRef.current ? (
     createPortal(
       <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
-        className="fixed z-[99999] bg-surface border border-scribe rounded-card shadow-soft overflow-hidden"
+        className="fixed z-[99999] panel-card overflow-hidden"
         style={{ top: (searchRef.current?.getBoundingClientRect().bottom || 0) + 4, left: searchRef.current?.getBoundingClientRect().left || 0, width: searchRef.current?.offsetWidth || 300 }}
         onMouseDown={(e) => e.preventDefault()}>
         <div className="flex items-center justify-between px-3 py-2 border-b border-scribe/50">
@@ -413,7 +413,7 @@ export default function HomePage({ onNewNote, onEditNote, onViewAchievement, sel
                   <div className="flex gap-1 rounded-full p-0.5" style={{ borderRadius: segmentedParams.cornerRadius === 999 ? 9999 : segmentedParams.cornerRadius }}>
                     {["list", "type", "folder"].map((mode) => (
                       <button key={mode} onClick={() => setViewMode(mode)}
-                        className={"px-2.5 py-1 text-xs rounded-full transition-colors " + (viewMode === mode ? "bg-white text-deep-ink shadow-sm" : "text-faded-slate")}>
+                        className={"px-2.5 py-1 text-xs rounded-full transition-colors " + (viewMode === mode ? "bg-emerald text-white shadow-sm" : "text-faded-slate")}>
                         {mode === "list" ? "列表" : mode === "type" ? "分类" : "文件夹"}
                       </button>
                     ))}
@@ -422,7 +422,7 @@ export default function HomePage({ onNewNote, onEditNote, onViewAchievement, sel
               ) : (
                 ["list", "type", "folder"].map((mode) => (
                   <button key={mode} onClick={() => setViewMode(mode)}
-                    className={"px-2.5 py-1 text-xs rounded-full transition-colors " + (viewMode === mode ? "bg-white text-deep-ink shadow-sm" : "text-faded-slate")}>
+                    className={"px-2.5 py-1 text-xs rounded-full transition-colors " + (viewMode === mode ? "bg-emerald text-white shadow-sm" : "text-faded-slate")}>
                     {mode === "list" ? "列表" : mode === "type" ? "分类" : "文件夹"}
                   </button>
                 ))
@@ -432,17 +432,17 @@ export default function HomePage({ onNewNote, onEditNote, onViewAchievement, sel
         )}
       </div>
 
-      {/* Quick stats */}
+      {/* Quick stats — TG 分组灰块 */}
       <div className="grid grid-cols-3 gap-2 mb-3">
-        <div className="bg-surface rounded-card border border-scribe p-2.5 text-center">
+        <div className="bg-group rounded-card p-2.5 text-center">
           <p className="text-xs text-faded-slate">笔记</p>
           <p className="text-lg font-bold text-deep-ink">{notes.length}</p>
         </div>
-        <div className="bg-surface rounded-card border border-scribe p-2.5 text-center">
+        <div className="bg-group rounded-card p-2.5 text-center">
           <p className="text-xs text-faded-slate">标签</p>
           <p className="text-lg font-bold text-amber-500">{tags.length}</p>
         </div>
-        <div className="bg-surface rounded-card border border-scribe p-2.5 text-center">
+        <div className="bg-group rounded-card p-2.5 text-center">
           <p className="text-xs text-faded-slate">已置顶</p>
           <p className="text-lg font-bold text-violet-500">{notes.filter(n => n.isPinned).length}</p>
         </div>
@@ -459,7 +459,7 @@ export default function HomePage({ onNewNote, onEditNote, onViewAchievement, sel
             onKeyDown={(e) => { if (e.key === "Enter") commitSearch(); }}
             placeholder="搜索笔记..."
             aria-label="搜索笔记"
-            className="w-full pl-9 pr-3 py-2.5 bg-surface border border-scribe rounded-btn text-sm text-deep-ink placeholder-faded-slate outline-none focus:ring-2 focus:ring-emerald transition-all" />
+            className="w-full pl-9 pr-3 py-2.5 bg-group rounded-full text-sm text-deep-ink placeholder-faded-slate outline-none focus:ring-2 focus:ring-emerald/60 transition-all border-none" />
           {searchDropdown}
         </div>
       )}
@@ -565,7 +565,7 @@ export default function HomePage({ onNewNote, onEditNote, onViewAchievement, sel
                 {DEFAULT_FOLDERS.map((f) => {
                   const Icon = FOLDER_ICONS[f.id] || Inbox; const isActive = selectedFolder === f.id;
                   return (<button key={f.id} onClick={() => setSelectedFolder(isActive ? null : f.id)}
-                    className={"inline-flex items-center gap-1 whitespace-nowrap px-3 py-1.5 text-sm font-medium rounded-full " + (isActive ? "bg-white text-deep-ink shadow-sm" : "text-faded-slate")}>
+                    className={"inline-flex items-center gap-1 whitespace-nowrap px-3 py-1.5 text-sm font-medium rounded-full " + (isActive ? "bg-emerald text-white shadow-sm" : "text-faded-slate")}>
                     <Icon size={12} />{f.label}</button>);
                 })}
               </div>
@@ -634,12 +634,12 @@ export default function HomePage({ onNewNote, onEditNote, onViewAchievement, sel
           {DEFAULT_FOLDERS.map((f) => {
             const Icon = FOLDER_ICONS[f.id] || Inbox;
             return (<button key={f.id} onClick={() => batchMoveToFolder(f.id)}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-btn hover:bg-black/5 text-left transition-colors">
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-btn hover:bg-black/5 dark:hover:bg-white/5 text-left transition-colors">
               <Icon size={16} className="text-warm-steel" /><span className="text-sm text-deep-ink">{f.label}</span>
             </button>);
           })}
         </div>
-        <button onClick={() => setShowMoveDialog(false)} className="w-full mt-4 py-2.5 border border-white/20 rounded-btn text-sm text-deep-ink hover:bg-black/5 transition-colors">取消</button>
+        <button onClick={() => setShowMoveDialog(false)} className="w-full mt-4 py-2.5 border border-white/20 rounded-btn text-sm text-deep-ink hover:bg-black/5 dark:hover:bg-white/5 transition-colors">取消</button>
       </GlassModal>
 
       {/* Tag result bottom sheet */}

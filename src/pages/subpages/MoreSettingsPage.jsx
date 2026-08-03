@@ -1,6 +1,6 @@
 ﻿import { useState, useRef, useCallback, useEffect } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, Download, Upload, Trash2, RotateCcw, X, Lock, KeyRound, Bug } from "lucide-react";
+import { ArrowLeft, Download, Upload, Trash2, RotateCcw, X, Lock, KeyRound, Bug, FolderOpen } from "lucide-react";
 import RangeSlider from "../../components/ui/RangeSlider";
 import GlassSwitch from "../../components/ui/GlassSwitch";
 import useSettingsStore from "../../store/settingsStore";
@@ -8,6 +8,7 @@ import useNoteStore from "../../store/noteStore";
 import { getAllNotes, importAllNotes, clearAllData } from "../../db";
 import { exportToEonBlob, generateFilename, parseEonFile, exportToMarkdownBlob, generateBatchMarkdownFilename, parseMarkdownFile } from "../../utils/notesFile";
 import { Filesystem, Directory } from "@capacitor/filesystem";
+import { isAndroid, isCapacitor, blobToBase64, saveFileToDownloads, downloadBlobInBrowser, listDownloadedFiles, readDownloadFile } from "../../utils/exportFile";
 import GlassModal from "../../components/ui/GlassModal";
 import { getStats, submitFeedback } from "../../utils/feedbackReporter";
 import { setConsent } from "../../utils/privacyConsent";
@@ -31,6 +32,10 @@ export default function MoreSettingsPage({ onBack }) {
   const [importResult, setImportResult] = useState(null);
   const [showExportPwd, setShowExportPwd] = useState(false);
   const [showImportPwd, setShowImportPwd] = useState(false);
+  // 从下载目录导入（Android 免 SAF）
+  const [showDownloadPicker, setShowDownloadPicker] = useState(false);
+  const [downloadFiles, setDownloadFiles] = useState([]);
+  const [loadingDownloads, setLoadingDownloads] = useState(false);
   const [showExportFormat, setShowExportFormat] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [pwdInput, setPwdInput] = useState("");
@@ -73,12 +78,19 @@ export default function MoreSettingsPage({ onBack }) {
   };
 
   const saveBlob = async (blob, filename) => {
-    const base64 = await new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result.split(",")[1]);
-      reader.onerror = () => reject(new Error("文件读取失败"));
-      reader.readAsDataURL(blob);
-    });
+    // Web 模式：直接浏览器下载（不触发系统文件访问，也不误报"已保存"）
+    if (!isCapacitor()) {
+      const started = downloadBlobInBrowser(blob, filename);
+      setImportResult({ success: started, count: 0, message: started ? `已开始下载：${filename}` : "浏览器阻止了下载，请允许下载后重试" });
+      return;
+    }
+    const base64 = await blobToBase64(blob);
+    // Android 原生：MediaStore 写入系统 Download/EarthOnline/（免权限、不触发 SAF）
+    const saved = await saveFileToDownloads(base64, filename);
+    if (saved) {
+      setImportResult({ success: true, count: 0, message: "已保存到 下载/EarthOnline/\n" + filename });
+      return;
+    }
     try {
       await Filesystem.writeFile({ path: filename, data: base64, directory: Directory.Documents });
       setImportResult({ success: true, count: 0, message: "已保存到 Documents/\n" + filename });
@@ -166,6 +178,41 @@ export default function MoreSettingsPage({ onBack }) {
     }
   };
 
+  // 打开「从下载目录导入」列表（Android：MediaStore 列出 app 自建导出文件，免 SAF）
+  const handleOpenDownloadPicker = async () => {
+    setShowDownloadPicker(true);
+    setLoadingDownloads(true);
+    setDownloadFiles([]);
+    const files = await listDownloadedFiles();
+    setDownloadFiles(files || []);
+    setLoadingDownloads(false);
+  };
+
+  // 选择下载目录中的文件并导入（复用现有解析流程）
+  const handlePickDownloadFile = async (file) => {
+    setShowDownloadPicker(false);
+    setImportResult(null);
+    try {
+      const blob = await readDownloadFile(file.uri);
+      if (!blob) {
+        setImportResult({ success: false, message: "读取文件失败，请重试" });
+        return;
+      }
+      const f = new File([blob], file.name, { type: "application/octet-stream" });
+      pendingFileRef.current = f;
+      const isMd = file.name.endsWith(".md") || file.name.endsWith(".MD");
+      if (isMd) {
+        doImportMarkdown();
+      } else {
+        setPwdInput("");
+        setPwdError("");
+        setShowImportPwd(true);
+      }
+    } catch (err) {
+      setImportResult({ success: false, message: "读取失败：" + (err?.message || "未知错误") });
+    }
+  };
+
   return (
     <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
       className="px-4 pt-4 pb-6 max-w-2xl mx-auto">
@@ -197,6 +244,13 @@ export default function MoreSettingsPage({ onBack }) {
             className="w-full flex items-center justify-between px-3 py-3 rounded-btn hover:bg-canvas-warm transition-colors">
             <span className="text-sm text-deep-ink">{importing ? "正在导入..." : "导入笔记"}</span><Upload size={18} className="text-warm-steel" />
           </button>
+          {/* Android：从 Download/EarthOnline 直接导入（免系统文件选择器/SAF） */}
+          {isAndroid() && (
+            <button onClick={handleOpenDownloadPicker}
+              className="w-full flex items-center justify-between px-3 py-3 rounded-btn hover:bg-canvas-warm transition-colors">
+              <span className="text-sm text-deep-ink">从下载目录导入</span><FolderOpen size={18} className="text-warm-steel" />
+            </button>
+          )}
           <input ref={fileInputRef} type="file" accept=".eon,.md" onChange={handleFileSelect} className="hidden" />
           {importResult && (
             <div className={"text-sm px-3 py-2 rounded-btn " + (importResult.success ? "bg-emerald/10 text-emerald border border-emerald/20" : "bg-rose/10 text-rose border border-rose/20")}>
@@ -210,7 +264,7 @@ export default function MoreSettingsPage({ onBack }) {
             <p className="text-sm text-warm-steel mb-4">选择导出格式</p>
             <div className="space-y-2">
               <button onClick={() => { setShowExportFormat(false); setPwdInput(""); setPwdError(""); setShowExportPwd(true); }}
-                className="w-full flex items-center justify-between px-4 py-3 rounded-btn hover:bg-black/5 transition-colors border border-white/20">
+                className="w-full flex items-center justify-between px-4 py-3 rounded-btn hover:bg-black/5 dark:hover:bg-white/5 transition-colors border border-white/20">
                 <div className="text-left">
                   <span className="text-sm font-medium text-deep-ink">eon 格式（.eon）</span>
                   <p className="text-[11px] text-warm-steel mt-0.5">加密导出全部笔记，需设置密码</p>
@@ -218,7 +272,7 @@ export default function MoreSettingsPage({ onBack }) {
                 <Lock size={16} className="text-faded-slate" />
               </button>
               <button onClick={doExportMarkdown}
-                className="w-full flex items-center justify-between px-4 py-3 rounded-btn hover:bg-black/5 transition-colors border border-white/20">
+                className="w-full flex items-center justify-between px-4 py-3 rounded-btn hover:bg-black/5 dark:hover:bg-white/5 transition-colors border border-white/20">
                 <div className="text-left">
                   <span className="text-sm font-medium text-deep-ink">M 格式（.md）</span>
                   <p className="text-[11px] text-warm-steel mt-0.5">导出全部笔记为 Markdown 合集，无需密码</p>
@@ -227,7 +281,7 @@ export default function MoreSettingsPage({ onBack }) {
               </button>
             </div>
             <button onClick={() => setShowExportFormat(false)}
-              className="w-full mt-4 py-2.5 border border-white/20 rounded-btn text-sm text-deep-ink hover:bg-black/5 transition-colors">
+              className="w-full mt-4 py-2.5 border border-white/20 rounded-btn text-sm text-deep-ink hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
               <X size={16} className="inline mr-1" />取消
             </button>
           </GlassModal>
@@ -263,17 +317,6 @@ export default function MoreSettingsPage({ onBack }) {
               <div className="flex items-center gap-2 shrink-0">
                 <GlassSwitch value={debugFABEnabled} onChange={async (v) => { await setDebugFABEnabled(v); }} />
                 <button onClick={() => onBack?.("debug")}
-                  className="px-2.5 py-1 text-xs font-medium bg-emerald/10 text-emerald rounded-full hover:bg-emerald/20 transition-colors">
-                  进入
-                </button>
-              </div>
-            </div>
-            {/* 标签栏调试 */}
-            <div className="flex items-center justify-between px-3 py-3 rounded-btn hover:bg-canvas-warm transition-colors">
-              <span className="text-sm text-deep-ink">标签栏调试</span>
-              <div className="flex items-center gap-2 shrink-0">
-                <GlassSwitch value={debugTagBarEnabled} onChange={async (v) => { await setDebugTagBarEnabled(v); }} />
-                <button onClick={() => onBack?.("debug-tagbar")}
                   className="px-2.5 py-1 text-xs font-medium bg-emerald/10 text-emerald rounded-full hover:bg-emerald/20 transition-colors">
                   进入
                 </button>
@@ -345,6 +388,32 @@ export default function MoreSettingsPage({ onBack }) {
           <button onClick={() => { const pw = pwdInput.trim(); if (!pw) { setPwdError("请输入密码"); return; } setShowImportPwd(false); doImport(pw); }} className="flex-1 py-2.5 bg-emerald text-white rounded-btn text-sm"><KeyRound size={16} className="inline mr-1" />解密导入</button>
         </div>
       </GlassModal>
+
+      {/* 从下载目录导入（Android） */}
+      <GlassModal show={showDownloadPicker} onClose={() => setShowDownloadPicker(false)}>
+        <h3 className="text-lg font-bold text-deep-ink mb-2">从下载目录导入</h3>
+        <p className="text-sm text-warm-steel mb-4">选择 下载/EarthOnline/ 中的备份文件（.eon / .md）</p>
+        {loadingDownloads ? (
+          <div className="py-8 text-center text-sm text-warm-steel">加载中…</div>
+        ) : downloadFiles.length === 0 ? (
+          <div className="py-8 text-center text-sm text-warm-steel">暂无导出文件，请先在「导出笔记」中导出</div>
+        ) : (
+          <div className="max-h-72 overflow-y-auto space-y-1.5">
+            {downloadFiles.map((f) => (
+              <button key={f.uri} onClick={() => handlePickDownloadFile(f)}
+                className="w-full flex items-center justify-between px-3 py-2.5 rounded-btn hover:bg-black/5 dark:hover:bg-white/5 transition-colors border border-white/20">
+                <span className="text-sm text-deep-ink truncate flex-1 text-left">{f.name}</span>
+                <span className="text-xs text-faded-slate font-mono ml-2 shrink-0">{(f.size / 1024).toFixed(1)} KB</span>
+              </button>
+            ))}
+          </div>
+        )}
+        <button onClick={() => setShowDownloadPicker(false)}
+          className="w-full mt-4 py-2.5 border border-white/20 rounded-btn text-sm text-deep-ink hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
+          <X size={16} className="inline mr-1" />取消
+        </button>
+      </GlassModal>
+
       <GlassModal show={showConfirm} onClose={() => setShowConfirm(false)}>
         <h3 className="text-lg font-bold text-deep-ink mb-2">确认清空</h3>
         <p className="text-sm text-warm-steel mb-6">将删除所有笔记和设置数据</p>
@@ -373,7 +442,7 @@ export default function MoreSettingsPage({ onBack }) {
                 <p className="text-xs text-warm-steel mb-2">打开次数: <span className="font-semibold text-deep-ink">{stats.openCount}</span></p>
                 <div className="grid grid-cols-3 gap-1.5">
                   {items.map(([label, count]) => (
-                    <div key={label} className="flex justify-between px-2 py-1 rounded bg-white/60 text-xs">
+                    <div key={label} className="flex justify-between px-2 py-1 rounded bg-group text-xs">
                       <span className="text-warm-steel">{label}</span>
                       <span className="font-semibold text-deep-ink">{count}</span>
                     </div>
@@ -396,7 +465,7 @@ export default function MoreSettingsPage({ onBack }) {
                   setConsent(false);
                   setFeedbackMsg("已重置，下次启动将重新弹出使用须知");
                 }}
-                  className="w-full py-2.5 border border-scribe rounded-btn text-sm text-deep-ink hover:bg-black/5 transition-colors">
+                  className="w-full py-2.5 border border-scribe rounded-btn text-sm text-deep-ink hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
                   🔄 重弹使用须知
                 </button>
                 <button onClick={() => { setShowFeedback(false); setFeedbackMsg(""); }}

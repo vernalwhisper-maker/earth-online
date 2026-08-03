@@ -8,7 +8,6 @@ import { DEFAULT_FOLDERS } from "../data/noteTypes";
 import { getDeletedNotes, restoreNote, permanentDeleteNote } from "../db";
 import { getChatStats, clearAllChatHistory, getAllChatMessages } from "../db";
 
-import GlassSwitch from "../components/ui/GlassSwitch";
 import AISettingsPage from "./subpages/AISettingsPage";
 import MoreSettingsPage from "./subpages/MoreSettingsPage";
 import DebugPage from "./subpages/DebugPage";
@@ -19,7 +18,7 @@ import DebugAchievementsPage from "./subpages/DebugAchievementsPage";
 import WindowDebugPage from "./subpages/WindowDebugPage";
 
 export default function SettingsPage({ settingsSubPage, onSubPageChange }) {
-  const { loaded, darkMode, setDarkMode, cardExpandAnim, setCardExpandAnim } = useSettingsStore();
+  const { loaded, darkMode, setDarkMode } = useSettingsStore();
   const loadNotes = useNoteStore((s) => s.loadNotes);
 
   // 子页面变化时通知父组件
@@ -63,6 +62,8 @@ export default function SettingsPage({ settingsSubPage, onSubPageChange }) {
     for (const id of ids) await restoreNote(id);
     setRecycleSelectedIds(new Set());
     setDeletedNotes((prev) => prev.filter((n) => !ids.includes(n.id)));
+    // 同步刷新 noteStore，恢复的笔记立即出现在首页
+    await loadNotes();
   };
   const batchRecycleDelete = async () => {
     const ids = [...recycleSelectedIds];
@@ -119,7 +120,7 @@ export default function SettingsPage({ settingsSubPage, onSubPageChange }) {
 
       {/* AI 设置按钮 */}
       <button onClick={() => navigateTo("ai")}
-        className="w-full flex items-center justify-between px-4 py-3.5 bg-surface rounded-card border border-scribe text-left hover:bg-canvas-warm transition-colors mb-3">
+        className="w-full flex items-center justify-between px-4 py-3.5 bg-group rounded-card text-left hover:bg-black/5 dark:hover:bg-white/5 transition-colors mb-3">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-violet-500/10 flex items-center justify-center">
             <Sparkles size={20} className="text-violet-500" />
@@ -134,7 +135,7 @@ export default function SettingsPage({ settingsSubPage, onSubPageChange }) {
 
       {/* 更多设置按钮 */}
       <button onClick={() => navigateTo("more")}
-        className="w-full flex items-center justify-between px-4 py-3.5 bg-surface rounded-card border border-scribe text-left hover:bg-canvas-warm transition-colors mb-4">
+        className="w-full flex items-center justify-between px-4 py-3.5 bg-group rounded-card text-left hover:bg-black/5 dark:hover:bg-white/5 transition-colors mb-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gray-500/10 flex items-center justify-center">
             <Settings size={20} className="text-gray-500" />
@@ -148,7 +149,7 @@ export default function SettingsPage({ settingsSubPage, onSubPageChange }) {
       </button>
 
       {/* 显示设置 */}
-      <section className="bg-surface rounded-card border border-scribe p-4 mb-4">
+      <section className="bg-group rounded-card p-4 mb-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <h2 className="text-xs font-mono uppercase tracking-wider text-faded-slate">{"显示设置"}</h2>
@@ -175,23 +176,10 @@ export default function SettingsPage({ settingsSubPage, onSubPageChange }) {
             ))}
           </div>
         </div>
-
-        {/* 试点：卡片展开动画 */}
-        <div className="mt-3 flex items-center justify-between">
-          <div>
-            <span className="text-sm text-deep-ink">卡片展开动画</span>
-            <p className="text-[11px] text-warm-steel mt-0.5">打开笔记时从卡片放大的过渡效果（试点）</p>
-          </div>
-          <GlassSwitch
-            value={cardExpandAnim}
-            onChange={setCardExpandAnim}
-            ariaLabel="卡片展开动画"
-          />
-        </div>
       </section>
 
       {/* 数据管理 */}
-      <section className="bg-surface rounded-card border border-scribe p-4 mb-4">
+      <section className="bg-group rounded-card p-4 mb-4">
         <div className="flex items-center gap-2 mb-3">
           <Archive size={16} className="text-faded-slate" />
           <h2 className="text-xs font-mono uppercase tracking-wider text-faded-slate">数据管理</h2>
@@ -220,12 +208,12 @@ export default function SettingsPage({ settingsSubPage, onSubPageChange }) {
       </section>
 
       {/* 关于 */}
-      <section className="bg-surface rounded-card border border-scribe p-4 mb-4">
+      <section className="bg-group rounded-card p-4 mb-4">
         <div className="flex items-center gap-2 mb-3">
           <FileText size={16} className="text-faded-slate" />
           <h2 className="text-xs font-mono uppercase tracking-wider text-faded-slate">关于</h2>
         </div>
-        <p className="text-sm font-mono text-faded-slate">版本 1.2.1</p>
+        <p className="text-sm font-mono text-faded-slate">版本 1.6.0</p>
         <p className="text-sm text-warm-steel mt-1">成就总数: 60</p>
       </section>
 
@@ -237,7 +225,7 @@ export default function SettingsPage({ settingsSubPage, onSubPageChange }) {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 bg-deep-ink/60 flex items-center justify-center z-50 px-4">
             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-              className="bg-surface rounded-modal p-6 max-w-sm w-full shadow-soft max-h-[80vh] flex flex-col">
+              className="panel-card p-6 max-w-sm w-full max-h-[80vh] flex flex-col">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <h3 className="text-lg font-bold text-deep-ink">回收站</h3>
@@ -266,7 +254,7 @@ export default function SettingsPage({ settingsSubPage, onSubPageChange }) {
                         className={"flex items-center gap-2 px-3 py-2.5 rounded-btn transition-colors " + (recycleSelectedIds.has(note.id) ? "bg-emerald/5 ring-1 ring-emerald/30" : "bg-canvas-warm hover:bg-canvas-warm/80")}>
                         <button onClick={() => toggleRecycleSelect(note.id)}
                           className="shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors "
-                          style={{ borderColor: recycleSelectedIds.has(note.id) ? "#10b981" : "rgba(163,162,158,0.5)" }}>
+                          style={{ borderColor: recycleSelectedIds.has(note.id) ? "#3390ec" : "rgba(163,162,158,0.5)" }}>
                           {recycleSelectedIds.has(note.id) && <CheckCircle size={12} className="text-emerald" />}
                         </button>
                         <div className="flex-1 min-w-0 mr-2">
@@ -274,7 +262,7 @@ export default function SettingsPage({ settingsSubPage, onSubPageChange }) {
                           <p className="text-xs text-faded-slate">{new Date(note.deletedAt).toLocaleDateString("zh-CN")}</p>
                         </div>
                         <div className="flex gap-1 shrink-0">
-                          <button onClick={async () => { await restoreNote(note.id); setDeletedNotes(deletedNotes.filter((n) => n.id !== note.id)); }}
+                          <button onClick={async () => { await restoreNote(note.id); await loadNotes(); setDeletedNotes(deletedNotes.filter((n) => n.id !== note.id)); }}
                             className="px-2 py-1 text-xs text-emerald bg-emerald/10 rounded-full hover:bg-emerald/20 transition-colors">
                             <RefreshCw size={12} className="inline mr-0.5" />恢复
                           </button>
@@ -315,7 +303,7 @@ export default function SettingsPage({ settingsSubPage, onSubPageChange }) {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 bg-deep-ink/60 flex items-center justify-center z-50 px-4">
             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-              className="bg-surface rounded-modal p-6 max-w-sm w-full shadow-soft">
+              className="panel-card p-6 max-w-sm w-full">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <h3 className="text-lg font-bold text-deep-ink">文件夹管理</h3>
@@ -336,7 +324,7 @@ export default function SettingsPage({ settingsSubPage, onSubPageChange }) {
                     className={"flex items-center gap-2 px-2 py-2 rounded-btn transition-colors " + (folderSelectedIds.has(f.id) ? "bg-emerald/5 ring-1 ring-emerald/30" : "")}>
                     <button onClick={() => toggleFolderSelect(f.id)}
                       className="shrink-0 w-4 h-4 rounded border-2 flex items-center justify-center transition-colors"
-                      style={{ borderColor: folderSelectedIds.has(f.id) ? "#10b981" : "rgba(163,162,158,0.5)" }}>
+                      style={{ borderColor: folderSelectedIds.has(f.id) ? "#3390ec" : "rgba(163,162,158,0.5)" }}>
                       {folderSelectedIds.has(f.id) && <CheckCircle size={10} className="text-emerald" />}
                     </button>
                     {editingFolderId === f.id ? (
@@ -401,7 +389,7 @@ export default function SettingsPage({ settingsSubPage, onSubPageChange }) {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 bg-deep-ink/60 flex items-center justify-center z-50 px-4">
             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-              className="bg-surface rounded-modal p-6 max-w-sm w-full shadow-soft max-h-[80vh] flex flex-col">
+              className="panel-card p-6 max-w-sm w-full max-h-[80vh] flex flex-col">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-bold text-deep-ink">聊天历史</h3>
                 <button onClick={() => setShowChatHistory(false)} className="p-1 rounded-full hover:bg-scribe/30 transition-colors">
@@ -448,7 +436,7 @@ export default function SettingsPage({ settingsSubPage, onSubPageChange }) {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 bg-deep-ink/60 flex items-center justify-center z-[60] px-4">
             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-              className="bg-surface rounded-modal p-6 max-w-sm w-full shadow-soft">
+              className="panel-card p-6 max-w-sm w-full">
               <h3 className="text-lg font-bold text-deep-ink mb-2">确认清除</h3>
               <p className="text-sm text-warm-steel mb-6">将删除所有 AI 对话记录，此操作不可撤销。</p>
               <div className="flex gap-3">

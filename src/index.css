@@ -1,26 +1,29 @@
 ﻿@import "tailwindcss";
 
 @theme {
-  --color-canvas-warm: #f8f7f4;
-  --color-surface: #ffffff;
-  --color-deep-ink: #1c1b1a;
-  --color-warm-steel: #6b6a67;
-  --color-faded-slate: #a3a29e;
-  --color-emerald: #10b981;
-  --color-emerald-dark: #059669;
-  --color-scribe: rgba(220, 219, 214, 0.6);
+  /* Telegram 设计语言（浅色）— 色值来自官方 Theme.java / 官方主题文件 */
+  --color-canvas-warm: #ffffff;      /* TG 页面背景：纯白 */
+  --color-surface: #ffffff;          /* 卡片表面 */
+  --color-group: #f1f1f1;            /* TG 分组/输入框背景 windowBackgroundGray */
+  --color-deep-ink: #000000;         /* TG 主文字：纯黑 */
+  --color-warm-steel: #707579;       /* TG 次要文字 windowBackgroundWhiteGrayText */
+  --color-faded-slate: #b3b3b3;      /* 禁用/更淡文字 */
+  --color-emerald: #3390ec;          /* TG accent 品牌蓝 windowBackgroundWhiteBlueText */
+  --color-emerald-dark: #2b7fd4;     /* 蓝 hover 深一档 */
+  --color-tg-green: #4fae4e;         /* TG 官方绿 key_green（成功/在线语义） */
+  --color-scribe: rgba(0, 0, 0, 0.08); /* TG 分隔线：黑 8% */
   --color-golden: #f59e0b;
   --color-violet: #8b5cf6;
-  --color-blue: #3b82f6;
+  --color-blue: #3390ec;
   --color-rose: #e11d48;
 
   --font-sans: -apple-system, "PingFang SC", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
 
-  --radius-card: 1rem;
-  --radius-modal: 1.5rem;
-  --radius-btn: 0.75rem;
-  --radius-input: 0.75rem;
+  --radius-card: 0.875rem;    /* 14px，TG 列表行圆角 */
+  --radius-modal: 1rem;
+  --radius-btn: 0.875rem;
+  --radius-input: 9999px;     /* TG 搜索框：全圆角胶囊 */
   --radius-icon: 0.5rem;
 
   --shadow-soft: 0 4px 30px rgba(0, 0, 0, 0.04);
@@ -43,8 +46,8 @@
 }
 
 @keyframes pulse-emerald {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
-  50% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(51,144,236, 0.4); }
+  50% { box-shadow: 0 0 0 8px rgba(51,144,236, 0); }
 }
 
 @keyframes breathe {
@@ -89,7 +92,7 @@
   }
 
   ::selection {
-    background-color: rgba(16, 185, 129, 0.2);
+    background-color: rgba(51, 144, 236, 0.2);
   }
 }
 
@@ -100,6 +103,13 @@
   }
   .scrollbar-none::-webkit-scrollbar {
     display: none;
+  }
+  /* 统一实色面板规范（设置/确认类浮层卡片）：深浅色自适应背景与边框 */
+  .panel-card {
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-scribe);
+    border-radius: 1.5rem;
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.04);
   }
 }
 
@@ -120,10 +130,10 @@
 .markdown-preview ul, .markdown-preview ol { padding-left: 1.5em; margin: 0.4em 0; }
 .markdown-preview li { margin: 0.2em 0; }
 .markdown-preview blockquote {
-  border-left: 3px solid #10b981;
+  border-left: 3px solid #3390ec;
   padding-left: 1em;
   margin: 0.5em 0;
-  color: #6b6a67;
+  color: #707579;
   font-style: italic;
 }
 .markdown-preview code {
@@ -147,8 +157,8 @@
   padding: 0;
   color: inherit;
 }
-.markdown-preview a { color: #10b981; text-decoration: underline; }
-.markdown-preview a:hover { color: #059669; }
+.markdown-preview a { color: #3390ec; text-decoration: none; }
+.markdown-preview a:hover { color: #2b7fd4; text-decoration: underline; }
 .markdown-preview img { max-width: 100%; border-radius: 0.5rem; margin: 0.5em 0; }
 .markdown-preview table { border-collapse: collapse; width: 100%; margin: 0.5em 0; font-size: 0.85rem; }
 .markdown-preview th, .markdown-preview td { border: 1px solid rgba(220,219,214,0.6); padding: 0.4em 0.6em; text-align: left; }
@@ -159,32 +169,33 @@
 
 @import "./styles/patterns.css";
 
-/* 暗黑模式 — 增强对比度 */
+/* 暗黑模式 — Telegram 深色（#17212b 主背景 / #232e3c 分组） */
 .dark {
-  --color-canvas-warm: #121212;
-  --color-surface: #2a2a2a;
-  --color-deep-ink: #f0efe8;
-  --color-warm-steel: #b8b7b0;
-  --color-faded-slate: #8a8984;
-  --color-scribe: rgba(80, 80, 80, 0.5);
+  --color-canvas-warm: #17212b;
+  --color-surface: #232e3c;
+  --color-group: #232e3c;
+  --color-deep-ink: #ffffff;
+  --color-warm-steel: #7d90a9;
+  --color-faded-slate: #708499;
+  --color-scribe: rgba(255, 255, 255, 0.1);
 }
 .dark .markdown-preview code {
   background: rgba(255,255,255,0.1);
   color: #e8e7e4;
 }
 .dark .markdown-preview pre {
-  background: #0d0d0d;
+  background: #0e1621;
 }
 .dark .markdown-preview th {
   background: rgba(255,255,255,0.05);
 }
 .dark input::placeholder,
 .dark textarea::placeholder {
-  color: #8a8984;
+  color: #56667e;
 }
 .dark input,
 .dark textarea {
-  color: #f0efe8;
+  color: #ffffff;
 }
 /* 暗黑模式下弹窗卡片按钮保持可读 */
 .dark [class*="rounded-modal"] button:not([class*="bg-emerald"]):not([class*="bg-rose"]),

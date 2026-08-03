@@ -5,8 +5,11 @@ export const API_PROVIDERS = {
   deepseek: {
     value: "deepseek",
     endpoint: "https://api.deepseek.com/v1/chat/completions",
-    model: "deepseek-chat",
-    label: "DeepSeek V4 Flash",
+    // 2026-07-31 DeepSeek-V4-Flash 正式版发布；旧 model 名 deepseek-chat/deepseek-reasoner 已于 2026-07-24 停用
+    model: "deepseek-v4-flash",
+    label: "DeepSeek V4 Flash 正式版",
+    // V4 系列支持思考模式开关（thinking 参数）；旧版无此能力，仅对 deepseek 传该参数
+    supportsThinking: true,
   },
   zhipu: {
     value: "zhipu",

@@ -17,6 +17,12 @@ export default function AIAssistant({ noteId, notes = [], folders = [], noteTitl
   const [summarizing, setSummarizing] = useState(false);
   const chatEndRef = useRef(null);
   const webllmReadyRef = useRef(false);
+  // 记录当前 noteId，用于请求完成后的串台保护
+  const noteIdRef = useRef(noteId);
+  useEffect(() => { noteIdRef.current = noteId; }, [noteId]);
+  // 进行中的请求控制器：切换笔记/卸载时取消，避免旧响应追加到错误会话
+  const abortRef = useRef(null);
+  useEffect(() => () => { abortRef.current?.abort(); }, []);
   const [ollamaOk, setOllamaOk] = useState(null); // null=未检查, true/false
 
   // 检查 WebLLM 引擎是否已就绪
@@ -71,6 +77,10 @@ export default function AIAssistant({ noteId, notes = [], folders = [], noteTitl
     await saveChatMessage(userMsg);
     setMessages((prev) => [...prev, userMsg]);
     setLoading(true);
+    // 取消上一次未完成请求，避免旧响应乱序覆盖
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
     try {
       // 构建笔记上下文摘要供 AI 分析
       const notesForAI = notes.length > 0
@@ -89,8 +99,10 @@ export default function AIAssistant({ noteId, notes = [], folders = [], noteTitl
         : [...messages, userMsg];
       const reply = await chatWithAI(
         enrichedMessages.map((m) => ({ role: m.role, content: m.content })),
-        apiKey, modelProvider, inference
+        apiKey, modelProvider, inference, controller.signal
       );
+      // 串台保护：请求期间切换了笔记则丢弃本次回复
+      if (noteIdRef.current !== noteId) return;
       const cleanReply = stripActions(reply || "抱歉，我暂时无法回答。");
       const aiMsg = { noteId, role: "assistant", content: cleanReply };
       await saveChatMessage(aiMsg);
@@ -115,10 +127,15 @@ export default function AIAssistant({ noteId, notes = [], folders = [], noteTitl
           setMessages((prev) => [...prev, failMsg]);
         }
       }
-    } catch {
+    } catch (err) {
+      // 主动取消（切换笔记/卸载）不提示错误
+      if (err?.name === "AbortError") return;
       setMessages((prev) => [...prev, { noteId, role: "assistant", content: "连接失败，请检查网络和 API 设置。" }]);
+    } finally {
+      if (abortRef.current === controller) abortRef.current = null;
+      // 无论串台、取消还是异常，都必须复位 loading，避免面板永久卡转圈
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleKeyDown = (e) => {
@@ -129,7 +146,12 @@ export default function AIAssistant({ noteId, notes = [], folders = [], noteTitl
     const content = noteMarkdown || noteBody;
     if (!content || !canUseAI) return;
     setSummarizing(true);
-    const summary = await generateSummary(content, apiKey, modelProvider, inference);
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const summary = await generateSummary(content, apiKey, modelProvider, inference, controller.signal);
+    // 串台保护：请求期间切换了笔记则丢弃
+    if (noteIdRef.current !== noteId) { setSummarizing(false); return; }
     if (summary) {
       const msg = { noteId, role: "assistant", content: "摘要：" + summary, type: "summary" };
       await saveChatMessage(msg);
@@ -182,7 +204,7 @@ export default function AIAssistant({ noteId, notes = [], folders = [], noteTitl
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 20, scale: 0.9 }}
         transition={{ type: "spring", stiffness: 350, damping: 25, mass: 0.9 }}
-        className="fixed bottom-40 right-4 w-80 max-w-[calc(100vw-2rem)] h-96 bg-surface rounded-modal border border-scribe shadow-soft z-50 flex flex-col overflow-hidden">
+        className="fixed bottom-40 right-4 w-80 max-w-[calc(100vw-2rem)] h-96 panel-card z-50 flex flex-col overflow-hidden">
             <div className="flex items-center justify-between px-4 py-3 border-b border-scribe bg-violet-500/5">
               <div className="flex items-center gap-2">
                 <Bot size={16} className="text-violet-500" />
@@ -192,7 +214,7 @@ export default function AIAssistant({ noteId, notes = [], folders = [], noteTitl
                 onClick={() => setIsOpen(false)}
                 whileTap={{ scale: 0.8 }}
                 transition={{ type: "spring", stiffness: 400, damping: 15 }}
-                className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-black/5"
+                className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-black/5 dark:hover:bg-white/5"
               >
                 <X size={14} className="text-warm-steel" />
               </motion.button>

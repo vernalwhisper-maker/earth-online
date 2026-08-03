@@ -55,22 +55,22 @@ export default function MarkdownEditor({ value, onChange, minHeight = 200, onMod
   const hasContent = value && value.trim().length > 0;
 
   return (
-    <div className="border border-scribe rounded-card overflow-hidden bg-white/60">
+    <div className="border border-scribe rounded-card overflow-hidden bg-group">
       <div className="flex items-center justify-between px-2 py-1.5 border-b border-scribe bg-canvas-warm/50">
         <div className="flex items-center gap-0.5">
           {TOOLBAR_ITEMS.map((item) => (
             <button key={item.label} onClick={() => handleToolbarClick(item)}
-              className="w-7 h-7 flex items-center justify-center rounded text-faded-slate hover:text-deep-ink hover:bg-white/80 transition-colors text-xs"
+              className="w-7 h-7 flex items-center justify-center rounded text-faded-slate hover:text-deep-ink hover:bg-group transition-colors text-xs"
               title={item.title}>{item.label}</button>
           ))}
         </div>
         <div className="flex items-center gap-1 bg-scribe/20 rounded-full p-0.5">
           <button onClick={() => handleModeSwitch("edit")}
-            className={"px-2.5 py-1 text-xs rounded-full transition-colors " + (mode === "edit" ? "bg-white text-deep-ink shadow-sm" : "text-faded-slate")}>
+            className={"px-2.5 py-1 text-xs rounded-full transition-colors " + (mode === "edit" ? "bg-emerald text-white shadow-sm" : "text-faded-slate")}>
             <Code size={12} className="inline mr-1" />编辑
           </button>
           <button onClick={() => handleModeSwitch("preview")}
-            className={"px-2.5 py-1 text-xs rounded-full transition-colors " + (mode === "preview" ? "bg-white text-deep-ink shadow-sm" : "text-faded-slate")}>
+            className={"px-2.5 py-1 text-xs rounded-full transition-colors " + (mode === "preview" ? "bg-emerald text-white shadow-sm" : "text-faded-slate")}>
             <Eye size={12} className="inline mr-1" />预览
           </button>
         </div>

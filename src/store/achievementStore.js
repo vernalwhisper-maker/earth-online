@@ -122,7 +122,7 @@ const useAchievementStore = create((set, get) => ({
     }
   },
 
-  dismissLastUnlocked() { this.dismissUnlock(); },
+  dismissLastUnlocked() { get().dismissUnlock(); },
 
   dismissBatch() { set({ lastUnlockedBatch: null }); },
 

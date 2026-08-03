@@ -3,6 +3,19 @@
 import useSettingsStore from "../store/settingsStore";
 import { API_PROVIDERS, DEFAULT_PROVIDER } from "../config/api";
 
+/**
+ * 移除笔记中的「AI 总结」标记段落（"> **AI 总结**：" 及其内容）。
+ * 该标记是 AI 总结功能插入的元信息，不应参与标签匹配 / 成就匹配 / 再次总结，
+ * 否则其中的 "AI" 字样会污染关键词匹配结果。
+ */
+export function stripAISummaryMarkers(text) {
+  if (!text) return text;
+  // 匹配 "> **AI 总结**：" 到下一个空行或结尾的连续行（不依赖 $ 语义，兼容单行结尾）
+  const cleaned = text.replace(/>\s*\*\*AI\s*总结\*\*\s*[：:][^\n]*(?:\n(?![ \t]*\n)[^\n]*)*\n?/g, "");
+  // 压缩因删除产生的多余空行
+  return cleaned.replace(/\n{3,}/g, "\n\n").trim();
+}
+
 // 根据 useMode 返回有效的 API 配置
 function getEffectiveConfig() {
   try {
@@ -20,8 +33,30 @@ function getEffectiveConfig() {
     }
     return { ...API_PROVIDERS[modelProvider || DEFAULT_PROVIDER] || API_PROVIDERS[DEFAULT_PROVIDER], requiresAuth: true };
   } catch {
-    return API_CONFIG.deepseek;
+    // 兜底：直接返回默认 provider 配置（修复原 API_CONFIG 未定义引用）
+    return { ...API_PROVIDERS[DEFAULT_PROVIDER], requiresAuth: true };
   }
+}
+
+// 构建 thinking 参数（仅对支持思考模式的 provider 生效，如 DeepSeek V4）
+// forceDisabled=true 用于摘要/标签等快速任务，始终非思考，保证响应速度
+function buildThinkingParams(forceDisabled = false) {
+  try {
+    const s = useSettingsStore.getState ? useSettingsStore.getState() : {};
+    const { deepThinking, modelProvider } = s;
+    const cfg = API_PROVIDERS[modelProvider || DEFAULT_PROVIDER];
+    if (!cfg?.supportsThinking) return {};
+    return { thinking: { type: forceDisabled || !deepThinking ? "disabled" : "enabled" } };
+  } catch {
+    return {};
+  }
+}
+
+// 对话类请求的 max_tokens：思考模式下 reasoning 内容计入输出 token，
+// 预算太小会被思考过程耗尽导致正文被截断，因此思考时自动提高下限
+function getChatMaxTokens(inference, thinkingEnabled) {
+  const base = inference?.maxTokens || 800;
+  return thinkingEnabled ? Math.max(base, 4096) : base;
 }
 
 // 关键词标签兜底 — 无需 API Key，从笔记内容匹配关键词推荐标签
@@ -134,7 +169,7 @@ const SYSTEM_PROMPT = [
 ].join("\n");
 
 // 生成笔记摘要
-export async function generateSummary(noteContent, apiKey, provider, inference) {
+export async function generateSummary(noteContent, apiKey, provider, inference, signal) {
   const config = getEffectiveConfig();
   if (!config) return null;
 
@@ -156,7 +191,9 @@ export async function generateSummary(noteContent, apiKey, provider, inference) 
           { role: "user", content: noteContent },
         ],
         temperature: 0.1, max_tokens: 100,
+        ...buildThinkingParams(true),
       }),
+      signal,
     });
     if (!response.ok) return null;
     const data = await response.json();
@@ -168,7 +205,7 @@ export async function generateSummary(noteContent, apiKey, provider, inference) 
 }
 
 // AI 对话
-export async function chatWithAIStream(messages, apiKey, provider, inference, onChunk) {
+export async function chatWithAIStream(messages, apiKey, provider, inference, onChunk, signal) {
   const config = getEffectiveConfig();
   if (!config) return null;
 
@@ -180,6 +217,7 @@ export async function chatWithAIStream(messages, apiKey, provider, inference, on
 
   if (!apiKey && config.requiresAuth !== false) return null;
   try {
+    const thinkingParams = buildThinkingParams();
     const response = await fetch(config.endpoint, {
       method: "POST",
       headers: { "Authorization": "Bearer " + apiKey, "Content-Type": "application/json" },
@@ -190,9 +228,11 @@ export async function chatWithAIStream(messages, apiKey, provider, inference, on
           ...messages.map((m) => ({ role: m.role, content: m.content })),
         ],
         temperature: inference?.temperature || 0.7,
-        max_tokens: inference?.maxTokens || 800,
+        max_tokens: getChatMaxTokens(inference, thinkingParams.thinking?.type === "enabled"),
         stream: true,
+        ...thinkingParams,
       }),
+      signal,
     });
     if (!response.ok) return null;
     const reader = response.body.getReader();
@@ -225,7 +265,7 @@ export async function chatWithAIStream(messages, apiKey, provider, inference, on
   }
 }
 
-export async function chatWithAI(messages, apiKey, provider, inference) {
+export async function chatWithAI(messages, apiKey, provider, inference, signal) {
   const config = getEffectiveConfig();
   if (!config) return null;
 
@@ -237,6 +277,7 @@ export async function chatWithAI(messages, apiKey, provider, inference) {
 
   if (!apiKey && config.requiresAuth !== false) return null;
   try {
+    const thinkingParams = buildThinkingParams();
     const response = await fetch(config.endpoint, {
       method: "POST",
       headers: { "Authorization": "Bearer " + apiKey, "Content-Type": "application/json" },
@@ -247,8 +288,10 @@ export async function chatWithAI(messages, apiKey, provider, inference) {
           ...messages.map((m) => ({ role: m.role, content: m.content })),
         ],
         temperature: inference?.temperature || 0.7,
-        max_tokens: inference?.maxTokens || 800,
+        max_tokens: getChatMaxTokens(inference, thinkingParams.thinking?.type === "enabled"),
+        ...thinkingParams,
       }),
+      signal,
     });
     if (!response.ok) return null;
     const data = await response.json();
@@ -281,24 +324,30 @@ function getTagCacheKey(content, existingTagStr) {
 }
 
 // AI 批量标签生成
+// 入口统一过滤 AI 总结标记，避免 "AI" 字样污染标签匹配
+function getCleanTagContent(notesContent) {
+  return stripAISummaryMarkers(notesContent || "");
+}
+
 export async function generateTags(notesContent, apiKey, provider, existingTags) {
   const config = getEffectiveConfig();
   if (!config) return [];
 
+  const content = getCleanTagContent(notesContent);
   const existingTagStr = (existingTags || []).sort().join(",");
 
   // WebLLM 模式
   if (config.useWebLLM) {
     const { webllmChat } = await import("../utils/webllm");
-    const result = await webllmChat([{ role: "system", content: TAGGING_SYSTEM_PROMPT }, { role: "user", content: "已有标签：" + (existingTagStr || "无") + "\n\n笔记内容：\n" + notesContent }], { temperature: 0.1, maxTokens: 100, topP: 1.0 });
+    const result = await webllmChat([{ role: "system", content: TAGGING_SYSTEM_PROMPT }, { role: "user", content: "已有标签：" + (existingTagStr || "无") + "\n\n笔记内容：\n" + content }], { temperature: 0.1, maxTokens: 100, topP: 1.0 });
     if (!result) return [];
     try { return JSON.parse(result.replace(/^```(?:json)?\s*|\s*```$/g, "").trim()); } catch { return []; }
   }
 
   if (!apiKey && config.requiresAuth !== false) return [];
 
-  // 缓存查找
-  const cacheKey = getTagCacheKey(notesContent.slice(0, 500), existingTagStr);
+  // 缓存查找（用过滤后的内容，避免相同内容因标记差异产生不同 key）
+  const cacheKey = getTagCacheKey(content.slice(0, 500), existingTagStr);
   const cached = tagCache.get(cacheKey);
   if (cached) return cached;
 
@@ -310,10 +359,11 @@ export async function generateTags(notesContent, apiKey, provider, existingTags)
         model: config.model,
         messages: [
           { role: "system", content: TAGGING_SYSTEM_PROMPT },
-          { role: "user", content: "已有标签：" + (existingTagStr || "无") + "\n\n笔记内容：\n" + notesContent },
+          { role: "user", content: "已有标签：" + (existingTagStr || "无") + "\n\n笔记内容：\n" + content },
         ],
         temperature: 0.1,
         max_tokens: 100,
+        ...buildThinkingParams(true),
       }),
     });
     if (!response.ok) {

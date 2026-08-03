@@ -120,7 +120,7 @@ export default function DebugPage({ onBack }) {
             <div className="flex gap-1 rounded-full p-0.5">
               {["列表", "分类", "文件夹"].map((label, i) => (
                 <span key={label}
-                  className={"px-2.5 py-1 text-xs rounded-full " + (i === 0 ? "bg-white text-deep-ink shadow-sm" : "text-faded-slate")}>
+                  className={"px-2.5 py-1 text-xs rounded-full " + (i === 0 ? "bg-emerald text-white shadow-sm" : "text-faded-slate")}>
                   {label}
                 </span>
               ))}

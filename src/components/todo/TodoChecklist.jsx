@@ -120,7 +120,7 @@ export default function TodoChecklist({ noteId, onToggle }) {
         <input ref={inputRef} type="text" value={newTodoText}
           onChange={(e) => setNewTodoText(e.target.value)} onKeyDown={handleKeyDown}
           placeholder="添加待办事项..."
-          className="flex-1 px-3 py-2 text-sm border border-scribe rounded-input bg-white/60 text-deep-ink placeholder-faded-slate outline-none focus:ring-2 focus:ring-blue-400" />
+          className="flex-1 px-3 py-2 text-sm border border-scribe rounded-input bg-group text-deep-ink placeholder-faded-slate outline-none focus:ring-2 focus:ring-blue-400" />
         <button onClick={handleAdd} disabled={!newTodoText.trim()}
           className="w-9 h-9 flex items-center justify-center rounded-btn bg-blue-500 text-white hover:bg-blue-600 transition-colors disabled:opacity-40 shrink-0">
           <Plus size={16} />

@@ -47,7 +47,7 @@ export default function AchievementDetailPage({ achievementId, onBack }) {
           <div
             className={`w-20 h-20 rounded-[1.25rem] overflow-hidden border-2 flex items-center justify-center mb-4 ${
               unlocked
-                ? "border-emerald shadow-[0_0_20px_rgba(16,185,129,0.15)]"
+                ? "border-emerald shadow-[0_0_20px_rgba(51,144,236,0.15)]"
                 : "border-scribe opacity-30"
             }`}
           >

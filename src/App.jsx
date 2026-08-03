@@ -9,11 +9,16 @@ import useFolderStore from "./store/folderStore";
 import TabBar from "./components/layout/TabBar";
 import UnlockModal from "./components/achievements/UnlockModal";
 import AchievementBatchModal from "./components/achievements/AchievementBatchModal";
+
+// 将成就弹窗包装为 motion 组件：AnimatePresence 可直接控制其退出动画并在完成后卸载，
+// 避免自定义组件作为直接子元素时残留全屏遮罩拦截点击
+const MotionUnlockModal = motion.create(UnlockModal);
+const MotionBatchModal = motion.create(AchievementBatchModal);
 import ToastContainer from "./components/ui/Toast";
 import AIAssistant from "./components/ai/AIAssistant";
 import PrivacyConsentModal from "./components/ui/PrivacyConsentModal";
 import { hasConsented } from "./utils/privacyConsent";
-import { initStats, incrementComponentStat, shouldReport, submitFeedback } from "./utils/feedbackReporter";
+import { initStats, incrementComponentStat } from "./utils/feedbackReporter";
 import { FAB_DEFAULTS, STORAGE_KEY_FAB } from "./config/debugDefaults";
 
 // 页面级代码分割
@@ -107,14 +112,11 @@ export default function App() {
     // 初始化使用统计
     initStats();
 
-    // 首次使用：弹出使用须知
+    // 首次使用：弹出使用须知（无论同意/拒绝都不自动上报，见隐私承诺）
     const consented = hasConsented();
     if (consented === false) {
       // 从未选择过 → 弹出
       setTimeout(() => setShowPrivacyConsent(true), 500);
-    } else if (consented === true && shouldReport()) {
-      // 已同意 + 今天未上报 → 自动上报
-      setTimeout(() => submitFeedback(), 5000);
     }
 
     useFolderStore.getState().loadFolders();
@@ -125,8 +127,9 @@ export default function App() {
       StatusBar.setBackgroundColor({ color: "#f8f7f4" });
     }).catch(() => {});
 
-    import("@capacitor/app").then(({ App }) => {
-      App.addListener("backButton", () => {
+    let removed = false;
+    import("@capacitor/app").then(async ({ App }) => {
+      const handle = await App.addListener("backButton", () => {
         const page = currentPageRef.current;
         if (page === "editor") {
           setEditingNoteId(null);
@@ -153,7 +156,10 @@ export default function App() {
           App.exitApp();
         }
       });
+      // StrictMode 下 effect 双跑：首个 effect 的监听器在 cleanup 时移除
+      if (removed) handle.remove();
     }).catch(() => {});
+    return () => { removed = true; };
   }, []);
 
   useEffect(() => {
@@ -318,8 +324,8 @@ export default function App() {
               onClick={() => { prevPageRef.current = currentPage; setEditingNoteId("new"); setCurrentPage("editor"); }}
               whileTap={{ scale: 0.85 }}
               transition={{ type: "spring", stiffness: 400, damping: 15 }}
-              className="fixed bottom-32 right-5 w-14 h-14 bg-emerald rounded-full shadow-fab flex items-center justify-center z-20"
-              style={{ willChange: 'transform' }}
+              className="fixed bottom-32 right-5 w-14 h-14 bg-emerald rounded-full flex items-center justify-center z-20"
+              style={{ boxShadow: "0 4px 16px rgba(51,144,236,0.4), 0 1px 3px rgba(51,144,236,0.25)", willChange: "transform" }}
             >
               <Plus size={24} className="text-white" />
             </motion.button>
@@ -329,20 +335,38 @@ export default function App() {
 
       <TabBar currentPage={currentPage} onNavigate={navigateTo} />
 
+      {/* 成就解锁弹窗：AnimatePresence 直接子元素为 motion 组件（motion.create HOC），
+          退出动画完成后正确卸载，不会残留全屏遮罩拦截点击 */}
       <AnimatePresence>
         {lastUnlocked && (
-          <UnlockModal achievement={lastUnlocked} onDismiss={dismissLastUnlocked}
-            onViewAll={() => { dismissLastUnlocked(); setCurrentPage("gallery"); }} />
+          <MotionUnlockModal
+            key={"unlock-" + lastUnlocked.id}
+            achievement={lastUnlocked}
+            onDismiss={dismissLastUnlocked}
+            onViewAll={() => { dismissLastUnlocked(); setCurrentPage("gallery"); }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+          />
         )}
-        {lastUnlockedBatch && (
-          <AchievementBatchModal achievements={lastUnlockedBatch} onDismiss={dismissBatch}
-            onViewAll={() => { dismissBatch(); setCurrentPage("gallery"); }} />
+        {lastUnlockedBatch && lastUnlockedBatch.length > 0 && (
+          <MotionBatchModal
+            key="batch"
+            achievements={lastUnlockedBatch}
+            onDismiss={dismissBatch}
+            onViewAll={() => { dismissBatch(); setCurrentPage("gallery"); }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+          />
         )}
       </AnimatePresence>
-      <RemoteConfigProvider currentVersion="1.4.0" debug={false} />
+      <RemoteConfigProvider currentVersion="1.6.2" debug={false} />
       <ToastContainer />
       <PrivacyConsentModal isOpen={showPrivacyConsent}
-        onDone={() => { setShowPrivacyConsent(false); setTimeout(() => submitFeedback(), 3000); }} />
+        onDone={() => { setShowPrivacyConsent(false); }} />
     </div>
   );
 }

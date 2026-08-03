@@ -88,7 +88,7 @@ export default function TagBarDebugPage({ onBack }) {
             mode={mode} overLight={!isDarkPreview} shadowOpacity={shadowOpacity} wrapperStyle={{}}>
             <div className="flex gap-2">
               {["全部", "今天", "本周"].map((tag, i) => (
-                <span key={tag} className={"whitespace-nowrap px-3 py-1.5 text-sm font-medium rounded-full " + (i === 0 ? "bg-white text-deep-ink shadow-sm" : "text-faded-slate")}>{tag}</span>
+                <span key={tag} className={"whitespace-nowrap px-3 py-1.5 text-sm font-medium rounded-full " + (i === 0 ? "bg-emerald text-white shadow-sm" : "text-faded-slate")}>{tag}</span>
               ))}
             </div>
           </LiquidGlass>

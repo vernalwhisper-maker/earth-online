@@ -44,6 +44,10 @@ export default function RemoteConfigProvider({ currentVersion = '1.4.0', debug =
   const initializedRef = useRef(false);
   const setAdvancedDebug = useSettingsStore((s) => s.setAdvancedDebug);
 
+  // 与成就弹窗同样处理：motion.create 包装自定义弹窗，AnimatePresence 可正确卸载，避免残留遮罩拦截点击
+  const MotionUpdateDialog = motion.create(UpdateDialog);
+  const MotionNoticeDialog = motion.create(NoticeDialog);
+
   useEffect(() => {
     if (initializedRef.current) return;
     initializedRef.current = true;
@@ -98,14 +102,16 @@ export default function RemoteConfigProvider({ currentVersion = '1.4.0', debug =
       {/* 版本更新弹窗 */}
       <AnimatePresence>
         {updateDialog && (
-          <UpdateDialog dialog={updateDialog} onClose={() => setUpdateDialog(null)} />
+          <MotionUpdateDialog key="update" dialog={updateDialog} onClose={() => setUpdateDialog(null)}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} />
         )}
       </AnimatePresence>
 
       {/* 公告弹窗 */}
       <AnimatePresence>
         {noticeDialog && (
-          <NoticeDialog notice={noticeDialog} onClose={() => setNoticeDialog(null)} />
+          <MotionNoticeDialog key="notice" notice={noticeDialog} onClose={() => setNoticeDialog(null)}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} />
         )}
       </AnimatePresence>
     </>
@@ -116,7 +122,7 @@ export default function RemoteConfigProvider({ currentVersion = '1.4.0', debug =
 // 版本更新弹窗
 // ============================================================
 
-function UpdateDialog({ dialog, onClose }) {
+function UpdateDialog({ dialog, onClose, ...motionProps }) {
   const isForce = dialog.type === 'force';
 
   const handleUpdate = () => {
@@ -130,12 +136,12 @@ function UpdateDialog({ dialog, onClose }) {
 
   return (
     <motion.div
+      {...motionProps}
       className="fixed inset-0 z-[9999] flex items-center justify-center px-4"
-      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
     >
       <div className="absolute inset-0 bg-deep-ink/60" onClick={isForce ? undefined : onClose} />
       <motion.div
-        className="relative bg-surface rounded-modal p-6 max-w-sm w-full shadow-soft"
+        className="relative panel-card p-6 max-w-sm w-full"
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
@@ -174,15 +180,15 @@ function UpdateDialog({ dialog, onClose }) {
 // 公告弹窗
 // ============================================================
 
-function NoticeDialog({ notice, onClose }) {
+function NoticeDialog({ notice, onClose, ...motionProps }) {
   return (
     <motion.div
+      {...motionProps}
       className="fixed inset-0 z-[9998] flex items-center justify-center px-4"
-      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
     >
       <div className="absolute inset-0 bg-deep-ink/60" onClick={onClose} />
       <motion.div
-        className="relative bg-surface rounded-modal p-6 max-w-sm w-full shadow-soft"
+        className="relative panel-card p-6 max-w-sm w-full"
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}

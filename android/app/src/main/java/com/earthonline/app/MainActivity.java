@@ -5,7 +5,9 @@ import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
+    public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        // 注册导出到系统 Download 的原生插件
+        registerPlugin(DownloadPlugin.class);
     }
 }

@@ -123,7 +123,7 @@ export default function DragSegmentPreview({ params }) {
         {OPTIONS.map((label, i) => (
           <span key={label} data-opt
             className="relative px-3 py-1.5 text-xs text-center select-none"
-            style={{ width: pillWidth, fontWeight: i === activeIdx ? 700 : 500, color: i === activeIdx ? "#059669" : "rgba(163,162,158,0.8)" }}
+            style={{ width: pillWidth, fontWeight: i === activeIdx ? 700 : 500, color: i === activeIdx ? "#2b7fd4" : "rgba(163,162,158,0.8)" }}
           >
             {label}
           </span>

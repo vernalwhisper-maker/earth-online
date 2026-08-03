@@ -1,8 +1,9 @@
 ﻿import { useState, useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { ArrowLeft, RotateCcw, Wifi, Cpu, Smartphone, Download, Check, X, CheckCircle, AlertCircle, Loader } from "lucide-react";
 import RangeSlider from "../../components/ui/RangeSlider";
 import GlassSwitch from "../../components/ui/GlassSwitch";
+import GlassModal from "../../components/ui/GlassModal";
 import useSettingsStore from "../../store/settingsStore";
 import { API_PROVIDERS, ONLINE_MODELS } from "../../config/api";
 
@@ -22,6 +23,8 @@ const springTap = { type: "spring", stiffness: 500, damping: 11, mass: 0.55 };
 export default function AISettingsPage({ onBack }) {
   const store = useSettingsStore();
   const { loaded, useMode, setUseMode } = store;
+  // 深色模式判断（设置页内嵌样式适配用）
+  const isDark = store.darkMode === "dark" || (store.darkMode === "system" && typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: dark)").matches);
   const wb = store; // 下载状态快捷引用
   const webllmCancelRef = useRef(null);
   const [webgpuOk, setWebgpuOk] = useState(null);
@@ -59,6 +62,7 @@ export default function AISettingsPage({ onBack }) {
         method: "POST",
         headers: { "Authorization": "Bearer " + store.apiKey, "Content-Type": "application/json" },
         body: JSON.stringify({ model: cfg.model, messages: [{ role: "user", content: "hi" }], max_tokens: 5 }),
+        signal: AbortSignal.timeout(8000),
       });
       setKeyStatus(resp.ok ? "ok" : "fail");
     } catch { setKeyStatus("fail"); }
@@ -200,7 +204,7 @@ export default function AISettingsPage({ onBack }) {
                 onClick={() => setShowOnlinePicker(true)}
                 whileTap={{ scale: 0.97 }}
                 className="w-full flex items-center justify-between px-3 py-2.5 border border-scribe rounded-input text-sm"
-                style={{ background: "rgba(0,0,0,0.02)", color: "#1c1b1a" }}>
+                style={{ background: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.02)", color: isDark ? "#ffffff" : "#1c1b1a" }}>
                 <span>{ONLINE_MODELS.find((m) => m.value === store.modelProvider)?.label || "选择模型"}</span>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ opacity: 0.5 }}><path d="m6 9 6 6 6-6"/></svg>
               </motion.button>
@@ -301,7 +305,7 @@ export default function AISettingsPage({ onBack }) {
                 onClick={() => setShowWebllmPicker(true)}
                 whileTap={{ scale: 0.97 }}
                 className="w-full flex items-center justify-between px-3 py-2.5 border border-scribe rounded-input text-sm"
-                style={{ background: "rgba(0,0,0,0.02)", color: "#1c1b1a" }}>
+                style={{ background: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.02)", color: isDark ? "#ffffff" : "#1c1b1a" }}>
                 <span>{WEBLLM_MODELS.find((m) => m.value === store.webllmModel)?.label || "选择模型"}</span>
                 <span className="text-xs text-faded-slate">{WEBLLM_MODELS.find((m) => m.value === store.webllmModel)?.size}</span>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ opacity: 0.5 }}><path d="m6 9 6 6 6-6"/></svg>
@@ -423,6 +427,16 @@ export default function AISettingsPage({ onBack }) {
             <RotateCcw size={12} /> 重置</button>
         </div>
         <div className="space-y-5">
+          {/* 深度思考开关：仅对支持 thinking 参数的模型（DeepSeek V4）显示 */}
+          {API_PROVIDERS[store.modelProvider]?.supportsThinking && (
+            <div className="flex items-center justify-between py-1">
+              <div>
+                <p className="text-sm text-deep-ink">深度思考</p>
+                <p className="text-xs text-faded-slate mt-0.5">AI 先深度思考再回答，质量更高但响应更慢</p>
+              </div>
+              <GlassSwitch value={store.deepThinking} onChange={store.setDeepThinking} ariaLabel="深度思考" />
+            </div>
+          )}
           <RangeSlider label="温度 (Temperature)" value={store.inference.temperature}
             onChange={(v) => store.setInferenceParam("temperature", v)} min={0} max={2} step={0.05}
             labels={["精确", "平衡", "创意", "发散"]} formatValue={(v) => v.toFixed(2)} />
@@ -448,82 +462,42 @@ export default function AISettingsPage({ onBack }) {
       </section>
 
       {/* ===== 在线模型选择弹窗 ===== */}
-      <AnimatePresence>
-        {showOnlinePicker && (
-          <>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 z-30" onClick={() => setShowOnlinePicker(false)} />
-            <motion.div
-              initial={{ scale: 0.85, opacity: 0, y: 10 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.85, opacity: 0, y: 10 }}
-              transition={{ type: "spring", stiffness: 400, damping: 28 }}
-              className="fixed left-1/2 -translate-x-1/2 z-40 w-[240px] rounded-[1.2rem] overflow-hidden shadow-lg"
-              style={{ bottom: "calc(50% - 120px)" }}>
-              <div className="absolute inset-0" style={{
-                background: "linear-gradient(135deg, rgba(255,255,255,0.98), rgba(248,247,244,0.95))",
-                backdropFilter: "blur(35px) saturate(200%)", WebkitBackdropFilter: "blur(35px) saturate(200%)",
-              }} />
-              <div className="absolute inset-0 rounded-[1.2rem] border border-white/25" />
-              <div className="relative z-10 py-2">
-                {ONLINE_MODELS.map((m) => {
-                  const isActive = store.modelProvider === m.value;
-                  return (
-                    <motion.button key={m.value}
-                      onClick={() => { store.setModelProvider(m.value); setShowOnlinePicker(false); }}
-                      whileTap={{ scale: 0.97 }}
-                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors"
-                      style={{ background: isActive ? "rgba(0,0,0,0.04)" : "transparent", color: isActive ? "#059669" : "#1c1b1a" }}>
-                      <span className="flex-1 text-left">{m.label}</span>
-                      {m.size && <span className="text-xs text-faded-slate mr-2">{m.size}</span>}
-                      {isActive && <Check size={14} />}
-                    </motion.button>
-                  );
-                })}
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+      <GlassModal show={showOnlinePicker} onClose={() => setShowOnlinePicker(false)}
+        className="w-[240px]" contentClassName="p-2">
+        {ONLINE_MODELS.map((m) => {
+          const isActive = store.modelProvider === m.value;
+          return (
+            <motion.button key={m.value}
+              onClick={() => { store.setModelProvider(m.value); setShowOnlinePicker(false); }}
+              whileTap={{ scale: 0.97 }}
+              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors"
+              style={{ background: isActive ? (isDark ? "rgba(51,144,236,0.2)" : "rgba(0,0,0,0.04)") : "transparent", color: isActive ? (isDark ? "#66b5f2" : "#2b7fd4") : (isDark ? "rgba(255,255,255,0.85)" : "#1c1b1a") }}>
+              <span className="flex-1 text-left">{m.label}</span>
+              {m.size && <span className="text-xs text-faded-slate mr-2">{m.size}</span>}
+              {isActive && <Check size={14} />}
+            </motion.button>
+          );
+        })}
+      </GlassModal>
 
       {/* ===== WebLLM 模型选择弹窗 ===== */}
-      <AnimatePresence>
-        {showWebllmPicker && (
-          <>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 z-30" onClick={() => setShowWebllmPicker(false)} />
-            <motion.div
-              initial={{ scale: 0.85, opacity: 0, y: 10 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.85, opacity: 0, y: 10 }}
-              transition={{ type: "spring", stiffness: 400, damping: 28 }}
-              className="fixed left-1/2 -translate-x-1/2 z-40 w-[240px] rounded-[1.2rem] overflow-hidden shadow-lg"
-              style={{ bottom: "calc(50% - 60px)" }}>
-              <div className="absolute inset-0" style={{
-                background: "linear-gradient(135deg, rgba(255,255,255,0.98), rgba(248,247,244,0.95))",
-                backdropFilter: "blur(35px) saturate(200%)", WebkitBackdropFilter: "blur(35px) saturate(200%)",
-              }} />
-              <div className="absolute inset-0 rounded-[1.2rem] border border-white/25" />
-              <div className="relative z-10 py-2">
-                {WEBLLM_MODELS.map((m) => {
-                  const isActive = store.webllmModel === m.value;
-                  return (
-                    <motion.button key={m.value}
-                      onClick={() => { store.setWebllmModel(m.value); setShowWebllmPicker(false); }}
-                      whileTap={{ scale: 0.97 }}
-                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors"
-                      style={{ background: isActive ? "rgba(0,0,0,0.04)" : "transparent", color: isActive ? "#059669" : "#1c1b1a" }}>
-                      <span className="flex-1 text-left">{m.label}</span>
-                      {m.size && <span className="text-xs text-faded-slate mr-2">{m.size}</span>}
-                      {isActive && <Check size={14} />}
-                    </motion.button>
-                  );
-                })}
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+      <GlassModal show={showWebllmPicker} onClose={() => setShowWebllmPicker(false)}
+        className="w-[240px]" contentClassName="p-2">
+        {WEBLLM_MODELS.map((m) => {
+          const isActive = store.webllmModel === m.value;
+          return (
+            <motion.button key={m.value}
+              onClick={() => { store.setWebllmModel(m.value); setShowWebllmPicker(false); }}
+              whileTap={{ scale: 0.97 }}
+              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors"
+              style={{ background: isActive ? (isDark ? "rgba(51,144,236,0.2)" : "rgba(0,0,0,0.04)") : "transparent", color: isActive ? (isDark ? "#66b5f2" : "#2b7fd4") : (isDark ? "rgba(255,255,255,0.85)" : "#1c1b1a") }}>
+              <span className="flex-1 text-left">{m.label}</span>
+              {m.size && <span className="text-xs text-faded-slate mr-2">{m.size}</span>}
+              {isActive && <Check size={14} />}
+            </motion.button>
+          );
+        })}
+      </GlassModal>
     </motion.div>
   );
 }

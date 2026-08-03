@@ -88,11 +88,11 @@ export default function WindowDebugPage({ onBack }) {
                 <X size={14} className="text-faded-slate" />
               </div>
               <div className="space-y-2">
-                <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-black/5">
+                <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5">
                   <Hash size={14} className="text-faded-slate" />
                   <span className="text-xs text-deep-ink">标签管理</span>
                 </div>
-                <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-black/5">
+                <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5">
                   <Palette size={14} className="text-faded-slate" />
                   <span className="text-xs text-deep-ink">更多设置</span>
                 </div>
