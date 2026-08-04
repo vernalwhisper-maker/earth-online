@@ -1,5 +1,9 @@
 // 60 个人生成就数据 — 从 AI 识别结果整理
 // 按稀有度升序排列（最稀有的在前）
+// 隐藏成就（id 61-64）：name/description 为加密串（见 src/utils/hidden.js），
+// 由 achievementStore 运行时解密；不显示在成就画廊中（hidden: 1）
+
+import { ENC } from "../utils/hidden";
 
 const achievementsData = [
   { id: 1, name: "全款置业", description: "无贷款独立购置房产。", rarity: 4 },
@@ -62,15 +66,47 @@ const achievementsData = [
   { id: 58, name: "拖延症", description: "事情必等到截止日期当天，极限熬夜通关。", rarity: 88 },
   { id: 59, name: "通宵达人", description: "凌晨3点仍保持在线，突破熬夜生理极限", rarity: 93 },
   { id: 60, name: "主角登场", description: "成功创建专属角色，正式登陆地球Online服务器。", rarity: 100 },
+  // ── 隐藏成就（hidden: 1，不在应用内展示；name/description 为加密串）──
+  { id: 61, name: ENC.name61, description: ENC.desc61, rarity: "未估算", series: "破损", hidden: 1, iconType: "black" },
+  { id: 62, name: ENC.name62, description: ENC.desc62, rarity: "9.6", series: "破损", hidden: 1, iconType: "black" },
+  { id: 63, name: ENC.name63, description: ENC.desc63, rarity: "6.1", series: "破损", hidden: 1, iconType: "black" },
+  { id: 64, name: ENC.name64, description: ENC.desc64, rarity: "未知", hidden: 1, iconType: "encrypted", iconFile: "yongtianlunhui.bin" },
 ];
 
 export default achievementsData;
 
 export function getRarityLevel(rarity) {
-  if (rarity < 5) return { label: "传说", color: "bg-amber-500 text-white" };
-  if (rarity < 10) return { label: "史诗", color: "bg-violet-500 text-white" };
-  if (rarity < 30) return { label: "稀有", color: "bg-blue-500 text-white" };
+  const n = typeof rarity === "number" ? rarity : parseFloat(rarity);
+  if (isNaN(n)) return { label: "神秘", color: "bg-slate-700 text-white" };
+  if (n < 5) return { label: "传说", color: "bg-amber-500 text-white" };
+  if (n < 10) return { label: "史诗", color: "bg-violet-500 text-white" };
+  if (n < 30) return { label: "稀有", color: "bg-blue-500 text-white" };
   return { label: "普通", color: "bg-gray-400 text-white" };
+}
+
+/** 概率展示文本：数值 → "9.6%"，文字 → 原样（"未估算"/"未知"） */
+export function getProbabilityText(rarity) {
+  if (typeof rarity === "number") return rarity + "%";
+  const n = parseFloat(rarity);
+  return isNaN(n) ? rarity : n + "%";
+}
+
+/** 是否为隐藏成就 */
+export function isHiddenAchievement(a) {
+  return !!a.hidden;
+}
+
+/**
+ * 系列进度：{ name, unlocked, total }。
+ * 如破损系列解锁 1/3；无系列返回 null。
+ * achievements 应传入 store 中已解密/已更新的成就数组。
+ */
+export function getSeriesProgress(series, achievements) {
+  if (!series) return null;
+  const members = achievements.filter((a) => a.series === series);
+  if (members.length === 0) return null;
+  const unlocked = members.filter((a) => a.unlocked).length;
+  return { name: series, unlocked, total: members.length };
 }
 
 // Map rarity-sorted id to original screenshot filename

@@ -1,7 +1,8 @@
 import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import useAchievementStore from "../store/achievementStore";
-import { getRarityLevel, getIconFilename } from "../data/achievements";
+import { getRarityLevel } from "../data/achievements";
+import AchievementIcon from "../components/achievements/AchievementIcon";
 import ProgressRing from "../components/ui/ProgressRing";
 import { Check } from "lucide-react";
 
@@ -14,8 +15,9 @@ export default function AchievementGalleryPage({ onViewAchievement }) {
   const getSorted = useAchievementStore((s) => s.getSortedAchievements);
 
   const sorted = useMemo(() => getSorted(filter, sortBy), [filter, sortBy, achievements]);
-  const unlockedCount = useMemo(() => achievements.filter((a) => a.unlocked).length, [achievements]);
-  const totalCount = achievements.length;
+  const visibleAchievements = useMemo(() => achievements.filter((a) => !a.hidden), [achievements]);
+  const unlockedCount = useMemo(() => visibleAchievements.filter((a) => a.unlocked).length, [visibleAchievements]);
+  const totalCount = visibleAchievements.length;
 
   return (
     <motion.div
@@ -82,7 +84,6 @@ export default function AchievementGalleryPage({ onViewAchievement }) {
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           {sorted.map((a, i) => {
             const rarity = getRarityLevel(a.rarity);
-            const iconFile = getIconFilename(a.id);
             return (
               <motion.button
                 key={a.id}
@@ -102,12 +103,7 @@ export default function AchievementGalleryPage({ onViewAchievement }) {
                   }`}
                 >
                   {a.unlocked ? (
-                    <img
-                      src={`/icons/${iconFile}`}
-                      alt={a.name}
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                    />
+                    <AchievementIcon achievement={a} />
                   ) : (
                     <div
                       className="w-full h-full bg-scribe/30 rounded-icon flex items-center justify-center"

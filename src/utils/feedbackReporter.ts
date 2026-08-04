@@ -54,10 +54,13 @@ function getOSVersion(): string {
   return ua.includes("Windows") ? "Windows" : ua.includes("Mac") ? "macOS" : "Unknown";
 }
 
+// vite define 注入的 APP 版本（编译期替换为 package.json 的 version）
+declare const __APP_VERSION__: string;
+
 /** 获取 APP 版本 */
 function getAppVersion(): string {
   try {
-    return (window as any).__APP_VERSION__ || "1.0.0";
+    return __APP_VERSION__ || "1.0.0";
   } catch {
     return "1.0.0";
   }

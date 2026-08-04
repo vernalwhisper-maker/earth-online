@@ -1,15 +1,19 @@
 import { motion } from "framer-motion";
 import { ArrowLeft } from "lucide-react";
-import achievementsData, { getRarityLevel, getIconFilename } from "../data/achievements";
+import { getRarityLevel } from "../data/achievements";
 import useAchievementStore from "../store/achievementStore";
+import AchievementIcon from "../components/achievements/AchievementIcon";
 
 export default function AchievementDetailPage({ achievementId, onBack }) {
-  const achievement = achievementsData.find((a) => a.id === achievementId);
+  const achievement = useAchievementStore((s) =>
+    s.achievements.find((a) => a.id === achievementId)
+  );
   const state = useAchievementStore((s) =>
     s.achievements.find((a) => a.id === achievementId)
   );
 
-  if (!achievement) {
+  // 隐藏成就不在应用内展示，直接拦截
+  if (!achievement || achievement.hidden) {
     return (
       <div className="p-4">
         <button onClick={onBack} className="flex items-center gap-2 text-warm-steel">
@@ -22,7 +26,6 @@ export default function AchievementDetailPage({ achievementId, onBack }) {
   }
 
   const rarity = getRarityLevel(achievement.rarity);
-  const iconFile = getIconFilename(achievement.id);
   const unlocked = state?.unlocked || false;
 
   return (
@@ -51,12 +54,7 @@ export default function AchievementDetailPage({ achievementId, onBack }) {
                 : "border-scribe opacity-30"
             }`}
           >
-            <img
-              src={`/icons/${iconFile}`}
-              alt={achievement.name}
-              className="w-full h-full object-cover"
-              loading="lazy"
-            />
+            <AchievementIcon achievement={achievement} />
           </div>
           <h1
             className={`text-[1.5rem] font-extrabold text-center leading-tight ${

@@ -17,6 +17,7 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -96,7 +97,9 @@ public class DownloadPlugin extends Plugin {
     }
 
     /**
-     * 列出「下载/EarthOnline/」下的导出文件（app 自建文件，MediaStore 免权限读取）。
+     * 列出「下载」目录下的可导入文件（.eon/.md/.txt/.json，任意子目录）。
+     * Android 10+：MediaStore Downloads 集合查询（免权限），不限定 EarthOnline 子目录——
+     * 用户可能把文件放在 Download 根目录或其他位置，0.6.0 及系统文件选择器均支持任意位置。
      * 返回 [{ name, uri, size }]，按修改时间倒序。
      */
     @PluginMethod
@@ -104,8 +107,8 @@ public class DownloadPlugin extends Plugin {
         JSArray arr = new JSArray();
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                String selection = MediaStore.Downloads.RELATIVE_PATH + " = ?";
-                String[] args = { Environment.DIRECTORY_DOWNLOADS + "/EarthOnline/" };
+                String selection = "(DISPLAY_NAME LIKE ? OR DISPLAY_NAME LIKE ? OR DISPLAY_NAME LIKE ? OR DISPLAY_NAME LIKE ?)";
+                String[] args = { "%.eon", "%.md", "%.txt", "%.json" };
                 try (Cursor c = getContext().getContentResolver().query(
                         MediaStore.Downloads.EXTERNAL_CONTENT_URI,
                         new String[]{MediaStore.Downloads._ID, MediaStore.Downloads.DISPLAY_NAME, MediaStore.Downloads.SIZE},
@@ -126,24 +129,10 @@ public class DownloadPlugin extends Plugin {
                     }
                 }
             } else {
-                // Android 9 及以下：直接列目录
-                File dir = new File(
-                        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-                        "EarthOnline");
-                if (dir.exists()) {
-                    File[] files = dir.listFiles();
-                    if (files != null) {
-                        for (File f : files) {
-                            if (f.isFile()) {
-                                JSObject o = new JSObject();
-                                o.put("name", f.getName());
-                                o.put("uri", Uri.fromFile(f).toString());
-                                o.put("size", f.length());
-                                arr.put(o);
-                            }
-                        }
-                    }
-                }
+                // Android 9 及以下：直接列 Download 根目录 + EarthOnline 子目录
+                File base = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+                addImportFiles(arr, base);
+                addImportFiles(arr, new File(base, "EarthOnline"));
             }
         } catch (Exception e) {
             call.reject("List failed: " + e.getMessage());
@@ -152,6 +141,23 @@ public class DownloadPlugin extends Plugin {
         JSObject ret = new JSObject();
         ret.put("files", arr);
         call.resolve(ret);
+    }
+
+    /** Android 9-：把目录下可导入文件加入列表 */
+    private void addImportFiles(JSArray arr, File dir) {
+        if (dir == null || !dir.exists()) return;
+        File[] files = dir.listFiles();
+        if (files == null) return;
+        for (File f : files) {
+            if (!f.isFile()) continue;
+            String name = f.getName().toLowerCase();
+            if (!name.endsWith(".eon") && !name.endsWith(".md") && !name.endsWith(".txt") && !name.endsWith(".json")) continue;
+            JSObject o = new JSObject();
+            o.put("name", f.getName());
+            o.put("uri", Uri.fromFile(f).toString());
+            o.put("size", f.length());
+            arr.put(o);
+        }
     }
 
     /**
@@ -166,15 +172,22 @@ public class DownloadPlugin extends Plugin {
         }
         try {
             Uri uri = Uri.parse(uriStr);
-            try (InputStream is = getContext().getContentResolver().openInputStream(uri)) {
-                if (is == null) {
+            InputStream is;
+            if ("file".equals(uri.getScheme())) {
+                // Android 9 及以下：file:// 直接读（已声明 READ_EXTERNAL_STORAGE）
+                is = new FileInputStream(new File(uri.getPath()));
+            } else {
+                is = getContext().getContentResolver().openInputStream(uri);
+            }
+            try (InputStream in = is) {
+                if (in == null) {
                     call.reject("Cannot open file");
                     return;
                 }
                 ByteArrayOutputStream bos = new ByteArrayOutputStream();
                 byte[] buf = new byte[8192];
                 int n;
-                while ((n = is.read(buf)) != -1) {
+                while ((n = in.read(buf)) != -1) {
                     bos.write(buf, 0, n);
                 }
                 String b64 = android.util.Base64.encodeToString(bos.toByteArray(), android.util.Base64.NO_WRAP);

@@ -12,6 +12,7 @@ import { isAndroid, isCapacitor, blobToBase64, saveFileToDownloads, downloadBlob
 import GlassModal from "../../components/ui/GlassModal";
 import { getStats, submitFeedback } from "../../utils/feedbackReporter";
 import { setConsent } from "../../utils/privacyConsent";
+import { verifyTotp } from "../../utils/totp";
 
 export default function MoreSettingsPage({ onBack }) {
   const {
@@ -46,6 +47,11 @@ export default function MoreSettingsPage({ onBack }) {
   const [showFeedback, setShowFeedback] = useState(false);
   const [feedbackMsg, setFeedbackMsg] = useState("");
   const [feedbackSending, setFeedbackSending] = useState(false);
+  // 成就调试：TOTP 动态密码弹窗
+  const [showAchPwd, setShowAchPwd] = useState(false);
+  const [achPwdInput, setAchPwdInput] = useState("");
+  const [achPwdError, setAchPwdError] = useState("");
+  const [achPwdBusy, setAchPwdBusy] = useState(false);
 
   // 开发者模式连点触发 — 全部在 useEffect 中驱动，不在 render 阶段调 setState
   const [devTapCount, setDevTapCount] = useState(0);
@@ -75,6 +81,26 @@ export default function MoreSettingsPage({ onBack }) {
       setDevCardOpen(true);
     } else {
       closeDevCard(); // 隐藏卡片 + 重置触发 + 关闭 advancedDebug / debugFABEnabled
+    }
+  };
+
+  // 成就调试：校验 TOTP 动态密码，通过后进入成就调试页
+  const handleAchVerify = async () => {
+    const code = achPwdInput.trim();
+    if (!/^\d{6}$/.test(code)) {
+      setAchPwdError("请输入 6 位动态密码");
+      return;
+    }
+    setAchPwdBusy(true);
+    setAchPwdError("");
+    const ok = await verifyTotp(code);
+    setAchPwdBusy(false);
+    if (ok) {
+      setShowAchPwd(false);
+      setAchPwdInput("");
+      onBack?.("debug-achievements");
+    } else {
+      setAchPwdError("动态密码错误，请重试");
     }
   };
 
@@ -166,10 +192,17 @@ export default function MoreSettingsPage({ onBack }) {
   const handleFileSelect = (e) => {
     const f = e.target.files?.[0];
     if (!f) return;
+    // 校验扩展名（SAF 选择器可能显示非过滤类型文件）
+    const name = f.name.toLowerCase();
+    if (!name.endsWith(".eon") && !name.endsWith(".md") && !name.endsWith(".txt") && !name.endsWith(".json")) {
+      alert("不支持的文件类型，请选择 .eon / .md / .txt / .json 备份文件");
+      e.target.value = "";
+      return;
+    }
     pendingFileRef.current = f;
     e.target.value = "";
     // 根据文件扩展名自动选择解析方式
-    const isMd = f.name.endsWith(".md") || f.name.endsWith(".MD");
+    const isMd = name.endsWith(".md");
     if (isMd) {
       doImportMarkdown();
     } else {
@@ -252,7 +285,8 @@ export default function MoreSettingsPage({ onBack }) {
               <span className="text-sm text-deep-ink">从下载目录导入</span><FolderOpen size={18} className="text-warm-steel" />
             </button>
           )}
-          <input ref={fileInputRef} type="file" accept=".eon,.md" onChange={handleFileSelect} className="hidden" />
+          {/* accept 含 application/octet-stream：让 .eon 等无标准 MIME 的文件在系统选择器中可见 */}
+          <input ref={fileInputRef} type="file" accept=".eon,.md,.txt,.json,text/plain,application/json,application/octet-stream" onChange={handleFileSelect} className="hidden" />
           {importResult && (
             <div className={"text-sm px-3 py-2 rounded-btn " + (importResult.success ? "bg-emerald/10 text-emerald border border-emerald/20" : "bg-rose/10 text-rose border border-rose/20")}>
               {importResult.success ? (importResult.message || "成功导入 " + importResult.count + " 条笔记") : "导入失败：" + importResult.message}
@@ -356,6 +390,25 @@ export default function MoreSettingsPage({ onBack }) {
                 </button>
               </div>
             </div>
+            {/* 发送反馈（窗口调试下面） */}
+            <div className="flex items-center justify-between px-3 py-3 rounded-btn hover:bg-canvas-warm transition-colors">
+              <span className="text-sm text-deep-ink">发送反馈</span>
+              <button onClick={() => { setFeedbackMsg(""); setShowFeedback(true); }}
+                className="px-2.5 py-1 text-xs font-medium bg-emerald/10 text-emerald rounded-full hover:bg-emerald/20 transition-colors">
+                进入
+              </button>
+            </div>
+            {/* 成就调试：主动弹出成就（多选/隐藏成就），进入需 TOTP 动态密码 */}
+            <div className="flex items-center justify-between px-3 py-3 rounded-btn hover:bg-canvas-warm transition-colors">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-sm text-deep-ink">成就调试</span>
+                <span className="text-[11px] text-warm-steel">主动弹出成就，支持多选与隐藏成就</span>
+              </div>
+              <button onClick={() => { setAchPwdInput(""); setAchPwdError(""); setShowAchPwd(true); }}
+                className="px-2.5 py-1 text-xs font-medium bg-emerald/10 text-emerald rounded-full hover:bg-emerald/20 transition-colors shrink-0">
+                进入
+              </button>
+            </div>
             {/* 标签栏调试（窗口调试下面）：切换双端标签栏样式，保持双端动画一致 */}
             <div className="flex items-center justify-between px-3 py-3 rounded-btn hover:bg-canvas-warm transition-colors">
               <div className="flex flex-col gap-0.5">
@@ -371,18 +424,36 @@ export default function MoreSettingsPage({ onBack }) {
                 ))}
               </div>
             </div>
-
-            {/* 发送反馈 */}
-            <div className="flex items-center justify-between px-3 py-3 rounded-btn hover:bg-canvas-warm transition-colors">
-              <span className="text-sm text-deep-ink">发送反馈</span>
-              <button onClick={() => { setFeedbackMsg(""); setShowFeedback(true); }}
-                className="px-2.5 py-1 text-xs font-medium bg-emerald/10 text-emerald rounded-full hover:bg-emerald/20 transition-colors">
-                进入
-              </button>
-            </div>
           </div>
         </section>
       )}
+
+      {/* 成就调试：TOTP 动态密码弹窗 */}
+      <GlassModal show={showAchPwd} onClose={() => { setShowAchPwd(false); setAchPwdError(""); }}>
+        <h3 className="text-lg font-bold text-deep-ink mb-1">成就调试 · 动态密码</h3>
+        <p className="text-sm text-warm-steel mb-4">动态密码</p>
+        <input
+          type="password"
+          inputMode="numeric"
+          maxLength={6}
+          value={achPwdInput}
+          onChange={(e) => { setAchPwdInput(e.target.value.replace(/\D/g, "")); setAchPwdError(""); }}
+          autoFocus
+          onKeyDown={(e) => { if (e.key === "Enter") handleAchVerify(); }}
+          className="w-full px-3 py-2.5 border border-white/20 rounded-input bg-white/10 text-deep-ink text-sm focus:outline-none focus:ring-2 focus:ring-emerald font-mono tracking-[0.4em] text-center mb-2"
+        />
+        {achPwdError && <p className="text-xs text-rose mb-3">{achPwdError}</p>}
+        <div className="flex gap-3">
+          <button onClick={() => { setShowAchPwd(false); setAchPwdError(""); }}
+            className="flex-1 py-2.5 border border-white/20 rounded-btn text-sm text-deep-ink">
+            <X size={16} className="inline mr-1" />取消
+          </button>
+          <button onClick={handleAchVerify} disabled={achPwdBusy}
+            className="flex-1 py-2.5 bg-emerald text-white rounded-btn text-sm disabled:opacity-60">
+            <KeyRound size={16} className="inline mr-1" />{achPwdBusy ? "校验中..." : "验证并进入"}
+          </button>
+        </div>
+      </GlassModal>
 
       <GlassModal show={showExportPwd} onClose={() => setShowExportPwd(false)}>
         <h3 className="text-lg font-bold text-deep-ink mb-2">设置导出密码</h3>
@@ -408,11 +479,15 @@ export default function MoreSettingsPage({ onBack }) {
       {/* 从下载目录导入（Android） */}
       <GlassModal show={showDownloadPicker} onClose={() => setShowDownloadPicker(false)}>
         <h3 className="text-lg font-bold text-deep-ink mb-2">从下载目录导入</h3>
-        <p className="text-sm text-warm-steel mb-4">选择 下载/EarthOnline/ 中的备份文件（.eon / .md）</p>
+        <p className="text-sm text-warm-steel mb-4">选择 下载 目录中的备份文件（.eon / .md，任意子目录）</p>
         {loadingDownloads ? (
           <div className="py-8 text-center text-sm text-warm-steel">加载中…</div>
         ) : downloadFiles.length === 0 ? (
-          <div className="py-8 text-center text-sm text-warm-steel">暂无导出文件，请先在「导出笔记」中导出</div>
+          <div className="py-8 text-center text-sm text-warm-steel">
+            下载目录中未找到 .eon / .md 文件。
+            <br />
+            若文件刚通过电脑拷贝，请稍候重试；也可点下方「选择文件」从系统文件选择器导入（支持任意位置）。
+          </div>
         ) : (
           <div className="max-h-72 overflow-y-auto space-y-1.5">
             {downloadFiles.map((f) => (

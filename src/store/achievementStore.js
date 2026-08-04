@@ -1,7 +1,14 @@
 import { create } from "zustand";
 import achievementsData from "../data/achievements";
+import { decryptText } from "../utils/hidden";
 
 const STORAGE_KEY = "earth-online-achievements";
+
+/** 运行时解密隐藏成就（源码/产物中仅存加密串，运行时内存中为明文） */
+function decryptIfHidden(a) {
+  if (!a.hidden) return a;
+  return { ...a, name: decryptText(a.name), description: decryptText(a.description) };
+}
 
 function loadUnlocked() {
   try {
@@ -22,7 +29,7 @@ function saveUnlocked(data) {
 
 const useAchievementStore = create((set, get) => ({
   achievements: achievementsData.map((a) => ({
-    ...a, unlocked: false, unlocked_at: null, triggered_by: [],
+    ...decryptIfHidden(a), unlocked: false, unlocked_at: null, triggered_by: [],
   })),
   unlockedMap: {},
   lastUnlocked: null,
@@ -34,7 +41,7 @@ const useAchievementStore = create((set, get) => ({
   loadState() {
     const unlockedMap = loadUnlocked();
     const achievements = achievementsData.map((a) => ({
-      ...a,
+      ...decryptIfHidden(a),
       unlocked: !!unlockedMap[a.id],
       unlocked_at: unlockedMap[a.id]?.unlocked_at || null,
       triggered_by: unlockedMap[a.id]?.triggered_by || [],
@@ -127,15 +134,16 @@ const useAchievementStore = create((set, get) => ({
   dismissBatch() { set({ lastUnlockedBatch: null }); },
 
   getUnlockedCount() {
-    return Object.keys(get().unlockedMap).length;
+    // 隐藏成就不计入应用内可见计数（TabBar badge 等）
+    const hiddenIds = new Set(get().achievements.filter((a) => a.hidden).map((a) => a.id));
+    return Object.keys(get().unlockedMap).filter((id) => !hiddenIds.has(Number(id))).length;
   },
 
   getSortedAchievements(filter = "全部", sortBy = "default") {
-    const achievements = get().achievements;
-    let filtered;
-    if (filter === "已解锁") filtered = achievements.filter((a) => a.unlocked);
-    else if (filter === "未解锁") filtered = achievements.filter((a) => !a.unlocked);
-    else filtered = achievements;
+    // 隐藏成就不在应用内展示（画廊），排除之
+    let filtered = get().achievements.filter((a) => !a.hidden);
+    if (filter === "已解锁") filtered = filtered.filter((a) => a.unlocked);
+    else if (filter === "未解锁") filtered = filtered.filter((a) => !a.unlocked);
     const sorted = [...filtered];
     if (sortBy === "rarity") {
       sorted.sort((a, b) => a.rarity - b.rarity);

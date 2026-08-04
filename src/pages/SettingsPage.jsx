@@ -4,6 +4,7 @@ import { MessageSquare, Settings, FileText, Trophy, Sparkles, Trash2, X, Refresh
 import useSettingsStore from "../store/settingsStore";
 import useNoteStore from "../store/noteStore";
 import useFolderStore from "../store/folderStore";
+import useAchievementStore from "../store/achievementStore";
 import { DEFAULT_FOLDERS } from "../data/noteTypes";
 import { getDeletedNotes, restoreNote, permanentDeleteNote } from "../db";
 import { getChatStats, clearAllChatHistory, getAllChatMessages } from "../db";
@@ -41,6 +42,9 @@ export default function SettingsPage({ settingsSubPage, onSubPageChange }) {
   const [showClearChatConfirm, setShowClearChatConfirm] = useState(false);
 
   const { folders, addFolder, renameFolder, removeFolder } = useFolderStore();
+
+  // 关于页：可见成就总数（隐藏成就不计入）与版本号（版本号由 vite 注入，跟随 package.json）
+  const visibleAchievementCount = useAchievementStore((s) => s.achievements.filter((a) => !a.hidden).length);
 
   useEffect(() => {
     if (showRecycleBin) { setLoadingRecycle(true); setRecycleSelectedIds(new Set()); getDeletedNotes().then((n) => { setDeletedNotes(n); setLoadingRecycle(false); }); }
@@ -100,7 +104,7 @@ export default function SettingsPage({ settingsSubPage, onSubPageChange }) {
   if (settingsSubPage === "debug-tagbar") return <TagBarDebugPage onBack={(action) => onSubPageChange?.(action === "more" ? "more" : null)} />;
   if (settingsSubPage === "debug-navbar") return <NavBarDebugPage onBack={(action) => onSubPageChange?.(action === "more" ? "more" : null)} />;
   if (settingsSubPage === "debug-fab") return <FABDebugPage onBack={(action) => onSubPageChange?.(action === "more" ? "more" : null)} />;
-  if (settingsSubPage === "debug-achievements") return <DebugAchievementsPage onBack={() => onSubPageChange?.("debug")} />;
+  if (settingsSubPage === "debug-achievements") return <DebugAchievementsPage onBack={() => onSubPageChange?.("more")} />;
   if (settingsSubPage === "debug-window") return <WindowDebugPage onBack={() => onSubPageChange?.("more")} />;
 
   if (!loaded) {
@@ -213,8 +217,8 @@ export default function SettingsPage({ settingsSubPage, onSubPageChange }) {
           <FileText size={16} className="text-faded-slate" />
           <h2 className="text-xs font-mono uppercase tracking-wider text-faded-slate">关于</h2>
         </div>
-        <p className="text-sm font-mono text-faded-slate">版本 1.6.0</p>
-        <p className="text-sm text-warm-steel mt-1">成就总数: 60</p>
+        <p className="text-sm font-mono text-faded-slate">版本 {__APP_VERSION__}</p>
+        <p className="text-sm text-warm-steel mt-1">成就总数: {visibleAchievementCount}</p>
       </section>
 
       <p className="text-center text-xs text-faded-slate mt-8">地球Online 笔记成就系统</p>

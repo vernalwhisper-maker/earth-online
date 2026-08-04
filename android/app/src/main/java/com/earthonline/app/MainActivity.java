@@ -9,5 +9,7 @@ public class MainActivity extends BridgeActivity {
         super.onCreate(savedInstanceState);
         // 注册导出到系统 Download 的原生插件
         registerPlugin(DownloadPlugin.class);
+        // 注册链接工具插件（浏览器打开 / 剪贴板复制）
+        registerPlugin(UrlPlugin.class);
     }
 }

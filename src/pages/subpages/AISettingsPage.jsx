@@ -6,6 +6,7 @@ import GlassSwitch from "../../components/ui/GlassSwitch";
 import GlassModal from "../../components/ui/GlassModal";
 import useSettingsStore from "../../store/settingsStore";
 import { API_PROVIDERS, ONLINE_MODELS } from "../../config/api";
+import { WEBPAN_LINK_1, getWebpanLink, copyTextToClipboard, openExternalUrl } from "../../utils/linkUtils";
 
 const TABS = [
   { key: "online", label: "在线", icon: Wifi },
@@ -28,6 +29,18 @@ export default function AISettingsPage({ onBack }) {
   const wb = store; // 下载状态快捷引用
   const webllmCancelRef = useRef(null);
   const [webgpuOk, setWebgpuOk] = useState(null);
+  // 网盘链接复制反馈
+  const [linkCopied, setLinkCopied] = useState(false);
+  // 网盘链接（远程 GitHub Issues 优先，内置兜底）
+  const [webpanLink, setWebpanLink] = useState(WEBPAN_LINK_1);
+
+  useEffect(() => {
+    let cancelled = false;
+    getWebpanLink().then((url) => {
+      if (!cancelled) setWebpanLink(url);
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   // 弹窗状态
   const [showOnlinePicker, setShowOnlinePicker] = useState(false);
@@ -427,6 +440,34 @@ export default function AISettingsPage({ onBack }) {
                 <p className="text-[11px] text-faded-slate mt-1">URL 需以 /resolve/main/ 结尾，或你的目录内包含该子目录结构</p>
               </div>
             )}
+
+            {/* 网盘分享链接 1（123云盘，模型资源；远程 GitHub Issues 优先，内置兜底） */}
+            <div className="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl border border-scribe">
+              <div className="flex flex-col gap-0.5 min-w-0">
+                <span className="text-sm font-medium text-deep-ink">网盘分享链接 1</span>
+                <span className="text-[11px] text-faded-slate truncate">{webpanLink}</span>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={async () => {
+                    const ok = await copyTextToClipboard(webpanLink);
+                    if (ok) {
+                      setLinkCopied(true);
+                      setTimeout(() => setLinkCopied(false), 2000);
+                    }
+                  }}
+                  className={"px-2.5 py-1.5 text-xs font-medium rounded-full border transition-colors " + (linkCopied ? "bg-emerald/10 text-emerald border-emerald/40" : "border-scribe text-warm-steel hover:bg-canvas-warm")}
+                >
+                  {linkCopied ? <><Check size={12} className="inline mr-1" />已复制</> : "复制链接"}
+                </button>
+                <button
+                  onClick={() => openExternalUrl(webpanLink)}
+                  className="px-2.5 py-1.5 text-xs font-medium rounded-full bg-emerald/10 text-emerald border border-emerald/30 hover:bg-emerald/20 transition-colors"
+                >
+                  一键跳转
+                </button>
+              </div>
+            </div>
 
             {/* 已导入模型状态（按模型区分） */}
             {store.webllmImported && store.webllmImportedModel === store.webllmModel && (

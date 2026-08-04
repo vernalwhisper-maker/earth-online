@@ -5,6 +5,7 @@
 import { pipeline, env } from "@huggingface/transformers";
 import achievementsData from "../data/achievements";
 import useSettingsStore from "../store/settingsStore";
+import { decryptText } from "./hidden";
 
 let extractor = null;
 let achEmbeddings = null; // [{ id, embedding: Float32Array }]
@@ -29,7 +30,12 @@ export async function initEmbeddings(onProgress) {
 
     // 预计算所有成就的嵌入（一次性，后续缓存）
     if (!achEmbeddings) {
-      const texts = achievementsData.map((a) => `${a.name}：${a.description}`);
+      const texts = achievementsData.map((a) => {
+        // 隐藏成就的名字/描述为加密串，向量化前解密
+        const name = a.hidden ? decryptText(a.name) : a.name;
+        const desc = a.hidden ? decryptText(a.description) : a.description;
+        return `${name}：${desc}`;
+      });
       const embeddings = await extractor(texts, { pooling: "mean", normalize: true });
       const embArray = embeddings.tolist();
       achEmbeddings = achievementsData.map((a, i) => ({

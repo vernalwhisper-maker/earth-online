@@ -1,6 +1,8 @@
 import { motion } from "framer-motion";
 import { Sparkles, X } from "lucide-react";
-import { getRarityLevel, getIconFilename } from "../../data/achievements";
+import { getRarityLevel, getProbabilityText } from "../../data/achievements";
+import useAchievementStore from "../../store/achievementStore";
+import AchievementIcon from "./AchievementIcon";
 
 /**
  * 成就解锁弹窗。
@@ -12,9 +14,21 @@ import { getRarityLevel, getIconFilename } from "../../data/achievements";
 export default function UnlockModal({ achievement, onDismiss, onViewAll, ...motionProps }) {
   if (!achievement) return null;
 
+  const achievements = useAchievementStore((s) => s.achievements);
+
   const rarity = getRarityLevel(achievement.rarity);
-  const iconFile = getIconFilename(achievement.id);
-  const isRare = achievement.rarity < 10;
+  const probText = getProbabilityText(achievement.rarity);
+  const isRare = typeof achievement.rarity === "number" ? achievement.rarity < 10 : parseFloat(achievement.rarity) < 10;
+  const isHidden = !!achievement.hidden;
+
+  // 系列进度：破损系列 1/3（已解锁成员数 / 系列总数）
+  const seriesInfo = (() => {
+    if (!achievement.series) return null;
+    const members = achievements.filter((a) => a.series === achievement.series);
+    if (members.length === 0) return null;
+    const unlockedCount = members.filter((a) => a.unlocked).length;
+    return { name: achievement.series, unlocked: unlockedCount, total: members.length };
+  })();
 
   return (
     <motion.div
@@ -26,6 +40,9 @@ export default function UnlockModal({ achievement, onDismiss, onViewAll, ...moti
         className="absolute inset-0 bg-deep-ink/60 pointer-events-auto"
         onClick={onDismiss}
       />
+
+      {/* 隐藏成就：卡片下方的暗红光晕（触发动画氛围） */}
+      {isHidden && <HiddenGlow />}
 
       {/* Card — 自下而上滑入 */}
       <motion.div
@@ -64,11 +81,7 @@ export default function UnlockModal({ achievement, onDismiss, onViewAll, ...moti
               isRare ? "shadow-[0_0_24px_rgba(51,144,236,0.3)]" : ""
             }`}
           >
-            <img
-              src={`/icons/${iconFile}`}
-              alt={achievement.name}
-              className="w-full h-full object-cover"
-            />
+            <AchievementIcon achievement={achievement} />
           </motion.div>
 
           {/* Label */}
@@ -80,6 +93,37 @@ export default function UnlockModal({ achievement, onDismiss, onViewAll, ...moti
           >
             成就解锁!
           </motion.span>
+
+          {/* 隐藏成就提醒徽章 */}
+          {isHidden && (
+            <motion.span
+              initial={{ opacity: 0, scale: 0.7, y: 8 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              transition={{ duration: 0.25, delay: 0.32 }}
+              className="px-3 py-1 rounded-full bg-amber-950/70 border border-amber-500/50 text-[0.6875rem] font-bold tracking-wider text-amber-300 flex items-center gap-1.5"
+            >
+              <motion.span
+                animate={{ opacity: [1, 0.35, 1], scale: [1, 1.3, 1] }}
+                transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                className="inline-block"
+              >
+                ✦
+              </motion.span>
+              隐藏成就
+            </motion.span>
+          )}
+
+          {/* Series badge — 破损系列 1/3 */}
+          {seriesInfo && (
+            <motion.span
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.2, delay: 0.33 }}
+              className="px-3 py-1 rounded-full bg-scribe/40 border border-scribe text-[0.6875rem] font-medium text-warm-steel"
+            >
+              {seriesInfo.name}系列 {seriesInfo.unlocked}/{seriesInfo.total}
+            </motion.span>
+          )}
 
           {/* Name */}
           <motion.h2
@@ -108,7 +152,7 @@ export default function UnlockModal({ achievement, onDismiss, onViewAll, ...moti
             transition={{ duration: 0.2, delay: 0.45 }}
             className={`inline-block px-3 py-1 rounded-full text-[0.75rem] font-mono uppercase ${rarity.color}`}
           >
-            {rarity.label} · 仅 {achievement.rarity}% 的玩家拥有
+            {rarity.label} · 仅 {probText} 的玩家拥有
           </motion.span>
 
           {/* Buttons */}
@@ -138,9 +182,56 @@ export default function UnlockModal({ achievement, onDismiss, onViewAll, ...moti
         </div>
       </motion.div>
 
-      {/* Confetti for rare achievements */}
-      {isRare && <Confetti />}
+      {/* 隐藏成就：触发动画（灰烬粒子 + 扫描线）；普通稀有成就保留彩带 */}
+      {isHidden ? <HiddenFX /> : isRare && <Confetti />}
     </motion.div>
+  );
+}
+
+/** 隐藏成就触发动画：卡片下方的暗红光晕脉冲 */
+function HiddenGlow() {
+  return (
+    <div className="absolute inset-0 flex items-center justify-center pointer-events-none" aria-hidden>
+      <motion.div
+        className="w-[340px] h-[340px] rounded-full"
+        style={{ background: "radial-gradient(circle, rgba(180,60,40,0.4) 0%, rgba(180,60,40,0) 70%)", filter: "blur(24px)" }}
+        initial={{ opacity: 0, scale: 0.4 }}
+        animate={{ opacity: [0, 0.9, 0.35], scale: [0.4, 1.5, 1.9] }}
+        transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
+      />
+    </div>
+  );
+}
+
+/** 隐藏成就触发动画：灰烬粒子上升 + 金色扫描线 */
+function HiddenFX() {
+  return (
+    <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden>
+      {/* 金色扫描线（自顶向下） */}
+      <motion.div
+        className="absolute left-0 right-0 h-[2px]"
+        style={{ background: "linear-gradient(90deg, transparent, rgba(245,190,90,0.6), transparent)" }}
+        initial={{ top: "0%", opacity: 0 }}
+        animate={{ top: ["0%", "100%"], opacity: [0, 1, 0] }}
+        transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut" }}
+      />
+      {/* 黑色灰烬粒子自底部上升 */}
+      {Array.from({ length: 16 }).map((_, i) => (
+        <motion.div
+          key={i}
+          className="absolute w-1.5 h-1.5 rounded-full bg-black"
+          style={{ left: `${5 + Math.random() * 90}%`, bottom: -12 }}
+          initial={{ y: 0, opacity: 0.85 }}
+          animate={{ y: -120, opacity: 0 }}
+          transition={{
+            duration: 1.6 + Math.random() * 1.6,
+            delay: Math.random() * 1.4,
+            ease: "easeOut",
+            repeat: Infinity,
+          }}
+        />
+      ))}
+    </div>
   );
 }
 

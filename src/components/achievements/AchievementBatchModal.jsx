@@ -1,6 +1,8 @@
 import { motion } from "framer-motion";
 import { Sparkles, X } from "lucide-react";
-import { getRarityLevel, getIconFilename } from "../../data/achievements";
+import { getRarityLevel, getProbabilityText, getSeriesProgress } from "../../data/achievements";
+import useAchievementStore from "../../store/achievementStore";
+import AchievementIcon from "./AchievementIcon";
 
 /**
  * 批量成就解锁弹窗。
@@ -10,6 +12,8 @@ import { getRarityLevel, getIconFilename } from "../../data/achievements";
  */
 export default function AchievementBatchModal({ achievements, onDismiss, onViewAll, ...motionProps }) {
   if (!achievements || achievements.length === 0) return null;
+
+  const all = useAchievementStore((s) => s.achievements);
 
   return (
     <motion.div
@@ -65,8 +69,9 @@ export default function AchievementBatchModal({ achievements, onDismiss, onViewA
         >
           {achievements.map((a, i) => {
             const rarity = getRarityLevel(a.rarity);
-            const iconFile = getIconFilename(a.id);
-            const isRare = a.rarity < 10;
+            const probText = getProbabilityText(a.rarity);
+            const series = getSeriesProgress(a.series, all);
+            const isRare = typeof a.rarity === "number" ? a.rarity < 10 : parseFloat(a.rarity) < 10;
             return (
               <motion.div
                 key={a.id}
@@ -80,17 +85,21 @@ export default function AchievementBatchModal({ achievements, onDismiss, onViewA
                     isRare ? "shadow-[0_0_16px_rgba(51,144,236,0.25)]" : ""
                   }`}
                 >
-                  <img
-                    src={`/icons/${iconFile}`}
-                    alt={a.name}
-                    className="w-full h-full object-cover"
-                  />
+                  <AchievementIcon achievement={a} />
                 </div>
                 <span className="text-[0.625rem] text-deep-ink text-center leading-tight line-clamp-2">
                   {a.name}
                 </span>
+                {series && (
+                  <span className="text-[0.5rem] text-warm-steel font-mono whitespace-nowrap">
+                    {series.name}系列 {series.unlocked}/{series.total}
+                  </span>
+                )}
+                {a.hidden && (
+                  <span className="text-[0.5rem] text-amber-400 font-mono tracking-wider">✦ 隐藏成就</span>
+                )}
                 <span className={`text-[0.5rem] font-mono px-1.5 py-0.5 rounded-full ${rarity.color} opacity-80`}>
-                  {rarity.label}
+                  {rarity.label} {probText}
                 </span>
               </motion.div>
             );

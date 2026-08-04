@@ -363,7 +363,7 @@ export default function App() {
           />
         )}
       </AnimatePresence>
-      <RemoteConfigProvider currentVersion="1.6.2" debug={false} />
+      <RemoteConfigProvider currentVersion={__APP_VERSION__} debug={false} />
       <ToastContainer />
       <PrivacyConsentModal isOpen={showPrivacyConsent}
         onDone={() => { setShowPrivacyConsent(false); }} />
