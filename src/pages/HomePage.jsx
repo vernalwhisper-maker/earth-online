@@ -20,6 +20,9 @@ import { incrementComponentStat } from "../utils/feedbackReporter";
 import { getSearchHistory, saveSearchQuery, clearSearchHistory } from "../db";
 import TagResultSheet from "../components/tags/TagResultSheet";
 import GlassModal from "../components/ui/GlassModal";
+import AppTagBar from "../components/notes/AppTagBar";
+import TagBarCapsule from "../components/notes/TagBarCapsule";
+import { getPlatform } from "../utils/exportFile";
 
 const TYPE_ICONS = { journal: FTI, todo: CheckSquare, milestone: Award, flashcard: StickyNote };
 const FOLDER_ICONS = { inbox: Inbox, personal: User, work: Briefcase, study: BookOpen, archive: Archive };
@@ -38,6 +41,10 @@ export default function HomePage({ onNewNote, onEditNote, onViewAchievement, sel
   const advancedDebug = useSettingsStore((s) => s.advancedDebug);
   const debugFABEnabled = useSettingsStore((s) => s.debugFABEnabled);
   const debugTagBarEnabled = useSettingsStore((s) => s.debugTagBarEnabled);
+  const tagBarStyle = useSettingsStore((s) => s.tagBarStyle);
+  // 双端标签栏分流：APP（android/ios）用渐变展开卡片；Web 用胶囊+底部面板；高级调试「标签栏调试」可强制某端样式
+  const isAppPlatform = getPlatform() === "android" || getPlatform() === "ios";
+  const useAppTagBar = tagBarStyle === "app" || (tagBarStyle === "auto" && isAppPlatform);
 
   // 调试参数读取辅助
   const readDebugParams = (key) => {
@@ -483,15 +490,16 @@ export default function HomePage({ onNewNote, onEditNote, onViewAchievement, sel
 
       {/* Filter chips */}
       {!selectMode && viewMode === "list" && (
+        useAppTagBar ? (
+          <AppTagBar options={filterOptions} counts={filterCounts} selected={selectedTag} onSelect={setSelectedTag} />
+        ) : (
         <div className="mb-4">
-          {/* 方案 C：标签栏收敛为单个入口，全部选项放底部 sheet */}
-          <button onClick={() => setShowTagSheet(true)}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-group rounded-full text-sm font-medium text-deep-ink active:bg-black/5 dark:active:bg-white/5 transition-colors">
-            <Tags size={14} className="text-warm-steel" />
-            <span>{selectedTag && selectedTag !== "全部" ? selectedTag : "全部"}</span>
-            <span className="text-faded-slate text-xs font-normal">({selectedTag && selectedTag !== "全部" ? (filterCounts[selectedTag] ?? 0) : (filterCounts["全部"] ?? 0)})</span>
-            <ChevronDown size={14} className="text-faded-slate" />
-          </button>
+          {/* 标签胶囊（Web 端）→ 点击打开底部 sheet 选择标签 */}
+          <TagBarCapsule
+            label={selectedTag && selectedTag !== "全部" ? selectedTag : "全部"}
+            count={selectedTag && selectedTag !== "全部" ? (filterCounts[selectedTag] ?? 0) : (filterCounts["全部"] ?? 0)}
+            onClick={() => setShowTagSheet(true)}
+          />
           {selectedTag && selectedTag !== "全部" && (
             <button onClick={() => setSelectedTag("全部")}
               className="ml-2 text-xs text-warm-steel hover:text-rose transition-colors align-middle">
@@ -499,6 +507,7 @@ export default function HomePage({ onNewNote, onEditNote, onViewAchievement, sel
             </button>
           )}
         </div>
+        )
       )}
       {!selectMode && viewMode === "type" && (
         <div className="flex gap-2 mb-4 overflow-x-auto scrollbar-none" style={advancedDebug && debugTagBarEnabled ? { overflow: "visible" } : undefined}>

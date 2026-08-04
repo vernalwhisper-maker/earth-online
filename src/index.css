@@ -222,3 +222,8 @@
   animation-iteration-count: 1 !important;
   transition-duration: 0.01ms !important;
 }
+/* APP 端标签栏渐变展开：径向渐变 mask 从胶囊位置扩散，卡片在渐变中显现 */
+.tagbar-mask {
+  -webkit-mask-image: radial-gradient(circle at var(--mx, 0px) var(--my, 0px), black var(--mr, 0px), transparent calc(var(--mr, 0px) + 1px));
+  mask-image: radial-gradient(circle at var(--mx, 0px) var(--my, 0px), black var(--mr, 0px), transparent calc(var(--mr, 0px) + 1px));
+}

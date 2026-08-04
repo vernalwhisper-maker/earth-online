@@ -46,6 +46,8 @@ const useSettingsStore = create((set, get) => ({
   debugNavBarEnabled: false,
   debugFabGlassEnabled: false,
   windowDebugEnabled: false,
+  // 标签栏样式："auto" 跟随平台（APP=胶囊展开卡片 / Web=胶囊+sheet），"web"/"app" 强制某端样式（高级调试）
+  tagBarStyle: "auto",
 
   // 开发者模式 UI 状态（内存态，不持久化。退出页面后若 Store 调试开关仍为 true，
   // 重新进入 MoreSettingsPage 时由 loadSettings 恢复 devUnlocked/devCardOpen）
@@ -86,11 +88,12 @@ const useSettingsStore = create((set, get) => ({
     const debugNavBarEnabled = (await getSetting("debugNavBarEnabled")) ?? false;
     const debugFabGlassEnabled = (await getSetting("debugFabGlassEnabled")) ?? false;
     const windowDebugEnabled = (await getSetting("windowDebugEnabled")) ?? false;
+    const tagBarStyle = (await getSetting("tagBarStyle")) || "auto";
     set({ modelProvider: provider, apiKey, inference, tabBarOpacity, darkMode: darkMode, showAIAssistant, deepThinking, reduceMotion, cardExpandAnim,
       useMirror,
       useMode, localEndpoint, localModel, webllmModel, webllmDownloaded,
       webllmSource, webllmCustomUrl, webllmImported, webllmImportedModel,
-      advancedDebug, debugFABEnabled, debugTagBarEnabled, debugNavBarEnabled, debugFabGlassEnabled, windowDebugEnabled,
+      advancedDebug, debugFABEnabled, debugTagBarEnabled, debugNavBarEnabled, debugFabGlassEnabled, windowDebugEnabled, tagBarStyle,
       // 若调试总开关已开启，恢复卡片入口状态，避免"调试生效但入口消失"
       devUnlocked: advancedDebug, devCardOpen: advancedDebug,
       loaded: true });
@@ -237,6 +240,11 @@ const useSettingsStore = create((set, get) => ({
   setWindowDebugEnabled: async (value) => {
     await setSetting("windowDebugEnabled", value);
     set({ windowDebugEnabled: value });
+  },
+
+  setTagBarStyle: async (value) => {
+    await setSetting("tagBarStyle", value);
+    set({ tagBarStyle: value });
   },
 
   setDevUnlocked: (value) => set({ devUnlocked: value }),

@@ -22,6 +22,7 @@ export default function MoreSettingsPage({ onBack }) {
     debugNavBarEnabled, setDebugNavBarEnabled,
     debugFabGlassEnabled, setDebugFabGlassEnabled,
     windowDebugEnabled, setWindowDebugEnabled,
+    tagBarStyle, setTagBarStyle,
     devUnlocked, setDevUnlocked,
     devCardOpen, setDevCardOpen,
     closeDevCard,
@@ -353,6 +354,21 @@ export default function MoreSettingsPage({ onBack }) {
                   className="px-2.5 py-1 text-xs font-medium bg-emerald/10 text-emerald rounded-full hover:bg-emerald/20 transition-colors">
                   进入
                 </button>
+              </div>
+            </div>
+            {/* 标签栏调试（窗口调试下面）：切换双端标签栏样式，保持双端动画一致 */}
+            <div className="flex items-center justify-between px-3 py-3 rounded-btn hover:bg-canvas-warm transition-colors">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-sm text-deep-ink">标签栏调试</span>
+                <span className="text-[11px] text-warm-steel">APP 带有展开动画与 Web 端适配</span>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                {[["auto", "跟随"], ["web", "Web端"], ["app", "APP端"]].map(([v, label]) => (
+                  <button key={v} onClick={() => setTagBarStyle(v)}
+                    className={"px-2 py-1 text-xs rounded-full transition-colors " + (tagBarStyle === v ? "bg-emerald text-white" : "bg-scribe/40 text-warm-steel")}>
+                    {label}
+                  </button>
+                ))}
               </div>
             </div>
 
