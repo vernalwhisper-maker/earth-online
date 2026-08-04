@@ -28,7 +28,7 @@ const TYPE_ICONS = {
   flashcard: StickyNote,
 };
 
-// Telegram 风格头像渐变（按笔记类型映射，保持稳定配色）
+// 类型化渐变头像（按笔记类型映射，保持稳定配色）
 const AVATAR_GRADIENTS = {
   journal: "linear-gradient(135deg, #6cb7f4 0%, #3390ec 100%)",
   todo: "linear-gradient(135deg, #7ed27c 0%, #4fae4e 100%)",
@@ -64,7 +64,7 @@ export default function NoteCard({ note, onClick }) {
       transition={{ type: "spring", stiffness: 400, damping: 17 }}
       className="w-full flex items-center gap-3 px-3 py-3 rounded-card text-left relative active:bg-group transition-colors duration-100 select-none"
     >
-      {/* TG 风格头像：首字圆标 + 类型渐变 */}
+      {/* 类型化头像：首字圆标 + 类型渐变 */}
       <div
         className="w-12 h-12 rounded-full flex items-center justify-center text-white text-lg font-semibold shrink-0 shadow-sm"
         style={{ background: avatarBg }}

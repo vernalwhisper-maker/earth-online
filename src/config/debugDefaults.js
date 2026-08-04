@@ -32,7 +32,7 @@ export const WINDOW_DEFAULTS = {
 
 export const STORAGE_KEY_WINDOW = "earth-online-debug-window";
 
-// 毛玻璃按钮默认参数（参照 glass-blur-button.html）
+// 毛玻璃按钮默认参数（同 glass-blur-button.html 示例）
 export const FAB_DEFAULTS = {
   blurPx: 18,
   saturation: 1.4,

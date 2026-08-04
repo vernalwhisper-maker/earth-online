@@ -104,10 +104,3 @@ TabBar 从导航切换为**编辑操作**（`currentPage === "editor"`）：
 | 页面切换 | 横向滑动 + 淡入，spring |
 | 深色模式 | 全组件适配（白字/深蓝灰玻璃/深浅边框） |
 | 减少动效 | `prefers-reduced-motion` 与设置内开关全局生效 |
-
----
-
-## 七、与 Telegram 导航栏的对比（详见 `docs/telegram-navigation-analysis.md`）
-
-- **已对齐**：底部悬浮毛玻璃、accent 蓝徽章、按压反馈、页面滑动过渡、深浅色主题
-- **架构差异（用户既定）**：Telegram 用「顶部 ActionBar + 左侧抽屉 + 底部 Tab」；我们保留「底部 TabBar 三模式」结构，TabBar 在编辑器内**复用为操作栏**（Telegram 的 ActionBar 职能）

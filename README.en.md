@@ -4,7 +4,7 @@ A gamified life journal and achievement system that turns your daily life into a
 
 Built with React 19, Framer Motion, Tailwind CSS 4, and IndexedDB. Ships as a Progressive Web App (PWA) and a native Android APK via Capacitor.
 
-> **v1.6.0** Full Telegram design language (official palette / chat-style note cards / unified modal system), AI upgraded to DeepSeek V4 Flash official release (with deep-thinking toggle), and exports write directly to the system Download folder (no system file-access prompt).
+> **v1.6.0** Full refreshed design language (minimal palette / list-style note cards / unified modal system), AI upgraded to DeepSeek V4 Flash official release (with deep-thinking toggle), and exports write directly to the system Download folder (no system file-access prompt).
 >
 > Now supporting local AI models! Run Qwen2.5 locally via Ollama (desktop, phone connects via LAN) or WebLLM (browser WebGPU) for fully offline AI features -- no API key required.
 >
@@ -26,7 +26,7 @@ Built with React 19, Framer Motion, Tailwind CSS 4, and IndexedDB. Ships as a Pr
 - **Local Models** -- Run Qwen2.5-1.5B/3B entirely offline via Ollama (desktop LAN) or WebLLM (browser WebGPU). No API key needed.
 - **AI Batch Tagging** -- Select multiple notes, one tap generates Chinese tags via AI or keyword matching.
 - **Achievement Matching** -- Three-engine system: semantic embedding (Transformers.js BERT), AI reasoning (local or cloud), and keyword matching, results merged & deduplicated.
-- **Telegram Quality** -- Official palette (light white / dark `#17212b`, accent `#3390ec`), chat-list-style note cards (gradient avatar / timestamp / bottom-right tags), unified frosted-glass modals and solid panels.
+- **Minimal Quality** -- light white / dark `#17212b`, accent `#3390ec`, list-style note cards (gradient avatar / timestamp / bottom-right tags), unified frosted-glass modals and solid panels.
 - **Background Themes** -- 7 background colors, 4 CSS-only patterns, 3 ambient animations. Zero image overhead.
 - **Export / Import** -- Notes exported as `.md` or `.eon` (AES-GCM encrypted, PBKDF2-derived key); on Android writes directly to system "Download/EarthOnline/" (MediaStore, no SAF prompt), with direct restore from that folder.
 - **Developer Debug Mode** -- Hidden debug mode (tap 7 times in Settings), adjust Liquid Glass / navbar / window parameters with live preview.

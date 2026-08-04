@@ -24,7 +24,7 @@ import { Tags, ChevronDown } from "lucide-react";
  */
 export default function AppTagBar({ options = [], counts = {}, selected, onSelect }) {
   const [expanded, setExpanded] = useState(false);
-  const capsuleRef = useRef(null);   // 胶囊按钮（渐变圆心参照）
+  const capsuleRef = useRef(null);   // 胶囊按钮（渐变圆心基准）
   const cardRef = useRef(null);      // 卡片（mask 渐变主体）
   const tweenRef = useRef(null);     // 当前渐变 tween
   const radius0Ref = useRef(0);      // 收起半径（胶囊大小）

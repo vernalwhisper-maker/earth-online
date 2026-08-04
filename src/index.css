@@ -1,7 +1,7 @@
 ﻿@import "tailwindcss";
 
 @theme {
-  /* Telegram 设计语言（浅色）— 色值来自官方 Theme.java / 官方主题文件 */
+  /* 浅色主题设计语言 — 白底 / 蓝色调 accent */
   --color-canvas-warm: #ffffff;      /* TG 页面背景：纯白 */
   --color-surface: #ffffff;          /* 卡片表面 */
   --color-group: #f1f1f1;            /* TG 分组/输入框背景 windowBackgroundGray */
@@ -169,7 +169,7 @@
 
 @import "./styles/patterns.css";
 
-/* 暗黑模式 — Telegram 深色（#17212b 主背景 / #232e3c 分组） */
+/* 暗黑模式（#17212b 主背景 / #232e3c 分组） */
 .dark {
   --color-canvas-warm: #17212b;
   --color-surface: #232e3c;
