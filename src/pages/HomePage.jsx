@@ -4,7 +4,7 @@ import { createPortal } from "react-dom";
 import {
   Search, FileText, Inbox, User, Briefcase, BookOpen, Archive,
   FileText as FTI, CheckSquare, Award, StickyNote, Trash2, Folder, Pin,
-  X, CheckCircle,
+  X, CheckCircle, Tags, ChevronDown,
 } from "lucide-react";
 import useNoteStore from "../store/noteStore";
 import NoteCard from "../components/notes/NoteCard";
@@ -143,6 +143,23 @@ export default function HomePage({ onNewNote, onEditNote, onViewAchievement, sel
   const filteredNotes = useMemo(() => getFilteredNotes(), [notes, searchQuery, selectedTag, selectedType, selectedFolder]);
 
   const filterOptions = useMemo(() => ["全部", "今天", "本周", ...tags.filter(Boolean)], [tags]);
+
+  // 方案 C：标签筛选底部 sheet
+  const [showTagSheet, setShowTagSheet] = useState(false);
+  // 各筛选项的笔记计数（基于全部笔记，互斥单选）
+  const filterCounts = useMemo(() => {
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay());
+    const counts = {};
+    for (const opt of filterOptions) {
+      if (opt === "全部") counts[opt] = notes.length;
+      else if (opt === "今天") counts[opt] = notes.filter((n) => new Date(n.updated_at || n.created_at) >= startOfToday).length;
+      else if (opt === "本周") counts[opt] = notes.filter((n) => new Date(n.updated_at || n.created_at) >= startOfWeek).length;
+      else counts[opt] = notes.filter((n) => (n.tags || []).includes(opt)).length;
+    }
+    return counts;
+  }, [filterOptions, notes]);
 
   useEffect(() => { loadFolders(); }, []);
 
@@ -466,39 +483,20 @@ export default function HomePage({ onNewNote, onEditNote, onViewAchievement, sel
 
       {/* Filter chips */}
       {!selectMode && viewMode === "list" && (
-        <div className="flex gap-2 mb-4 overflow-x-auto scrollbar-none" style={advancedDebug && debugTagBarEnabled ? { overflow: "visible" } : undefined}>
-          {advancedDebug && debugTagBarEnabled ? (
-            <LiquidGlass
-              cornerRadius={tagBarParams.cornerRadius}
-              padding="4px 8px"
-              elasticity={tagBarParams.elasticity}
-              blurAmount={tagBarParams.blurAmount}
-              saturation={tagBarParams.saturation}
-              displacementScale={tagBarParams.displacementScale}
-              aberrationIntensity={tagBarParams.aberrationIntensity}
-              mode={MODE_OPTIONS[tagBarParams.modeIdx] || "standard"}
-              overLight={tagBarParams.overLight}
-              shadowOpacity={tagBarParams.shadowOpacity}
-              wrapperStyle={{}}
-            >
-              <div className="flex gap-2">
-                {filterOptions.map((tag) => (
-                  <button key={tag} onClick={() => setSelectedTag(tag)}
-                    className={"relative whitespace-nowrap px-3 py-1.5 text-sm font-medium rounded-full transition-colors " + (selectedTag === tag ? "text-emerald" : "text-faded-slate")}>
-                    {selectedTag === tag && <motion.div layoutId="filter-chip" className="absolute inset-0 bg-emerald/10 rounded-full" transition={{ type: "spring", stiffness: 300, damping: 30 }} />}
-                    <span className="relative z-10">{tag}</span>
-                  </button>
-                ))}
-              </div>
-            </LiquidGlass>
-          ) : (
-            filterOptions.map((tag) => (
-              <button key={tag} onClick={() => setSelectedTag(tag)}
-                className={"relative whitespace-nowrap px-3 py-1.5 text-sm font-medium rounded-full transition-colors " + (selectedTag === tag ? "text-emerald" : "text-warm-steel hover:text-deep-ink")}>
-                {selectedTag === tag && <motion.div layoutId="filter-chip" className="absolute inset-0 bg-emerald/10 rounded-full" transition={{ type: "spring", stiffness: 300, damping: 30 }} />}
-                <span className="relative z-10">{tag}</span>
-              </button>
-            ))
+        <div className="mb-4">
+          {/* 方案 C：标签栏收敛为单个入口，全部选项放底部 sheet */}
+          <button onClick={() => setShowTagSheet(true)}
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-group rounded-full text-sm font-medium text-deep-ink active:bg-black/5 dark:active:bg-white/5 transition-colors">
+            <Tags size={14} className="text-warm-steel" />
+            <span>{selectedTag && selectedTag !== "全部" ? selectedTag : "全部"}</span>
+            <span className="text-faded-slate text-xs font-normal">({selectedTag && selectedTag !== "全部" ? (filterCounts[selectedTag] ?? 0) : (filterCounts["全部"] ?? 0)})</span>
+            <ChevronDown size={14} className="text-faded-slate" />
+          </button>
+          {selectedTag && selectedTag !== "全部" && (
+            <button onClick={() => setSelectedTag("全部")}
+              className="ml-2 text-xs text-warm-steel hover:text-rose transition-colors align-middle">
+              清除筛选
+            </button>
           )}
         </div>
       )}
@@ -640,6 +638,31 @@ export default function HomePage({ onNewNote, onEditNote, onViewAchievement, sel
           })}
         </div>
         <button onClick={() => setShowMoveDialog(false)} className="w-full mt-4 py-2.5 border border-white/20 rounded-btn text-sm text-deep-ink hover:bg-black/5 dark:hover:bg-white/5 transition-colors">取消</button>
+      </GlassModal>
+
+      {/* 方案 C：标签筛选底部 sheet */}
+      <GlassModal show={showTagSheet} onClose={() => setShowTagSheet(false)} variant="bottom">
+        <div className="w-full max-w-sm mx-auto">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-base font-bold text-deep-ink">按标签筛选</h3>
+            <span className="text-xs text-faded-slate font-mono">{notes.length} 条笔记</span>
+          </div>
+          <div className="grid grid-cols-2 gap-2 max-h-[45vh] overflow-y-auto pr-0.5">
+            {filterOptions.map((opt) => {
+              const active = selectedTag === opt;
+              return (
+                <button key={opt} onClick={() => { setSelectedTag(opt); setShowTagSheet(false); }}
+                  className={"flex items-center justify-between px-3 py-2.5 rounded-xl border text-sm transition-colors " +
+                    (active
+                      ? "border-emerald bg-emerald/10 text-emerald font-medium"
+                      : "border-scribe/60 text-deep-ink hover:bg-black/5 dark:hover:bg-white/5")}>
+                  <span className="truncate">{opt}</span>
+                  <span className={"text-xs shrink-0 ml-2 font-mono " + (active ? "text-emerald" : "text-faded-slate")}>{filterCounts[opt] ?? 0}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </GlassModal>
 
       {/* Tag result bottom sheet */}
