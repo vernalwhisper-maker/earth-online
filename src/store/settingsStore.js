@@ -31,6 +31,13 @@ const useSettingsStore = create((set, get) => ({
   localEndpoint: "",        // Ollama 服务地址
   localModel: "qwen2.5:1.5b",
   webllmModel: "Qwen2.5-1.5B-Instruct-q4f16_1-MLC",
+  // WebLLM 下载源："hf"（HuggingFace 国际源）| "mirror"（hf-mirror 国内镜像）| "custom"（自定义 URL）
+  webllmSource: "hf",
+  webllmCustomUrl: "",
+  // 是否已通过 zip 导入模型到本地缓存（离线可用）
+  webllmImported: false,
+  // 已导入的模型 ID（用于锁定与多模型隔离）
+  webllmImportedModel: "",
   webllmDownloaded: false,
   webllmLoading: false,
   advancedDebug: false,
@@ -68,6 +75,10 @@ const useSettingsStore = create((set, get) => ({
     const localEndpoint = (await getSetting("localEndpoint")) || "";
     const localModel = (await getSetting("localModel")) || "qwen2.5:1.5b";
     const webllmModel = (await getSetting("webllmModel")) || "Qwen2.5-1.5B-Instruct-q4f16_1-MLC";
+    const webllmSource = (await getSetting("webllmSource")) || "hf";
+    const webllmCustomUrl = (await getSetting("webllmCustomUrl")) || "";
+    const webllmImported = (await getSetting("webllmImported")) ?? false;
+    const webllmImportedModel = (await getSetting("webllmImportedModel")) || "";
     const webllmDownloaded = (await getSetting("webllmDownloaded")) ?? false;
     const advancedDebug = (await getSetting("advancedDebug")) ?? false;
     const debugFABEnabled = (await getSetting("debugFABEnabled")) ?? false;
@@ -78,6 +89,7 @@ const useSettingsStore = create((set, get) => ({
     set({ modelProvider: provider, apiKey, inference, tabBarOpacity, darkMode: darkMode, showAIAssistant, deepThinking, reduceMotion, cardExpandAnim,
       useMirror,
       useMode, localEndpoint, localModel, webllmModel, webllmDownloaded,
+      webllmSource, webllmCustomUrl, webllmImported, webllmImportedModel,
       advancedDebug, debugFABEnabled, debugTagBarEnabled, debugNavBarEnabled, debugFabGlassEnabled, windowDebugEnabled,
       // 若调试总开关已开启，恢复卡片入口状态，避免"调试生效但入口消失"
       devUnlocked: advancedDebug, devCardOpen: advancedDebug,
@@ -168,6 +180,26 @@ const useSettingsStore = create((set, get) => ({
   setWebllmModel: async (value) => {
     await setSetting("webllmModel", value);
     set({ webllmModel: value });
+  },
+
+  setWebllmSource: async (value) => {
+    await setSetting("webllmSource", value);
+    set({ webllmSource: value });
+  },
+
+  setWebllmCustomUrl: async (value) => {
+    await setSetting("webllmCustomUrl", value);
+    set({ webllmCustomUrl: value });
+  },
+
+  setWebllmImported: async (value) => {
+    await setSetting("webllmImported", value);
+    set({ webllmImported: value });
+  },
+
+  setWebllmImportedModel: async (value) => {
+    await setSetting("webllmImportedModel", value);
+    set({ webllmImportedModel: value });
   },
   setWebllmDownloaded: async (value) => {
     await setSetting("webllmDownloaded", value);

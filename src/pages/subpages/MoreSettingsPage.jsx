@@ -455,18 +455,18 @@ export default function MoreSettingsPage({ onBack }) {
                   setFeedbackSending(true);
                   setFeedbackMsg("");
                   const r = await submitFeedback();
-                  setFeedbackMsg(r.ok ? "✅ " + r.message : "❌ " + r.message);
+                  setFeedbackMsg(r.ok ? "发送成功：" + r.message : "发送失败：" + r.message);
                   setFeedbackSending(false);
                 }} disabled={feedbackSending}
                   className="w-full py-2.5 bg-emerald text-white rounded-btn text-sm font-medium hover:bg-emerald-dark disabled:opacity-50 transition-colors">
-                  {feedbackSending ? "发送中..." : "📤 发送反馈给开发者"}
+                  {feedbackSending ? "发送中..." : "发送反馈给开发者"}
                 </button>
                 <button onClick={() => {
                   setConsent(false);
                   setFeedbackMsg("已重置，下次启动将重新弹出使用须知");
                 }}
                   className="w-full py-2.5 border border-scribe rounded-btn text-sm text-deep-ink hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
-                  🔄 重弹使用须知
+                  重弹使用须知
                 </button>
                 <button onClick={() => { setShowFeedback(false); setFeedbackMsg(""); }}
                   className="w-full py-2 text-xs text-warm-steel hover:text-deep-ink transition-colors">

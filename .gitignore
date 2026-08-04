@@ -29,3 +29,6 @@ ref_slider.png
 
 # Dashboard (private — never upload)
 dashboard/
+
+# FAQ 数据库（私有，供官方网站使用，不推送 GitHub）
+faq-db/

@@ -47,7 +47,7 @@ export default function AIAssistant({ noteId, notes = [], folders = [], noteTitl
           setOllamaOk(false);
           setMessages(prev => [...prev, {
             noteId, role: "assistant",
-            content: "🔔 无法连接到 Ollama 服务，请确保：\n1. Ollama 已启动 (\`ollama serve\`)\n2. 服务地址配置正确\n3. 已拉取所需模型 (\`ollama pull " + (s.localModel || "qwen2.5:1.5b") + "\`)"
+            content: "**无法连接到 Ollama 服务**，请确保：\n1. Ollama 已启动 (\`ollama serve\`)\n2. 服务地址配置正确\n3. 已拉取所需模型 (\`ollama pull " + (s.localModel || "qwen2.5:1.5b") + "\`)"
           }]);
         });
     }
@@ -63,12 +63,33 @@ export default function AIAssistant({ noteId, notes = [], folders = [], noteTitl
     const text = input.trim();
     if (!text || !canUseAI) return;
 
-    // WebLLM 引擎未就绪时引导用户
+    // WebLLM 引擎未就绪：自动初始化（离线模型命中缓存则不联网），失败展示具体原因
     if (useMode === "webllm" && !webllmReadyRef.current) {
       setMessages(prev => [...prev, {
         noteId, role: "assistant",
-        content: "🔔 WebLLM 模型尚未加载，请前往 **设置 → AI 设置 → WebLLM** 下载并加载模型后再使用。"
+        content: "**正在初始化本地模型**（离线模型无需网络），请稍候…"
       }]);
+      try {
+        const { ensureEngine, getLastError } = await import("../../utils/webllm");
+        const ok = await ensureEngine();
+        webllmReadyRef.current = ok;
+        if (!ok) {
+          setMessages(prev => [...prev, {
+            noteId, role: "assistant",
+            content: "**WebLLM 初始化失败**：" + (getLastError() || "未知错误") + "\n\n请检查 **设置 → AI 设置 → WebLLM**（模型是否已下载/导入、WebGPU 是否可用）。"
+          }]);
+          return;
+        }
+        setMessages(prev => [...prev, {
+          noteId, role: "assistant",
+          content: "**本地模型已就绪**，请重新发送你的消息。"
+        }]);
+      } catch (err) {
+        setMessages(prev => [...prev, {
+          noteId, role: "assistant",
+          content: "**WebLLM 初始化失败**：" + (err?.message || "未知错误")
+        }]);
+      }
       return;
     }
 
@@ -117,12 +138,12 @@ export default function AIAssistant({ noteId, notes = [], folders = [], noteTitl
         const successMsgs = results.filter((r) => r.success).map((r) => r.message);
         const failMsgs = results.filter((r) => !r.success).map((r) => r.message);
         if (successMsgs.length > 0) {
-          const resultMsg = { noteId, role: "assistant", content: "✅ 已完成：\n" + successMsgs.map((m) => "- " + m).join("\n") };
+          const resultMsg = { noteId, role: "assistant", content: "**已完成**：\n" + successMsgs.map((m) => "- " + m).join("\n") };
           await saveChatMessage(resultMsg);
           setMessages((prev) => [...prev, resultMsg]);
         }
         if (failMsgs.length > 0) {
-          const failMsg = { noteId, role: "assistant", content: "❌ 以下操作失败：\n" + failMsgs.map((m) => "- " + m).join("\n") };
+          const failMsg = { noteId, role: "assistant", content: "**以下操作失败**：\n" + failMsgs.map((m) => "- " + m).join("\n") };
           await saveChatMessage(failMsg);
           setMessages((prev) => [...prev, failMsg]);
         }
@@ -130,7 +151,7 @@ export default function AIAssistant({ noteId, notes = [], folders = [], noteTitl
     } catch (err) {
       // 主动取消（切换笔记/卸载）不提示错误
       if (err?.name === "AbortError") return;
-      setMessages((prev) => [...prev, { noteId, role: "assistant", content: "连接失败，请检查网络和 API 设置。" }]);
+      setMessages((prev) => [...prev, { noteId, role: "assistant", content: "**连接失败**：" + (err?.message || "请检查网络和 API 设置。") }]);
     } finally {
       if (abortRef.current === controller) abortRef.current = null;
       // 无论串台、取消还是异常，都必须复位 loading，避免面板永久卡转圈

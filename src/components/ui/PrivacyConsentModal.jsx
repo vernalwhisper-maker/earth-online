@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { Shield, Check, X } from "lucide-react";
+import { Shield, Check, X, CheckCircle, XCircle } from "lucide-react";
 import { PRIVACY_TEXT, setConsent } from "../../utils/privacyConsent";
 
 export default function PrivacyConsentModal({ isOpen, onDone }) {
@@ -45,8 +45,8 @@ export default function PrivacyConsentModal({ isOpen, onDone }) {
 
           {/* 会收集 */}
           <div className="mb-3">
-            <h3 className="text-xs font-semibold text-emerald mb-1.5">
-              ✅ {PRIVACY_TEXT.what.title}
+            <h3 className="flex items-center gap-1 text-xs font-semibold text-emerald mb-1.5">
+              <CheckCircle size={13} /> {PRIVACY_TEXT.what.title}
             </h3>
             <ul className="text-xs text-warm-steel space-y-0.5 pl-2">
               {PRIVACY_TEXT.what.items.map((item, i) => (
@@ -60,8 +60,8 @@ export default function PrivacyConsentModal({ isOpen, onDone }) {
 
           {/* 不会收集 */}
           <div className="mb-3">
-            <h3 className="text-xs font-semibold text-rose mb-1.5">
-              ❌ {PRIVACY_TEXT.whatNot.title}
+            <h3 className="flex items-center gap-1 text-xs font-semibold text-rose mb-1.5">
+              <XCircle size={13} /> {PRIVACY_TEXT.whatNot.title}
             </h3>
             <ul className="text-xs text-warm-steel space-y-0.5 pl-2">
               {PRIVACY_TEXT.whatNot.items.map((item, i) => (
