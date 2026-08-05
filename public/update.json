@@ -1,4 +1,5 @@
 {
+  "_comment": "此配置用于远程下发（版本检查/公告/调试密钥）。注意：totpSecret 机制仅用于简单的访问保护（开发者调试入口），密钥随公开配置下发、前端可读，不具备真正的保密性，请勿在生产环境或涉及敏感数据的场景中使用。",
   "version": "1.6.9",
   "minVersion": "0.0.0",
   "forceUpdate": false,
@@ -15,5 +16,5 @@
   "experiments": {},
   "grayscale": {},
   "totpSecret": "ZBWOASD5LTA6ERJKNHSGNNWQPST6WZ22",
-  "_signature": "Yczx6qaUyEfYsT3MBJ40p2CllzOGHo0EDUqshT9HRwrDTFjxmNPzWi7pvDfhkiN3Dn8zfcB52vPU1GKQbWAPD/hN5RfZpdmuswhR2LgAKtdMOMW1WuFabNbkMODN7PZEqDGC94KQO1PDirNcuFbeCCfYDfkEe7Tz6Nw8wofz3a6QLtxU4lG2hKqjXVKIQbmhkk03vWmnpBw6nutG+aNRg2zDbmZ9CUzQb3W/BUeMOmeA6ILA0dw2rFcF07XdhEJNIuRawuS3L/Mo0GFyZQcGPktd8PbdE+uyTbpPCmIpZ935Vt+jDDOKDnhk/h8wtw8DJIxpGQ8XnM9ShI6EjLBr+A=="
+  "_signature": "SrRLdfb0tzexbKlcouZvJP/wQMVv6tki4lHm/IMC9Qad8CdvQZQoEGx/UmmHCY0hUP7cYWNhJP5GJaKZo47tITNi1NNm3zxpBMLU20rFpKFx+DMgClz0yuyOLXRqPdxPn5nSYaRimuUIk4K8ufYbZ1dcUVZbTAvGulXhYSdJupNX/5JVKRd9izz2cYG6xhm3lVWXkrVas2faTrNuC8g4nPG34hg80Ot+zBuzW/qsDU4eMeoViHk8/Kw9Sza/smSem0ndbTvPtv2hhB2w75a6kWaY4iN/+uFT7I9EXQLTq+pxML8vn3Kw1gFSv6HoD3SkirqTArJsLuTw8rdYd9syqA=="
 }

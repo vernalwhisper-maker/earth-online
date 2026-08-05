@@ -128,7 +128,9 @@ export default function RemoteConfigProvider({ currentVersion = '1.4.0', debug =
       onConfigChange: (config) => {
         // Feature flags 会自动通过 isFeatureEnabled 查询生效
         console.log('[RemoteConfig] Config updated, flags:', config.featureFlags);
-        // TOTP 密钥由签名配置下发（换密钥无需重新打包）
+        // TOTP 密钥由签名配置下发（换密钥无需重新打包）。
+        // 注意：此机制仅用于简单加密/调试入口保护，密钥随公开配置下发、前端可读，
+        //    不具备真正的保密性，请勿在生产环境或敏感场景使用。
         if (config.totpSecret) {
           setTotpSecret(config.totpSecret);
         }

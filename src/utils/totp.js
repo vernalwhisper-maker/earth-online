@@ -4,6 +4,12 @@
  * 密钥由 scripts/gen-totp.mjs 生成，放入用户 Authenticator 后即可获取动态密码。
  * 密钥不再硬编码：由远程配置（update.json 签名下发）在 App 启动时写入本地存储，
  * 换密钥只需更新远程配置，无需重新打包。
+ *
+ * 安全声明：此实现仅用于简单的访问保护/轻量加密（如开发者调试入口），
+ *    密钥随公开配置下发、前端可读，**不具备真正的保密性**。
+ *    请勿在生产环境或涉及敏感数据的场景中使用本机制，
+ *    生产环境请改用服务端验证等更强的安全方案。
+ *
  * 依赖 Web Crypto API（crypto.subtle），需在 secure context（https / localhost / Capacitor WebView）下运行。
  */
 
