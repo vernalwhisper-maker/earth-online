@@ -3,11 +3,6 @@
   "minVersion": "0.0.0",
   "forceUpdate": false,
   "downloadUrl": "",
-  "notice": {
-    "title": "APP问题公告",
-    "content": "1.6.5版本出现了3个影响使用体验的BUG将在不久之后推送新的版本1.6.6",
-    "link": ""
-  },
   "debug": {
     "enabled": false,
     "logLevel": "ERROR"
@@ -19,5 +14,5 @@
   },
   "experiments": {},
   "grayscale": {},
-  "_signature": "alHkOqxBTSGfzdFJtWuRKDeGLt1NemNXWhe1FR3VBNvLpp2fLl8anB+FmyjfnKhxdGy5JzudcdexOJo6IOwNWCV1MKEgDCfpXequd6n5J38Sd1qJKsW4Ub+iT5w+lQn/YvaUkx2a+Y+rQK4RKbhlo56UQ9nwvYOaVe4IU9Xm4RxhQ505TDFi0xovn5svVTvEMSDWAvbVp2n9sHnO6M6McWFBHaJsDJ56CQ0esdXemfRBFyYDP73K5Cow0trFrYZOZqyAUto5pxpkO1lg0rXX9ep9LopeYhu8Gog+p+v4ZMhUztdfbmtiC4jsfQ+W8oQ8yQhechVpV9A8FUxxISaJ6w=="
+  "_signature": "hmntuaFsdZgaTeWUOFtcM5lacsi4MvLmEIboJXG8y27hD3e1z31Pf7iZN4VeCY+AX8z17hIVFy0/E8BSd1i9SoIPX3OFX6SH1iq+eXBmfzfXs4+48201ylSVUtBlUO0NTk9apRAzh33xGdjTmzO6xN4v6a9YjBSjAsj6GmGq/cZjo7vZhboODP0HRIIzUtkc/7lz37axVhOzuBVRBcw5jNFfgD/n9XX1kRt3NsWB+hbr+IGEj2WnWey+fHziiM7j7KpID7i3Spvxq29VAXQlZ0Y7rKWCxXO7I6h3eyaDli/zuaJl+SPbVnm/RGWu7XFgf4MWKvMZXET9MAcY8BLL6g=="
 }
