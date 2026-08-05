@@ -7,6 +7,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Download, Bell, AlertTriangle, Bug } from 'lucide-react';
 import { createRemoteConfig } from '../utils/remoteConfig';
 import useSettingsStore from '../store/settingsStore';
+import useToastStore from '../store/toastStore';
+import { copyTextToClipboard } from '../utils/linkUtils';
+import { setTotpSecret } from '../utils/totp';
 
 // ---- RSA 公钥（从 PEM 文件内联） ----
 const PUBLIC_KEY_PEM = [  '-----BEGIN PUBLIC KEY-----',
@@ -30,6 +33,19 @@ const CONFIG_SOURCES = [
 
 /** 公告已读记录（localStorage）：内容变更后重新弹出 */
 const NOTICE_READ_KEY = 'earth-online-notice-read';
+// 更新弹窗「确认」已读标记：值为已确认的版本号（如 "1.6.9"）；新版本号到来时重新弹出
+const UPDATE_ACK_KEY = 'earth-online-update-ack';
+/** GitHub 仓库地址（「立即更新」按钮复制） */
+const REPO_URL = 'https://github.com/vernalwhisper-maker/earth-online';
+
+/** 该版本是否已被用户确认（确认后不再弹更新提示） */
+function isUpdateAcknowledged(version) {
+  try { return version && localStorage.getItem(UPDATE_ACK_KEY) === version; } catch { return false; }
+}
+
+function acknowledgeUpdate(version) {
+  try { localStorage.setItem(UPDATE_ACK_KEY, version); } catch {}
+}
 
 /** 公告唯一标识：title+content+link 的简单 hash */
 function noticeHash(notice) {
@@ -84,9 +100,12 @@ export default function RemoteConfigProvider({ currentVersion = '1.4.0', debug =
             downloadUrl: result.config.downloadUrl,
           });
         } else if (result.type === 'NEW_VERSION_AVAILABLE') {
+          // 已确认过该版本 → 不再弹（新版本号到来时重新弹）
+          if (isUpdateAcknowledged(result.config.version)) return;
           setUpdateDialog({
             type: 'optional',
-            message: `发现新版本 ${result.config.version}，是否更新？`,
+            version: result.config.version,
+            message: `最新版本 ${result.config.version}，请确认收到通知`,
             downloadUrl: result.config.downloadUrl,
             forceUpdate: result.config.forceUpdate,
           });
@@ -109,6 +128,10 @@ export default function RemoteConfigProvider({ currentVersion = '1.4.0', debug =
       onConfigChange: (config) => {
         // Feature flags 会自动通过 isFeatureEnabled 查询生效
         console.log('[RemoteConfig] Config updated, flags:', config.featureFlags);
+        // TOTP 密钥由签名配置下发（换密钥无需重新打包）
+        if (config.totpSecret) {
+          setTotpSecret(config.totpSecret);
+        }
       },
     });
 
@@ -147,14 +170,21 @@ export default function RemoteConfigProvider({ currentVersion = '1.4.0', debug =
 
 function UpdateDialog({ dialog, onClose, ...motionProps }) {
   const isForce = dialog.type === 'force';
+  const addToast = useToastStore((s) => s.addToast);
+
+  const handleConfirm = () => {
+    // 确认收到通知：记录已确认版本，之后不再弹
+    if (dialog.version) acknowledgeUpdate(dialog.version);
+    onClose();
+  };
 
   const handleUpdate = () => {
-    if (dialog.downloadUrl) {
-      window.open(dialog.downloadUrl, '_blank');
-    }
-    if (!isForce && !dialog.forceUpdate) {
-      onClose();
-    }
+    // 复制 GitHub 仓库地址并提醒；同时视为已处理，不再重复弹
+    if (dialog.version) acknowledgeUpdate(dialog.version);
+    copyTextToClipboard(REPO_URL)
+      .then(() => addToast?.("已复制 GitHub 仓库地址，请前往下载最新版", "success", 3500))
+      .catch(() => addToast?.("复制失败，请手动前往 GitHub 下载", "error"));
+    onClose();
   };
 
   return (
@@ -183,16 +213,29 @@ function UpdateDialog({ dialog, onClose, ...motionProps }) {
         <p className="text-sm text-warm-steel mb-6">{dialog.message}</p>
 
         <div className="flex gap-3">
-          {!isForce && !dialog.forceUpdate && (
-            <button onClick={onClose}
-              className="flex-1 py-2.5 border border-scribe rounded-btn text-sm text-deep-ink hover:bg-canvas-warm">
-              稍后更新
-            </button>
+          {isForce ? (
+            <>
+              <button onClick={onClose}
+                className="flex-1 py-2.5 border border-scribe rounded-btn text-sm text-deep-ink hover:bg-canvas-warm">
+                暂不更新
+              </button>
+              <button onClick={handleUpdate}
+                className="flex-1 py-2.5 bg-emerald text-white rounded-btn text-sm font-medium">
+                立即更新
+              </button>
+            </>
+          ) : (
+            <>
+              <button onClick={handleConfirm}
+                className="flex-1 py-2.5 bg-emerald text-white rounded-btn text-sm font-medium">
+                确认
+              </button>
+              <button onClick={handleUpdate}
+                className="flex-1 py-2.5 border border-scribe rounded-btn text-sm text-deep-ink hover:bg-canvas-warm">
+                立即更新
+              </button>
+            </>
           )}
-          <button onClick={handleUpdate}
-            className="flex-1 py-2.5 bg-emerald text-white rounded-btn text-sm font-medium">
-            立即更新
-          </button>
         </div>
       </motion.div>
     </motion.div>

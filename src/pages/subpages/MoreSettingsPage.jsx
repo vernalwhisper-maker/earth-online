@@ -102,7 +102,9 @@ export default function MoreSettingsPage({ onBack }) {
       setAchPwdInput("");
       onBack?.("debug-achievements");
     } else {
-      setAchPwdError("动态密码错误，请重试");
+      // 本地无密钥（首次启动未拉到远程配置）时给出明确提示
+      const { getTotpSecret } = await import("../../utils/totp");
+      setAchPwdError(getTotpSecret() ? "动态密码错误，请重试" : "调试密钥未就绪，请联网后重启应用再试");
     }
   };
 

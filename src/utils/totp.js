@@ -2,10 +2,28 @@
  * TOTP 动态密码校验（RFC 6238，HMAC-SHA1，6 位，30 秒步长）。
  * 用于高级调试入口（成就调试）的访问保护。
  * 密钥由 scripts/gen-totp.mjs 生成，放入用户 Authenticator 后即可获取动态密码。
+ * 密钥不再硬编码：由远程配置（update.json 签名下发）在 App 启动时写入本地存储，
+ * 换密钥只需更新远程配置，无需重新打包。
  * 依赖 Web Crypto API（crypto.subtle），需在 secure context（https / localhost / Capacitor WebView）下运行。
  */
 
-const TOTP_SECRET = "AIA6ZHRTI5CNUDSODOVWEQCSIXMCHCZW";
+// 本地存储中的 TOTP 密钥（由 RemoteConfigProvider 从签名配置写入）
+const TOTP_SECRET_STORAGE_KEY = "earth-online-totp-secret";
+
+/** 读取当前生效的 TOTP 密钥（无则返回 null） */
+export function getTotpSecret() {
+  try { return localStorage.getItem(TOTP_SECRET_STORAGE_KEY) || null; } catch { return null; }
+}
+
+/** 更新 TOTP 密钥（仅在远程配置签名校验通过后由 RemoteConfigProvider 调用） */
+export function setTotpSecret(secret) {
+  if (!secret) return;
+  try {
+    if (localStorage.getItem(TOTP_SECRET_STORAGE_KEY) !== secret) {
+      localStorage.setItem(TOTP_SECRET_STORAGE_KEY, secret);
+    }
+  } catch {}
+}
 
 const BASE32_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 
@@ -26,7 +44,9 @@ function base32Decode(str) {
 
 /** 计算某个时间步（秒）对应的 6 位动态密码 */
 async function totpAt(timeStepSec) {
-  const keyBytes = base32Decode(TOTP_SECRET);
+  const secret = getTotpSecret();
+  if (!secret) return null;
+  const keyBytes = base32Decode(secret);
   if (!keyBytes) return null;
   const msg = new ArrayBuffer(8);
   const view = new DataView(msg);
