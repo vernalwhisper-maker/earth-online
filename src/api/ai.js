@@ -207,11 +207,15 @@ const EXAMPLE = [
 ].join("\n");
 
 // Generate achievement list from the canonical data source (DRY)
-// 隐藏成就（hidden）不进入列表：防止诱导者通过 LLM 探知隐藏成就的存在与名称
+// 包含隐藏成就（解密后下发）：隐藏成就需能被 AI 语义匹配触发；
+// 诱导行为（直接输入成就名/解锁句式）由 filterInduced 统一拦截，不会因此解锁
 function buildAchievementList() {
   return achievementsData
-    .filter((a) => !a.hidden)
-    .map((a) => `${a.id}.${a.name}-${a.description}`)
+    .map((a) => {
+      const name = a.hidden ? decryptText(a.name) : a.name;
+      const desc = a.hidden ? decryptText(a.description) : a.description;
+      return `${a.id}.${name}-${desc}`;
+    })
     .join("\n");
 }
 

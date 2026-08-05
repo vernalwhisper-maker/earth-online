@@ -203,29 +203,30 @@ function HiddenGlow() {
   );
 }
 
-/** 隐藏成就触发动画：灰烬粒子上升 + 金色扫描线 */
+/** 隐藏成就触发动画：灰烬粒子上升 + 金色扫描线（全屏范围） */
 function HiddenFX() {
+  const vh = typeof window !== "undefined" ? window.innerHeight : 800;
   return (
     <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden>
-      {/* 金色扫描线（自顶向下） */}
+      {/* 金色扫描线（自上而下，带淡入淡出） */}
       <motion.div
         className="absolute left-0 right-0 h-[2px]"
-        style={{ background: "linear-gradient(90deg, transparent, rgba(245,190,90,0.6), transparent)" }}
-        initial={{ top: "0%", opacity: 0 }}
-        animate={{ top: ["0%", "100%"], opacity: [0, 1, 0] }}
-        transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut" }}
+        style={{ background: "linear-gradient(90deg, transparent, rgba(245,190,90,0.55), transparent)", filter: "blur(0.5px)" }}
+        initial={{ top: "-5%", opacity: 0 }}
+        animate={{ top: ["-5%", "105%"], opacity: [0, 0.9, 0.9, 0] }}
+        transition={{ duration: 3.2, repeat: Infinity, ease: "easeInOut", times: [0, 0.15, 0.85, 1] }}
       />
-      {/* 黑色灰烬粒子自底部上升 */}
-      {Array.from({ length: 16 }).map((_, i) => (
+      {/* 黑色灰烬粒子：从底部升至屏幕顶部（全屏范围，不再只停留在底部区域） */}
+      {Array.from({ length: 22 }).map((_, i) => (
         <motion.div
           key={i}
           className="absolute w-1.5 h-1.5 rounded-full bg-black"
-          style={{ left: `${5 + Math.random() * 90}%`, bottom: -12 }}
+          style={{ left: `${4 + Math.random() * 92}%`, bottom: -12 }}
           initial={{ y: 0, opacity: 0.85 }}
-          animate={{ y: -120, opacity: 0 }}
+          animate={{ y: -vh - 20, opacity: [0.85, 0.5, 0] }}
           transition={{
-            duration: 1.6 + Math.random() * 1.6,
-            delay: Math.random() * 1.4,
+            duration: 3.5 + Math.random() * 3,
+            delay: Math.random() * 2.5,
             ease: "easeOut",
             repeat: Infinity,
           }}

@@ -132,6 +132,11 @@ export default function App() {
       const handle = await App.addListener("backButton", () => {
         const page = currentPageRef.current;
         if (page === "editor") {
+          // 编辑器内弹窗（更多/导出/删除/语音/总结等）打开时，系统返回优先关闭弹窗而非退出编辑
+          if (window.__editorModalOpen && typeof window.__closeEditorModal === "function") {
+            window.__closeEditorModal();
+            return;
+          }
           setEditingNoteId(null);
           setCurrentPage("home");
           currentPageRef.current = "home";

@@ -9,8 +9,7 @@ import { createRemoteConfig } from '../utils/remoteConfig';
 import useSettingsStore from '../store/settingsStore';
 
 // ---- RSA 公钥（从 PEM 文件内联） ----
-const PUBLIC_KEY_PEM = [
-  '-----BEGIN PUBLIC KEY-----',
+const PUBLIC_KEY_PEM = [  '-----BEGIN PUBLIC KEY-----',
   'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwOZOwl7jEgaMBT7cJ6Sk',
   'I8ysZJTIWBfowc1LXssNV1q0ARyxSkJr380oR5NkleerBn5HUAGjV5j439fVEu5f',
   'O3atofUovV5DsHizYmP0r/IJi4w1Tso6fYOKF1jC844Eq/fJhU53eOGEZCM8ykRr',
@@ -28,6 +27,25 @@ const CONFIG_SOURCES = [
   { name: 'jsdelivr',   url: 'https://cdn.jsdelivr.net/gh/vernalwhisper-maker/earth-online@main/public/update.json' },
   { name: 'github-raw', url: 'https://raw.githubusercontent.com/vernalwhisper-maker/earth-online/main/public/update.json' },
 ];
+
+/** 公告已读记录（localStorage）：内容变更后重新弹出 */
+const NOTICE_READ_KEY = 'earth-online-notice-read';
+
+/** 公告唯一标识：title+content+link 的简单 hash */
+function noticeHash(notice) {
+  const s = `${notice?.title || ''}|${notice?.content || ''}|${notice?.link || ''}`;
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return String(h);
+}
+
+function isNoticeRead(hash) {
+  try { return localStorage.getItem(NOTICE_READ_KEY) === hash; } catch { return false; }
+}
+
+function markNoticeRead(hash) {
+  try { localStorage.setItem(NOTICE_READ_KEY, hash); } catch {}
+}
 
 /**
  * RemoteConfigProvider 组件。
@@ -76,6 +94,8 @@ export default function RemoteConfigProvider({ currentVersion = '1.4.0', debug =
       },
 
       onNotice: (notice) => {
+        // 已读的公告不重复弹出（内容变更后 hash 变化会重新弹）
+        if (isNoticeRead(noticeHash(notice))) return;
         setNoticeDialog(notice);
       },
 
@@ -110,7 +130,10 @@ export default function RemoteConfigProvider({ currentVersion = '1.4.0', debug =
       {/* 公告弹窗 */}
       <AnimatePresence>
         {noticeDialog && (
-          <MotionNoticeDialog key="notice" notice={noticeDialog} onClose={() => setNoticeDialog(null)}
+          <MotionNoticeDialog key="notice" notice={noticeDialog} onClose={() => {
+            markNoticeRead(noticeHash(noticeDialog));
+            setNoticeDialog(null);
+          }}
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} />
         )}
       </AnimatePresence>
