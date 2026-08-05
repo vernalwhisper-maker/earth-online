@@ -1,6 +1,9 @@
 // 语音转文字工具
 
+import { Capacitor, registerPlugin } from "@capacitor/core";
 import { Converter } from "opencc-js";
+
+const SpeechPlugin = registerPlugin("SpeechPlugin");
 
 let _converter = null;
 function getConverter() {
@@ -21,9 +24,49 @@ function toSimplified(text) {
 
 /**
  * 使用浏览器 Web Speech API 进行实时语音识别。
- * 返回一个控制对象 { start, stop, isSupported }。
+ * 返回一个控制对象 { start, stop, abort, isSupported }。
+ * APP 端（Capacitor）使用原生 SpeechPlugin（Android SpeechRecognizer，需麦克风权限）。
  */
 export function createSpeechRecognizer({ onResult, onError, language = "zh-CN" }) {
+  // ── APP 端：原生语音识别 ──
+  if (Capacitor.isNativePlatform()) {
+    let listeners = [];
+    const detach = () => {
+      listeners.forEach((l) => { try { l.remove(); } catch {} });
+      listeners = [];
+    };
+    return {
+      isSupported: true,
+      start: async () => {
+        try {
+          const perm = await SpeechPlugin.requestPermissions();
+          if (perm.recordAudio !== "granted") {
+            onError?.("需要麦克风权限，请在系统设置中允许");
+            return;
+          }
+          detach();
+          listeners = [
+            SpeechPlugin.addListener("partial", (d) => onResult?.({ final: "", interim: toSimplified(d.text || "") })),
+            SpeechPlugin.addListener("result", (d) => onResult?.({ final: toSimplified(d.text || ""), interim: "" })),
+            SpeechPlugin.addListener("error", (d) => onError?.(d.message || "语音识别错误")),
+          ];
+          await SpeechPlugin.start({ language });
+        } catch (e) {
+          onError?.(e?.message || "语音识别启动失败");
+        }
+      },
+      stop: async () => {
+        try { await SpeechPlugin.stop(); } catch {}
+        detach();
+      },
+      abort: async () => {
+        try { await SpeechPlugin.stop(); } catch {}
+        detach();
+      },
+    };
+  }
+
+  // ── Web 端：Web Speech API ──
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRecognition) {
     return {

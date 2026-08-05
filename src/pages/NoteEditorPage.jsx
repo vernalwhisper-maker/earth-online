@@ -7,15 +7,14 @@ import {
 import { Filesystem, Directory } from "@capacitor/filesystem";
 import { exportToEonBlob, generateMarkdownFilename, exportNoteToMarkdown } from "../utils/notesFile";
 import { isCapacitor, blobToBase64, saveFileToDownloads, downloadBlobInBrowser } from "../utils/exportFile";
-import { createSpeechRecognizer, summarizeText } from "../utils/stt";
-import { stripAISummaryMarkers } from "../utils/aiChat";
+import { createSpeechRecognizer } from "../utils/stt";
+import { stripAISummaryMarkers, generateSummary } from "../utils/aiChat";
 import useToastStore from "../store/toastStore";
 import useNoteStore from "../store/noteStore";
 import useAchievementStore from "../store/achievementStore";
 import useSettingsStore from "../store/settingsStore";
 import { matchAchievements } from "../api/ai";
 import { storeMediaFile } from "../utils/mediaStorage";
-import { API_PROVIDERS } from "../config/api";
 import { NOTE_TYPES, NOTE_TYPE_KEYS, BG_COLORS, DEFAULT_FOLDERS } from "../data/noteTypes";
 import TodoChecklist from "../components/todo/TodoChecklist";
 import MarkdownEditor from "../components/editor/MarkdownEditor";
@@ -39,7 +38,7 @@ export default function NoteEditorPage({ noteId, onBack }) {
   const saveNoteToStore = useNoteStore((s) => s.saveNote);
   const deleteNoteFromStore = useNoteStore((s) => s.deleteNote);
   const batchUnlock = useAchievementStore((s) => s.batchUnlock);
-  const { modelProvider, apiKey, inference } = useSettingsStore();
+  const { modelProvider, apiKey, inference, voiceRecognitionEnabled } = useSettingsStore();
   const cardExpandAnim = useSettingsStore((s) => s.cardExpandAnim);
 
   const [title, setTitle] = useState("");
@@ -446,6 +445,24 @@ export default function NoteEditorPage({ noteId, onBack }) {
     setShowSpeechModal(false);
   };
 
+  // ── 系统返回键：编辑器内弹窗打开时优先关闭弹窗（App.jsx backButton 检测 window.__editorModalOpen）──
+  const editorModalOpen = showDeleteConfirm || showExportMenu || showExportPwd || showSpeechModal || showSummaryModal;
+  const handleBackCloseModal = () => {
+    if (showExportMenu) setShowExportMenu(false);
+    else if (showExportPwd) setShowExportPwd(false);
+    else if (showDeleteConfirm) setShowDeleteConfirm(false);
+    else if (showSpeechModal) setShowSpeechModal(false);
+    else if (showSummaryModal) setShowSummaryModal(false);
+  };
+  useEffect(() => {
+    window.__editorModalOpen = editorModalOpen;
+    window.__closeEditorModal = editorModalOpen ? handleBackCloseModal : null;
+    return () => {
+      window.__editorModalOpen = false;
+      window.__closeEditorModal = null;
+    };
+  }, [editorModalOpen]);
+
   // 组件卸载时中止语音识别，避免麦克风持续占用与对已卸载组件 setState
   useEffect(() => {
     return () => {
@@ -488,7 +505,7 @@ export default function NoteEditorPage({ noteId, onBack }) {
     setIsListening(true);
   };
 
-  // AI 总结
+  // AI 总结（支持当前 useMode：WebLLM 本地模型 / Ollama / 云端 API）
   const handleSummarize = async () => {
     // 过滤掉笔记中已有的 AI 总结标记（避免重复/空标记影响）
     const rawContent = useMarkdown ? markdownContent : body;
@@ -497,9 +514,9 @@ export default function NoteEditorPage({ noteId, onBack }) {
       addToast?.("笔记内容为空，无法总结", "error");
       return;
     }
-    // 先检查 API Key，避免弹窗闪现
-    const { apiKey: curKey } = useSettingsStore.getState();
-    if (!curKey) {
+    // 云端模式需要 API Key；本地模式（webllm/ollama）不需要
+    const { apiKey, modelProvider, inference, useMode } = useSettingsStore.getState();
+    if (useMode !== "webllm" && useMode !== "ollama" && !apiKey) {
       addToast?.("请先在设置中配置 API Key", "error");
       return;
     }
@@ -507,9 +524,7 @@ export default function NoteEditorPage({ noteId, onBack }) {
     setSummaryResult("");
     setSummarizing(true);
     try {
-      const { apiKey, modelProvider } = useSettingsStore.getState();
-      const cfg = API_PROVIDERS[modelProvider] || API_PROVIDERS.deepseek;
-      const summary = await summarizeText(content, apiKey, cfg.endpoint, cfg.model);
+      const summary = await generateSummary(content, apiKey, modelProvider, inference);
       // 总结为空/失败：不插入空标记
       if (!summary || !summary.trim()) {
         addToast?.("AI 总结失败，请稍后重试", "error");
@@ -592,11 +607,14 @@ export default function NoteEditorPage({ noteId, onBack }) {
             className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
             <ArrowLeft size={20} className="text-warm-steel" />
           </button>
-          <button onClick={toggleSpeechRecognition}
-            className={"w-8 h-8 flex items-center justify-center rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors " + (isListening ? "text-emerald" : "")}
-            title={isListening ? "停止听写" : "语音听写"}>
-            <Mic size={16} className={isListening ? "text-emerald" : "text-warm-steel"} />
-          </button>
+          {/* 语音听写（开关关闭时不显示图标） */}
+          {voiceRecognitionEnabled && (
+            <button onClick={toggleSpeechRecognition}
+              className={"w-8 h-8 flex items-center justify-center rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors " + (isListening ? "text-emerald" : "")}
+              title={isListening ? "停止听写" : "语音听写"}>
+              <Mic size={16} className={isListening ? "text-emerald" : "text-warm-steel"} />
+            </button>
+          )}
           <button onClick={handleSummarize} disabled={summarizing}
             className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
             title={summarizing ? "正在总结..." : "AI 总结"}>

@@ -65,6 +65,15 @@ export default function AIAssistant({ noteId, notes = [], folders = [], noteTitl
 
     // WebLLM 引擎未就绪：自动初始化（离线模型命中缓存则不联网），失败展示具体原因
     if (useMode === "webllm" && !webllmReadyRef.current) {
+      // 模型已被删除（未导入也未下载）：不进入初始化流程，直接提示未安装
+      const wlState = useSettingsStore.getState();
+      if (!wlState.webllmImported && !wlState.webllmDownloaded) {
+        setMessages(prev => [...prev, {
+          noteId, role: "assistant",
+          content: "**未安装本地模型**：当前没有可用的 WebLLM 模型（未导入也未下载）。\n\n请到 **设置 → AI 设置 → WebLLM** 下载或从本地导入模型后再使用。"
+        }]);
+        return;
+      }
       setMessages(prev => [...prev, {
         noteId, role: "assistant",
         content: "**正在初始化本地模型**（离线模型无需网络），请稍候…"

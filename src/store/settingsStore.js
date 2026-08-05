@@ -40,6 +40,8 @@ const useSettingsStore = create((set, get) => ({
   webllmImportedModel: "",
   webllmDownloaded: false,
   webllmLoading: false,
+  // 语音识别开关（默认关闭：语音识别功能暂不可用，关闭时编辑页语音图标隐藏）
+  voiceRecognitionEnabled: false,
   advancedDebug: false,
   debugFABEnabled: false,
   debugTagBarEnabled: false,
@@ -88,12 +90,14 @@ const useSettingsStore = create((set, get) => ({
     const debugNavBarEnabled = (await getSetting("debugNavBarEnabled")) ?? false;
     const debugFabGlassEnabled = (await getSetting("debugFabGlassEnabled")) ?? false;
     const windowDebugEnabled = (await getSetting("windowDebugEnabled")) ?? false;
+    const voiceRecognitionEnabled = (await getSetting("voiceRecognitionEnabled")) ?? false;
     const tagBarStyle = (await getSetting("tagBarStyle")) || "auto";
     set({ modelProvider: provider, apiKey, inference, tabBarOpacity, darkMode: darkMode, showAIAssistant, deepThinking, reduceMotion, cardExpandAnim,
       useMirror,
       useMode, localEndpoint, localModel, webllmModel, webllmDownloaded,
       webllmSource, webllmCustomUrl, webllmImported, webllmImportedModel,
       advancedDebug, debugFABEnabled, debugTagBarEnabled, debugNavBarEnabled, debugFabGlassEnabled, windowDebugEnabled, tagBarStyle,
+      voiceRecognitionEnabled,
       // 若调试总开关已开启，恢复卡片入口状态，避免"调试生效但入口消失"
       devUnlocked: advancedDebug, devCardOpen: advancedDebug,
       loaded: true });
@@ -235,6 +239,11 @@ const useSettingsStore = create((set, get) => ({
   setDebugFabGlassEnabled: async (value) => {
     await setSetting("debugFabGlassEnabled", value);
     set({ debugFabGlassEnabled: value });
+  },
+
+  setVoiceRecognitionEnabled: async (value) => {
+    await setSetting("voiceRecognitionEnabled", value);
+    set({ voiceRecognitionEnabled: value });
   },
 
   setWindowDebugEnabled: async (value) => {

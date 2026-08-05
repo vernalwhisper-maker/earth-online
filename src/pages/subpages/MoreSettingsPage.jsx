@@ -23,6 +23,7 @@ export default function MoreSettingsPage({ onBack }) {
     debugNavBarEnabled, setDebugNavBarEnabled,
     debugFabGlassEnabled, setDebugFabGlassEnabled,
     windowDebugEnabled, setWindowDebugEnabled,
+    voiceRecognitionEnabled, setVoiceRecognitionEnabled,
     tagBarStyle, setTagBarStyle,
     devUnlocked, setDevUnlocked,
     devCardOpen, setDevCardOpen,
@@ -40,6 +41,7 @@ export default function MoreSettingsPage({ onBack }) {
   const [loadingDownloads, setLoadingDownloads] = useState(false);
   const [showExportFormat, setShowExportFormat] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [showVoiceUnavailable, setShowVoiceUnavailable] = useState(false);
   const [pwdInput, setPwdInput] = useState("");
   const [pwdError, setPwdError] = useState("");
   const fileInputRef = useRef(null);
@@ -293,6 +295,16 @@ export default function MoreSettingsPage({ onBack }) {
             </div>
           )}
 
+          {/* 语音识别不可用提示弹窗 */}
+          <GlassModal show={showVoiceUnavailable} onClose={() => setShowVoiceUnavailable(false)}>
+            <h3 className="text-lg font-bold text-deep-ink mb-2">语音识别暂不可用</h3>
+            <p className="text-sm text-warm-steel mb-4">该模式目前无法正常使用，请等待后续版本支持。</p>
+            <button onClick={() => setShowVoiceUnavailable(false)}
+              className="w-full py-2.5 rounded-btn text-sm font-medium bg-emerald text-white">
+              知道了
+            </button>
+          </GlassModal>
+
           {/* 导出格式选择 */}
           <GlassModal show={showExportFormat} onClose={() => setShowExportFormat(false)}>
             <h3 className="text-lg font-bold text-deep-ink mb-2">导出笔记</h3>
@@ -325,6 +337,25 @@ export default function MoreSettingsPage({ onBack }) {
             className="w-full flex items-center justify-between px-3 py-3 rounded-btn hover:bg-red-50 transition-colors">
             <span className="text-sm text-rose">清空数据</span><Trash2 size={18} className="text-rose" />
           </button>
+        </div>
+      </section>
+
+      {/* 语音识别开关 — 默认关闭；该功能当前无法正常使用，打开时弹窗提示 */}
+      <section className="bg-surface rounded-card border border-scribe p-4 mb-4">
+        <h2 className="text-xs font-mono uppercase tracking-wider text-faded-slate mb-4">语音识别</h2>
+        <div className="flex items-center justify-between">
+          <div className="pr-3">
+            <p className="text-sm text-deep-ink">开启语音识别</p>
+            <p className="text-[11px] text-warm-steel mt-0.5">关闭后编辑页面的语音听写图标不显示</p>
+          </div>
+          <GlassSwitch value={voiceRecognitionEnabled} onChange={async (v) => {
+            // 该功能当前无法正常使用：打开时弹窗提示并保持关闭
+            if (v) {
+              setShowVoiceUnavailable(true);
+              return;
+            }
+            await setVoiceRecognitionEnabled(false);
+          }} />
         </div>
       </section>
 
