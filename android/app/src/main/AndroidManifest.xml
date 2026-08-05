@@ -45,4 +45,6 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+<!-- 语音识别（实时听写） -->
+<uses-permission android:name="android.permission.RECORD_AUDIO" />
 </manifest>
