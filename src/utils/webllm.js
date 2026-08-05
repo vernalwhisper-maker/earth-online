@@ -140,16 +140,19 @@ export async function initWebLLM(modelId, onProgress, onCancel) {
     if (!webllmModule) {
       webllmModule = await import("@mlc-ai/web-llm");
     }
-    const createPromise = webllmModule.CreateMLCEngine(
-      modelId || DEFAULT_MODEL,
-      {
-        // 指定模型权重目录与 wasm 运行时库（下载源：国际/镜像/自定义；镜像时 wasm 走 jsDelivr 免 VPN）
+    const id = modelId || DEFAULT_MODEL;
+    const mirrorUrl = `https://hf-mirror.com/mlc-ai/${id}/resolve/main/`;
+    const primaryUrl = getModelSourceUrl(id);
+
+    const createEngine = (url) =>
+      webllmModule.CreateMLCEngine(id, {
+        // 指定模型权重目录与 wasm 运行时库（下载源：国际/镜像/自定义；镜像时 wasm 走同源路径免 VPN）
         appConfig: {
           model_list: [
             {
-              model_id: modelId || DEFAULT_MODEL,
-              model: getModelSourceUrl(modelId),
-              model_lib: getModelLibUrl(modelId),
+              model_id: id,
+              model: url,
+              model_lib: getModelLibUrl(id),
             },
           ],
         },
@@ -161,22 +164,39 @@ export async function initWebLLM(modelId, onProgress, onCancel) {
           downloadProgress = pct;
           onProgress?.(pct, report.text);
         },
-      }
-    ).then((eng) => {
-      // 引擎创建完成但期间已被取消 → 立即卸载，避免残留引擎占用内存
-      if (cancelRequested) {
-        try { eng?.unload?.(); } catch {}
-        return null;
-      }
-      return eng;
-    });
+      }).then((eng) => {
+        // 引擎创建完成但期间已被取消 → 立即卸载，避免残留引擎占用内存
+        if (cancelRequested) {
+          try { eng?.unload?.(); } catch {}
+          return null;
+        }
+        return eng;
+      });
 
-    engine = await Promise.race([createPromise, cancelPromise]);
+    // 候选下载源：用户配置的主源；主源失败（如国内网络 HF 不可达）且主源不是 mirror 时，自动降级国内镜像重试一次
+    const candidateUrls = primaryUrl === mirrorUrl ? [primaryUrl] : [primaryUrl, mirrorUrl];
+
+    let lastErr = null;
+    engine = null;
+    for (const url of candidateUrls) {
+      try {
+        engine = await Promise.race([createEngine(url), cancelPromise]);
+        if (engine) break;
+      } catch (err) {
+        lastErr = err;
+        console.warn("WebLLM create failed, will retry:", url, err?.message);
+        if (cancelRequested) break; // 用户取消则不重试
+      }
+    }
+
     if (!engine) {
       engineReady = false;
+      if (lastErr?.message !== "Download cancelled by user") {
+        lastError = (lastErr?.message || String(lastErr)) + `（模型源: ${primaryUrl}${candidateUrls.length > 1 ? "，已自动尝试国内镜像 hf-mirror" : ""}）`;
+      }
       return false;
     }
-    loadedModelId = modelId;
+    loadedModelId = id;
     engineReady = true;
     return true;
   } catch (err) {
@@ -206,14 +226,20 @@ export function wasCancelled() {
 
 /**
  * 彻底删除指定模型的本地缓存（按模型 URL 前缀精确删除，不影响其他已导入模型）。
- * 清理 tvmjs（权重）与 webllm/config（配置）中属于该模型的条目，并重置引擎状态。
+ * 清理 webllm/model（权重/tokenizer）与 webllm/config（配置）中属于该模型的条目，
+ * 并兼容清理旧版本的 tvmjs scope；重置引擎状态。
  * @returns {Promise<number>} 删除的缓存条目数
  */
 export async function deleteModelCache(modelId) {
   const id = modelId || DEFAULT_MODEL;
   const marker = `/mlc-ai/${id}/`;
   let deleted = 0;
-  for (const scope of ["tvmjs", "webllm/config"]) {
+  // 0. 使用 WebLLM 内置删除：清掉 IndexedDB 中该模型的引擎信息（缓存删除无法覆盖的部分）
+  try {
+    const mod = await import("@mlc-ai/web-llm");
+    if (mod.deleteModelAllInfoInCache) await mod.deleteModelAllInfoInCache(id);
+  } catch {}
+  for (const scope of ["webllm/model", "webllm/config", "tvmjs"]) {
     try {
       const cache = await caches.open(scope);
       const keys = await cache.keys();
@@ -310,20 +336,27 @@ export async function importModelFromZip(file, modelId, onProgress) {
 }
 
 /**
- * 根据文件名决定写入哪个 Cache Storage scope（与 web-llm 加载时使用的 scope 一致）：
- * - tvmjs：权重分片 params_shard_*.bin + ndarray-cache.json + tensor-cache.json
- * - webllm/config：mlc-chat-config.json + tokenizer/vocab/merges
+ * 根据文件名决定写入哪个 Cache Storage scope（与 web-llm 0.2.7x+ 加载时使用的 scope 一致）：
+ * - webllm/model：权重分片 params_shard_*.bin + tensor-cache.json/ndarray-cache.json + tokenizer/vocab/merges
+ * - webllm/config：mlc-chat-config.json
  * （wasm 运行时库已随应用自带，无需导入）
+ * 注意：web-llm 的 LLMChatPipeline 通过 hasModelInCache/fetchTensorCache/asyncLoadTokenizer
+ * 全部从 "webllm/model" scope 读取（webllm/config 只存 mlc-chat-config.json），
+ * 写错 scope 会导致缓存 miss → 初始化时联网下载。
  */
 function getWebLLMCacheScope(name) {
   const base = (name.split("/").pop() || name).toLowerCase();
-  if (/^params_shard_.*\.bin$/.test(base) || base === "ndarray-cache.json" || base === "tensor-cache.json") return "tvmjs";
-  if (/^mlc-chat-config\.json$/.test(base) || /^tokenizer/.test(base) || base === "vocab.json" || base === "merges.txt") return "webllm/config";
+  if (/^params_shard_.*\.bin$/.test(base) || base === "ndarray-cache.json" || base === "tensor-cache.json") return "webllm/model";
+  if (/^mlc-chat-config\.json$/.test(base)) return "webllm/config";
+  if (/^tokenizer/.test(base) || base === "vocab.json" || base === "merges.txt" || base === "added_tokens.json") return "webllm/model";
   return null;
 }
 
 /** WebLLM 使用的 Cache Storage scope 清单（清理/扫描只针对这些，避免误删 PWA 等其他缓存） */
-const WEBLLM_CACHE_SCOPES = ["tvmjs", "webllm/config", "webllm/wasm"];
+// 注意：webllm/wasm 是应用自带运行时资源（public/webllm/wasm/），清理缓存时**保留**该 scope，
+// 避免清理后 wasm 需要从网络重新拉取（APP 端可能失败导致模型无法使用）
+// tvmjs 是 web-llm 0.2.7x 之前的旧缓存 scope（旧版本导入/下载的数据），一并清理避免残留
+const WEBLLM_CACHE_SCOPES = ["webllm/model", "webllm/config", "tvmjs"];
 
 /** 彻底清除所有 WebLLM 缓存（全部模型 + wasm），并重置内存引擎状态 */
 export async function clearModelCache(modelId) {
@@ -357,6 +390,9 @@ export async function scanModelCache(modelId) {
   const s = useSettingsStore.getState ? useSettingsStore.getState() : {};
   // 当前在用/已导入的模型 ID（其缓存属于正常数据，不算残留）
   const inUseId = s.webllmImportedModel || modelId || DEFAULT_MODEL;
+  // 模型是否仍处于"已导入/已下载"状态：删除模型后该状态为 false，
+  // 此时即使 URL 匹配也一律视为残留（否则清理按钮会被禁用导致 844MB 残留清不掉）
+  const hasModel = s.webllmImported === true || s.webllmDownloaded === true;
   const residues = [];
   try {
     // 只统计 WebLLM 专用 Cache Storage scope
@@ -370,7 +406,7 @@ export async function scanModelCache(modelId) {
           try { const r = await cache.match(req); if (r) totalSize += (await r.blob()).size; } catch {}
         }
         const sizeLabel = totalSize > 1048576 ? (totalSize / 1048576).toFixed(1) + "MB" : (totalSize / 1024).toFixed(1) + "KB";
-        const inUse = requests.some((r) => r.url.includes(`/mlc-ai/${inUseId}/`));
+        const inUse = hasModel && requests.some((r) => r.url.includes(`/mlc-ai/${inUseId}/`));
         residues.push({ type: "Cache Storage", name: scope, size: requests.length + "项 / " + sizeLabel, inUse });
       } catch {}
     }

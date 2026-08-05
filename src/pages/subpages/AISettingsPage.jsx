@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, RotateCcw, Wifi, Cpu, Smartphone, Download, Check, X, CheckCircle, AlertCircle, Loader, Upload } from "lucide-react";
+import { ArrowLeft, RotateCcw, Wifi, Cpu, Smartphone, Download, Check, X, CheckCircle, AlertCircle, Loader, Upload, Clock } from "lucide-react";
 import RangeSlider from "../../components/ui/RangeSlider";
 import GlassSwitch from "../../components/ui/GlassSwitch";
 import GlassModal from "../../components/ui/GlassModal";
@@ -118,6 +118,8 @@ export default function AISettingsPage({ onBack }) {
 
   // WebLLM 引擎测试：点击时主动初始化引擎并验证（比只查内存状态更真实）
   const [webllmTestError, setWebllmTestError] = useState("");
+  // 引擎是否已就绪（导入后未初始化成功时不显示"离线可用"）
+  const [wlReady, setWlReady] = useState(false);
 
   const testWebLLM = async () => {
     setWebllmTestStatus("testing");
@@ -131,16 +133,23 @@ export default function AISettingsPage({ onBack }) {
     }
     try {
       const { ensureEngine, getLastError } = await import("../../utils/webllm");
-      const ok = await ensureEngine();
+      // 超时保护：网络挂起时避免一直卡在"检测中"
+      const ok = await Promise.race([
+        ensureEngine(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("检测超时（45 秒），请检查网络或切换下载源")), 45000)),
+      ]);
       if (ok) {
         setWebllmTestStatus("ok");
+        setWlReady(true);
       } else {
         setWebllmTestStatus("fail");
         setWebllmTestError(getLastError() || "引擎初始化失败");
+        setWlReady(false);
       }
     } catch (err) {
       setWebllmTestStatus("fail");
       setWebllmTestError(err?.message || "引擎初始化异常");
+      setWlReady(false);
     }
   };
 
@@ -188,6 +197,7 @@ export default function AISettingsPage({ onBack }) {
     await store.setWebllmDownloaded(false);
     await store.setWebllmImported(false);
     await store.setWebllmImportedModel("");
+    setWlReady(false);
     store.resetWebllmDownload();
     setImportResult({ ok: true, message: `已彻底删除模型（清理 ${deleted} 个缓存条目）` });
   };
@@ -222,8 +232,10 @@ export default function AISettingsPage({ onBack }) {
           await store.setWebllmSource("hf");
         }
         if (initOk) {
+          setWlReady(true);
           setImportResult({ ok: true, message: `导入完成，模型已就绪（离线可用）：${importedId}（${res.files} 个文件）` });
         } else {
+          setWlReady(false);
           setImportResult({ ok: false, message: `导入完成（${res.files} 个文件），但引擎初始化失败：${getLastError() || "未知错误"}（可在 AI 助手聊天时自动重试）` });
         }
       } else {
@@ -249,6 +261,7 @@ export default function AISettingsPage({ onBack }) {
   const handleCleanResidue = async () => {
     const { clearModelCache } = await import("../../utils/webllm");
     await clearModelCache(store.webllmModel);
+    setWlReady(false);
     setScanResults([]);
   };
 
@@ -469,11 +482,13 @@ export default function AISettingsPage({ onBack }) {
               </div>
             </div>
 
-            {/* 已导入模型状态（按模型区分） */}
+            {/* 已导入模型状态（按模型区分；引擎未初始化成功时不显示"离线可用"） */}
             {store.webllmImported && store.webllmImportedModel === store.webllmModel && (
-              <div className="flex items-center gap-2 p-3 rounded-xl bg-emerald/5 border border-emerald/20">
-                <Check size={15} className="text-emerald shrink-0" />
-                <span className="text-xs text-emerald font-medium">已离线导入当前模型（离线可用）</span>
+              <div className={"flex items-center gap-2 p-3 rounded-xl border " + (wlReady ? "bg-emerald/5 border-emerald/20" : "bg-amber/5 border-amber/30")}>
+                {wlReady ? <Check size={15} className="text-emerald shrink-0" /> : <Clock size={15} className="text-amber shrink-0" />}
+                <span className={"text-xs font-medium " + (wlReady ? "text-emerald" : "text-amber")}>
+                  {wlReady ? "已离线导入当前模型（离线可用）" : "已导入当前模型（未初始化，可在 AI 助手聊天时自动初始化）"}
+                </span>
               </div>
             )}
             {store.webllmImported && store.webllmImportedModel && store.webllmImportedModel !== store.webllmModel && (
@@ -531,7 +546,7 @@ export default function AISettingsPage({ onBack }) {
                 <div className="flex items-center justify-between p-3 rounded-xl bg-emerald/5 border border-emerald/20">
                   <div className="flex items-center gap-2">
                     <Check size={16} className="text-emerald" />
-                    <span className="text-sm text-emerald font-medium">{store.webllmImported && store.webllmImportedModel === store.webllmModel ? "模型已就绪（离线）" : "模型已下载"}</span>
+                    <span className="text-sm text-emerald font-medium">{store.webllmImported && store.webllmImportedModel === store.webllmModel ? (wlReady ? "模型已就绪（离线）" : "已导入（未初始化）") : "模型已下载"}</span>
                   </div>
                   <button onClick={handleDeleteModel}
                     className="text-xs text-rose bg-rose/10 px-3 py-1.5 rounded-full hover:bg-rose/20 transition-colors">删除模型</button>
